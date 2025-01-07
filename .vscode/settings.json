@@ -1,0 +1,7 @@
+{
+    "typescript.disableAutomaticTypeAcquisition": true,
+    "emmet.includeLanguages": {
+        "javascript": "javascriptreact"
+    },
+    "emmet.triggerExpansionOnTab": true,
+}

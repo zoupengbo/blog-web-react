@@ -1,26 +1,23 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React from "react";
+import { PageLeft } from "./layout/page-left";
+import { BrowserRouter as Router } from "react-router-dom";
+import { PageTop } from "./layout/page-top";
+import { PageContent } from "./layout/page-content";
+// 引入富文本编辑器的样式文件
+import "react-quill/dist/quill.bubble.css";
+import "quill/dist/quill.snow.css";
+import "./App.scss";
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+const App: React.FC = () => (
+  <div className="App">
+    <PageTop />
+    <div className="App-bottom">
+      <Router>
+        <PageLeft />
+        <PageContent/>
+      </Router>
     </div>
-  );
-}
+  </div>
+);
 
 export default App;
