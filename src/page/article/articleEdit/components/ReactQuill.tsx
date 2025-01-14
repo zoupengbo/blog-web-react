@@ -13,7 +13,7 @@ const ReactQuillEditor:React.FC<ReactQuillProps> = ({value,onChange}) => {
   })
   return (
     <div className="react-quill-wrap">
-      <h2 className="title">富文本编辑器</h2>
+      <h2 className="title">文章正文</h2>
       <div className="quill-editor-wrap">
         <ReactQuill theme="snow" value={editValue} style={{ height: "600px",marginBottom: "60px"}} onChange={onChange} />
       </div>

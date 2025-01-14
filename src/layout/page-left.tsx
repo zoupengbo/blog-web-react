@@ -30,6 +30,9 @@ const items: MenuItem[] = [
     getItem("文章编辑", "/"),
     getItem("文章管理", "2"),
   ]),
+  getItem("笑话模块", "sub2", <AppstoreOutlined />, [
+    getItem("笑话列表", "3"),
+  ]),
 ];
 
 const PageLeft: React.FC = () => {
@@ -42,6 +45,7 @@ const PageLeft: React.FC = () => {
   const navigate = useNavigate();
 
   const handleClick: MenuProps["onClick"] = (e) => {
+    debugger
     navigate(e.key); // 导航到对应的路由
   };
 

@@ -54,6 +54,7 @@ const ArticleEdit: React.FC = () => {
 
   // 显示新建弹窗
   const addArticle = () => {
+    setEditData(null); // 清空编辑数据
     setOpen(true);
   };
   // 关闭新建弹窗
@@ -68,7 +69,7 @@ const ArticleEdit: React.FC = () => {
   // 编辑文章
   const handleUpdate = (data: DataType) => {
     setEditData(data);
-    addArticle();
+    setOpen(true);
   }
   useEffect(() => {
     // 在组件挂载后执行的逻辑
