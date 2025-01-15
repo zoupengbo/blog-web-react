@@ -45,7 +45,6 @@ const PageLeft: React.FC = () => {
   const navigate = useNavigate();
 
   const handleClick: MenuProps["onClick"] = (e) => {
-    debugger
     navigate(e.key); // 导航到对应的路由
   };
 

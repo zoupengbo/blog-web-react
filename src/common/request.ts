@@ -10,6 +10,7 @@ declare module "axios" {
     res: any;
     error: null;
     msg: string;
+    count?: number;
   }
   export function create(config?: AxiosRequestConfig): AxiosInstance;
 }

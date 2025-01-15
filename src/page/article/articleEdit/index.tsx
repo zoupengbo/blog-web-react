@@ -20,6 +20,7 @@ const ArticleEdit: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<DataType[]>([]);
   const [editData, setEditData] = useState<any>(null);
+  const [total, setTotal] = useState<number>(0);
   const size = "large";
   const getArticleList = (page: number = 0, pageSize: number = 10) => {
     httpService("/articlelist", {
@@ -28,7 +29,9 @@ const ArticleEdit: React.FC = () => {
         limit: pageSize,
       },
     }).then((res) => {
-      console.log(res.data);
+      console.log("🚀 ~ getArticleList ~ res:", res)
+      
+      setTotal(res.count as number);
       setData(res.data);
     });
   };
@@ -84,7 +87,7 @@ const ArticleEdit: React.FC = () => {
       </div>
       <Table
         dataSource={data}
-        pagination={{ pageSize: 10, total: 12 }}
+        pagination={{ pageSize: 10, total: total }}
         onChange={pageChange}
       >
         <Column title="标题" dataIndex="title" key="title" />
