@@ -26,8 +26,8 @@ function getItem(
 }
 
 const items: MenuItem[] = [
+  getItem("首页", "/", <AppstoreOutlined />),
   getItem("文章模块", "sub1", <AppstoreOutlined />, [
-    getItem("文章编辑", "/"),
     getItem("文章管理", "2"),
   ]),
   getItem("笑话模块", "sub2", <AppstoreOutlined />, [

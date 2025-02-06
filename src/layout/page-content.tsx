@@ -3,11 +3,16 @@ import React from "react";
 import { Route, Routes } from "react-router-dom";
 import { ArticleEdit } from "../page/article/articleEdit/index.tsx";
 import { JokeModule } from "../page/article/jokeModule/index.tsx";
+import { AccessManager } from "../page/count/accessManager/index.tsx";
 
 const PageContent: React.FC = () => {
   const routes = [
     {
       path: "/",
+      element: <AccessManager />,
+    },
+    {
+      path: "/2",
       element: <ArticleEdit />,
     },
     {

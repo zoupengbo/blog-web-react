@@ -82,7 +82,7 @@ const JokeModule: React.FC = () => {
           style={{ width: 200, marginRight: 16 }}
         />
         <Button type="primary" onClick={handleButtonClick}>
-          提交
+          开始爬虫
         </Button>
       </div>
       <Table
