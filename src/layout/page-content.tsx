@@ -6,6 +6,8 @@ import { JokeModule } from "../page/article/jokeModule/index.tsx";
 import { AccessManager } from "../page/count/accessManager/index.tsx";
 
 const PageContent: React.FC = () => {
+  const isAuthenticated = false;
+
   const routes = [
     {
       path: "/",
@@ -29,7 +31,7 @@ const PageContent: React.FC = () => {
     }>
       <Routes>
         {routes.map((route, index) => (
-          <Route key={index} path={route.path} element={route.element} />
+          <Route key={index} path={route.path} />
         ))}
       </Routes>
     </div>
