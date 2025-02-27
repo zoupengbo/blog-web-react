@@ -31,7 +31,7 @@ const PageContent: React.FC = () => {
     }>
       <Routes>
         {routes.map((route, index) => (
-          <Route key={index} path={route.path} />
+          <Route key={index} path={route.path} element={route.element}/>
         ))}
       </Routes>
     </div>

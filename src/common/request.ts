@@ -5,12 +5,12 @@ import { message } from 'antd';
 //防止返回报ts没有属性的错误
 declare module "axios" {
   interface AxiosResponse<T = any> {
-    token: null;
     code: null;
     res: any;
     error: null;
     msg: string;
     count?: number;
+    token?: string;
   }
   export function create(config?: AxiosRequestConfig): AxiosInstance;
 }

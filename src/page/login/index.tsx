@@ -1,27 +1,36 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/authContext';
-import './index.scss';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/authContext";
+import "./index.scss";
+import httpService from "../../common/request";
 
 const LoginPage: React.FC = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
   const navigate = useNavigate();
   const { login } = useAuth();
 
   const handleLogin = async () => {
     try {
       // 模拟登录请求
-      if (username === 'admin' && password === 'admin') {
-        setMessage('登录成功');
+      const { code, data, token } = await httpService("/login", {
+        method: "post",
+        data: {
+          name: username,
+          password,
+        },
+      });
+      console.log("🚀 ~ handleLogin ~ data:", data);
+      if (code === 200) {
+        setMessage("登录成功");
+        localStorage.setItem("token", token || "");
+        localStorage.setItem("userInfo", JSON.stringify(data));
         login(); // 设置认证状态为已登录
-        navigate('/'); // 登录成功后跳转到主页
-      } else {
-        setMessage('登录失败');
+        navigate("/"); // 登录成功后跳转到主页
       }
     } catch (error) {
-      setMessage('请求错误');
+      setMessage("请求错误");
     }
   };
 
@@ -45,7 +54,9 @@ const LoginPage: React.FC = () => {
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
-        <button className="login-button" onClick={handleLogin}>登录</button>
+        <button className="login-button" onClick={handleLogin}>
+          登录
+        </button>
         {message && <p className="message">{message}</p>}
       </div>
     </div>
@@ -53,4 +64,3 @@ const LoginPage: React.FC = () => {
 };
 
 export default LoginPage;
-
