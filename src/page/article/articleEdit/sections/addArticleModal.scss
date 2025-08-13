@@ -1,0 +1,314 @@
+.article-modal {
+  .ant-modal-header {
+    border-bottom: 1px solid #f0f0f0;
+    padding: 20px 24px;
+
+    .modal-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+
+      .title-icon {
+        color: #1890ff;
+        font-size: 20px;
+      }
+    }
+  }
+
+  .ant-modal-body {
+    padding: 24px;
+    max-height: 70vh;
+    overflow-y: auto;
+
+    // 自定义滚动条
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 3px;
+
+      &:hover {
+        background: #a8a8a8;
+      }
+    }
+  }
+
+  .ant-modal-footer {
+    border-top: 1px solid #f0f0f0;
+    padding: 16px 24px;
+    text-align: right;
+
+    .ant-btn {
+      margin-left: 8px;
+      border-radius: 6px;
+      height: 36px;
+      padding: 0 16px;
+      font-weight: 500;
+
+      &:first-child {
+        margin-left: 0;
+      }
+    }
+  }
+}
+
+.article-form {
+  .form-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 0;
+
+    .form-col-4 {
+      flex: 0 0 33.333%;
+    }
+
+    .form-col-6 {
+      flex: 0 0 50%;
+    }
+
+    .form-col-8 {
+      flex: 0 0 66.667%;
+    }
+  }
+
+  .ant-form-item {
+    margin-bottom: 20px;
+
+    .ant-form-item-label {
+      padding-bottom: 8px;
+
+      label {
+        font-weight: 600;
+        color: #333;
+        font-size: 14px;
+
+        &.ant-form-item-required::before {
+          color: #ff4d4f;
+        }
+      }
+    }
+
+    .ant-input,
+    .ant-select-selector,
+    .ant-input-affix-wrapper {
+      border-radius: 8px;
+      border: 1px solid #d9d9d9;
+      transition: all 0.2s ease;
+
+      &:hover {
+        border-color: #40a9ff;
+      }
+
+      &:focus,
+      &.ant-input-focused,
+      &.ant-select-focused .ant-select-selector {
+        border-color: #1890ff;
+        box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+      }
+    }
+
+    .ant-select-multiple .ant-select-selector {
+      .ant-select-selection-item {
+        background: #f0f8ff;
+        border: 1px solid #d6e4ff;
+        border-radius: 4px;
+        color: #1890ff;
+        font-size: 12px;
+        padding: 2px 8px;
+        margin: 2px 4px 2px 0;
+
+        .ant-select-selection-item-remove {
+          color: #1890ff;
+          font-size: 10px;
+
+          &:hover {
+            color: #ff4d4f;
+          }
+        }
+      }
+    }
+  }
+
+  .editor-container {
+    border: 1px solid #d9d9d9;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: #40a9ff;
+    }
+
+    &:focus-within {
+      border-color: #1890ff;
+      box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+    }
+
+    .ql-toolbar {
+      border-bottom: 1px solid #f0f0f0;
+      background: #fafafa;
+      padding: 12px;
+
+      .ql-formats {
+        margin-right: 12px;
+
+        &:last-child {
+          margin-right: 0;
+        }
+      }
+
+      .ql-picker,
+      .ql-picker-label {
+        color: #666;
+      }
+
+      button {
+        border-radius: 4px;
+        padding: 4px;
+        margin: 0 2px;
+
+        &:hover {
+          background: #e6f7ff;
+          color: #1890ff;
+        }
+
+        &.ql-active {
+          background: #1890ff;
+          color: white;
+        }
+      }
+    }
+
+    .ql-container {
+      border: none;
+      font-size: 14px;
+      line-height: 1.6;
+
+      .ql-editor {
+        min-height: 300px;
+        padding: 16px;
+        color: #333;
+
+        &.ql-blank::before {
+          color: #bbb;
+          font-style: normal;
+        }
+
+        p {
+          margin-bottom: 12px;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+          margin: 16px 0 8px 0;
+          font-weight: 600;
+        }
+
+        blockquote {
+          border-left: 4px solid #1890ff;
+          padding-left: 16px;
+          margin: 16px 0;
+          color: #666;
+          background: #f8f9fa;
+          padding: 12px 16px;
+          border-radius: 0 4px 4px 0;
+        }
+
+        pre {
+          background: #f6f8fa;
+          border: 1px solid #e1e4e8;
+          border-radius: 6px;
+          padding: 16px;
+          overflow-x: auto;
+          margin: 16px 0;
+        }
+
+        code {
+          background: #f1f3f4;
+          padding: 2px 4px;
+          border-radius: 3px;
+          font-size: 13px;
+          color: #d73a49;
+        }
+      }
+    }
+  }
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  .article-modal {
+    .ant-modal {
+      width: 95% !important;
+      margin: 10px auto;
+    }
+
+    .ant-modal-body {
+      padding: 16px;
+      max-height: 60vh;
+    }
+  }
+
+  .article-form {
+    .form-row {
+      flex-direction: column;
+      gap: 0;
+
+      .form-col-4,
+      .form-col-6,
+      .form-col-8 {
+        flex: 1;
+      }
+    }
+
+    .editor-container {
+      .ql-container .ql-editor {
+        min-height: 200px;
+        padding: 12px;
+      }
+    }
+  }
+}
+
+@media (max-width: 576px) {
+  .article-modal {
+    .ant-modal-header {
+      padding: 16px;
+    }
+
+    .ant-modal-footer {
+      padding: 12px 16px;
+
+      .ant-btn {
+        height: 32px;
+        padding: 0 12px;
+        font-size: 14px;
+      }
+    }
+  }
+
+  .article-form {
+    .ant-form-item {
+      margin-bottom: 16px;
+    }
+
+    .editor-container {
+      .ql-toolbar {
+        padding: 8px;
+      }
+
+      .ql-container .ql-editor {
+        min-height: 180px;
+        padding: 10px;
+      }
+    }
+  }
+}

@@ -1,15 +1,125 @@
 .App {
   width: 100%;
-  height: 100%;
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  
+  background: #f5f5f5;
+
   &-bottom {
     flex: 1;
     display: flex;
     flex-direction: row;
+    overflow: hidden;
   }
-  &-content{
-    width: 100%;
+
+  &-content {
+    flex: 1;
+    overflow-y: auto;
+    background: #f5f5f5;
+
+    // 自定义滚动条
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 3px;
+
+      &:hover {
+        background: #a8a8a8;
+      }
+    }
+  }
+}
+
+// 加载状态样式
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: #f5f5f5;
+
+  .loading-spinner {
+    text-align: center;
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #1890ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    p {
+      color: #666;
+      font-size: 14px;
+      margin: 0;
+    }
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+// 全局样式重置
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif, 'Apple Color Emoji',
+    'Segoe UI Emoji', 'Segoe UI Symbol';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #f5f5f5;
+}
+
+#root {
+  height: 100vh;
+}
+
+// Ant Design 组件样式覆盖
+.ant-card {
+  .ant-card-head {
+    border-bottom: 1px solid #f0f0f0;
+
+    .ant-card-head-title {
+      font-weight: 600;
+      color: #333;
+    }
+  }
+}
+
+.ant-menu {
+  .ant-menu-item {
+    &.ant-menu-item-selected {
+      background-color: #e6f7ff !important;
+
+      &::after {
+        border-right: 3px solid #1890ff;
+      }
+    }
+  }
+}
+
+// 响应式布局
+@media (max-width: 768px) {
+  .App {
+    &-bottom {
+      flex-direction: column;
+    }
   }
 }

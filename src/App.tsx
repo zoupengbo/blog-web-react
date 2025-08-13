@@ -26,7 +26,19 @@ const App: React.FC = () => {
 };
 
 const ProtectedRoutes: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // 显示加载状态
+  if (isLoading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <p>正在加载...</p>
+        </div>
+      </div>
+    );
+  }
 
   return isAuthenticated ? (
     <>
@@ -39,7 +51,7 @@ const ProtectedRoutes: React.FC = () => {
       </div>
     </>
   ) : (
-    <Navigate to="/login" />
+    <Navigate to="/login" replace />
   );
 };
 
