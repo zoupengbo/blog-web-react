@@ -115,6 +115,30 @@ body {
   }
 }
 
+// ReactQuill 中文优化样式
+.ql-editor {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+  line-height: 1.6 !important;
+
+  // 确保中文字符正确显示
+  p, div, span {
+    font-family: inherit;
+  }
+
+  // 中文标点符号优化
+  &.ql-blank::before {
+    font-style: normal;
+    color: #999;
+  }
+}
+
+// 工具栏中文优化
+.ql-toolbar {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+}
+
 // 响应式布局
 @media (max-width: 768px) {
   .App {

@@ -22,6 +22,11 @@
     padding: 24px;
     max-height: 70vh;
     overflow-y: auto;
+  }
+
+  // 非全屏模式的样式
+  &:not(.fullscreen-modal) .ant-modal-body {
+    max-height: 70vh;
 
     // 自定义滚动条
     &::-webkit-scrollbar {
@@ -309,6 +314,113 @@
         min-height: 180px;
         padding: 10px;
       }
+    }
+  }
+}
+
+// 全屏模态框样式
+.fullscreen-modal {
+  .ant-modal {
+    max-width: none !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    top: 0 !important;
+  }
+
+  .ant-modal-content {
+    height: 100vh !important;
+    border-radius: 0 !important;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ant-modal-header {
+    flex-shrink: 0;
+    border-bottom: 1px solid #f0f0f0;
+    padding: 16px 24px;
+  }
+
+  .ant-modal-body {
+    flex: 1;
+    padding: 20px 24px;
+    overflow-y: auto;
+    max-height: none !important;
+    height: calc(100vh - 120px) !important;
+
+    .article-form {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+
+      .ant-form {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .editor-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 400px;
+
+        .react-quill-wrap {
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+
+          .title {
+            margin-bottom: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+          }
+
+          .quill-editor-wrap {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+
+            .ql-container {
+              flex: 1 !important;
+              height: auto !important;
+            }
+
+            .ql-editor {
+              height: 100% !important;
+              min-height: 300px;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .ant-modal-footer {
+    flex-shrink: 0;
+    border-top: 1px solid #f0f0f0;
+    padding: 16px 24px;
+    text-align: right;
+  }
+
+  // 自定义滚动条
+  .ant-modal-body::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .ant-modal-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+
+  .ant-modal-body::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+
+    &:hover {
+      background: #a8a8a8;
     }
   }
 }

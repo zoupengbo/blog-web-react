@@ -44,12 +44,6 @@ const App: React.FC<AppProps> = (props) => {
       // 验证表单
       await form.validateFields();
 
-      // 额外检查编辑器内容
-      if (!articleText || articleText.trim() === '' || articleText === '<p><br></p>') {
-        console.error('文章内容不能为空');
-        return;
-      }
-
       setConfirmLoading(true);
 
       // 使用统一的保存接口
@@ -159,11 +153,12 @@ const App: React.FC<AppProps> = (props) => {
           <span>{props.editData ? '编辑文章' : '创建文章'}</span>
         </div>
       }
-      width={1200}
+      width="100%"
+      style={{ top: 0, paddingBottom: 0, maxWidth: 'none' }}
       open={props.open}
       onCancel={handleCancel}
       confirmLoading={confirmLoading}
-      className="article-modal"
+      className="article-modal fullscreen-modal"
       footer={[
         <Button key="cancel" onClick={handleCancel}>
           取消
@@ -299,7 +294,6 @@ const App: React.FC<AppProps> = (props) => {
             label="文章内容"
             name="content"
             rules={[
-              { required: true, message: '请输入文章内容' },
               {
                 validator: () => {
                   // 检查编辑器实际内容
