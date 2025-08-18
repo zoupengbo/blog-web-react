@@ -1,0 +1,82 @@
+.btn-container {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+
+  .ant-input {
+    border-radius: 6px;
+  }
+
+  .ant-btn {
+    border-radius: 6px;
+    font-weight: 500;
+  }
+}
+
+// 电子书表格样式
+.ant-table {
+  .ant-table-thead > tr > th {
+    background: #fafafa;
+    font-weight: 600;
+    color: #262626;
+    border-bottom: 2px solid #f0f0f0;
+  }
+
+  .ant-table-tbody > tr {
+    &:hover > td {
+      background: #f5f5f5;
+    }
+  }
+
+  // 评分列样式
+  .ant-rate {
+    font-size: 14px;
+
+    .ant-rate-star {
+      margin-right: 2px;
+    }
+  }
+
+  // 标签列样式
+  .ant-tag {
+    border-radius: 4px;
+    font-size: 11px;
+    line-height: 18px;
+    margin-right: 4px;
+    margin-bottom: 2px;
+  }
+
+  // 操作按钮样式
+  .ant-btn {
+    &.ant-btn-text {
+      border-radius: 4px;
+
+      &:hover {
+        background: rgba(24, 144, 255, 0.1);
+      }
+
+      &.ant-btn-dangerous:hover {
+        background: rgba(255, 77, 79, 0.1);
+      }
+    }
+  }
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  .btn-container {
+    flex-direction: column;
+    gap: 12px;
+
+    .ant-input {
+      width: 100% !important;
+      margin-right: 0 !important;
+      margin-bottom: 8px;
+    }
+  }
+}

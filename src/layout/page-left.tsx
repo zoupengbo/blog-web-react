@@ -8,6 +8,8 @@ import {
   BarChartOutlined,
   EditOutlined,
   UnorderedListOutlined,
+  BookOutlined,
+  ReadOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import { Menu } from "antd";
@@ -38,7 +40,8 @@ const items: MenuItem[] = [
     getItem("文章列表", "/article-list", <UnorderedListOutlined />),
   ]),
   getItem("娱乐模块", "entertainment", <SmileOutlined />, [
-    getItem("笑话管理", "/3", <SmileOutlined />),
+    getItem("电子书管理", "/3", <BookOutlined />),
+    getItem("小说爬虫", "/4", <ReadOutlined />),
   ]),
   getItem("数据统计", "analytics", <BarChartOutlined />, [
     getItem("访问统计", "/analytics", <BarChartOutlined />),
@@ -67,7 +70,7 @@ const PageLeft: React.FC = () => {
   const getOpenKeys = () => {
     const path = location.pathname;
     if (path === "/2" || path === "/article-list") return ["content"];
-    if (path === "/3") return ["entertainment"];
+    if (path === "/3" || path === "/4") return ["entertainment"];
     if (path === "/analytics") return ["analytics"];
     return [];
   };

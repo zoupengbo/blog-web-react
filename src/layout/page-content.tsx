@@ -1,8 +1,9 @@
 import React from "react";
 import { Route, Routes } from "react-router-dom";
 import { ArticleEdit } from "../page/article/articleEdit/index.tsx";
-import { JokeModule } from "../page/article/jokeModule/index.tsx";
+import { EbookModule } from "../page/article/ebookModule/index.tsx";
 import { AccessManager } from "../page/count/accessManager/index.tsx";
+import { NovelModule } from "../page/entertainment/novelModule/index.tsx";
 import "./page-content.scss";
 
 const PageContent: React.FC = () => {
@@ -19,8 +20,13 @@ const PageContent: React.FC = () => {
     },
     {
       path: "/3",
-      element: <JokeModule />,
-      title: "笑话管理"
+      element: <EbookModule />,
+      title: "电子书管理"
+    },
+    {
+      path: "/4",
+      element: <NovelModule />,
+      title: "小说爬虫"
     },
     {
       path: "/article-list",
