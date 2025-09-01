@@ -1,26 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { Space, Table, Button, message, TablePaginationConfig, Card, Tag, Tooltip, Popconfirm } from "antd";
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, FileTextOutlined } from "@ant-design/icons";
-
-import { getArticleList, deleteArticle } from "../../../common/articleApi";
+import { Button, message, TablePaginationConfig, Card, Popconfirm } from "antd";
+import { PlusOutlined, FileTextOutlined } from "@ant-design/icons";
+import CommonTable from "@components/CommonTable";
+import { createArticleTableConfig, ArticleDataType } from "./config/articleTableConfig";
+import { getArticleList, deleteArticle } from "@common/articleApi";
 import "./index.scss";
 import AddArticleModal from "./sections/addArticleModal";
 import ArticlePreviewModal from "./components/ArticlePreviewModal";
 
-const { Column } = Table;
-
-interface DataType {
-  author: string;
-  category: string;
-  id: React.Key;
-  status: string;
-  title: string;
-  updatedAt: string;
-  content?: string;
-  summary?: string;
-  tags?: string[];
-  createdAt?: string;
-}
+// 使用从配置文件导入的类型
+type DataType = ArticleDataType;
 
 const ArticleEdit: React.FC = () => {
   const [open, setOpen] = useState(false);
@@ -40,9 +29,9 @@ const ArticleEdit: React.FC = () => {
     }
   };
 
-  const handleDelete = async (data: DataType) => {
+  const handleDelete = async (record: DataType) => {
     try {
-      const res = await deleteArticle(data.id);
+      const res = await deleteArticle(record.id);
       if (res.code === 200) {
         fetchArticleList();
         message.success(res.msg);
@@ -74,20 +63,20 @@ const ArticleEdit: React.FC = () => {
     fetchArticleList();
   };
   // 编辑文章
-  const handleUpdate = (data: DataType) => {
-    setEditData(data);
+  const handleUpdate = (record: DataType) => {
+    setEditData(record);
     setOpen(true);
   };
 
   // 预览文章
-  const handlePreview = (data: DataType) => {
+  const handlePreview = (record: DataType) => {
     // 直接使用当前数据进行预览
     // 如果没有内容，显示提示信息
     const previewData = {
-      ...data,
-      content: data.content || '<p>暂无内容，请编辑文章添加内容。</p>',
-      summary: data.summary || '暂无摘要',
-      tags: data.tags || [],
+      ...record,
+      content: record.content || '<p>暂无内容，请编辑文章添加内容。</p>',
+      summary: record.summary || '暂无摘要',
+      tags: record.tags || [],
     };
 
     setPreviewData(previewData);
@@ -99,31 +88,13 @@ const ArticleEdit: React.FC = () => {
     setPreviewOpen(false);
     setPreviewData(null);
   };
+  // 创建表格配置
+  const tableConfig = createArticleTableConfig(handleUpdate, handleDelete, handlePreview);
+
   useEffect(() => {
     // 在组件挂载后执行的逻辑
     fetchArticleList();
-  }, []); // 空数组表示仅在组件挂载时执行一次˝
-  // 格式化时间显示
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  // 获取状态标签
-  const getStatusTag = (status: string) => {
-    const statusMap: { [key: string]: { color: string; text: string } } = {
-      'published': { color: 'green', text: '已发布' },
-      'draft': { color: 'orange', text: '草稿' },
-      'archived': { color: 'gray', text: '已归档' }
-    };
-    const statusInfo = statusMap[status] || { color: 'blue', text: status };
-    return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>;
-  };
+  }, []); // 空数组表示仅在组件挂载时执行一次
 
   return (
     <div className="article-management">
@@ -151,107 +122,12 @@ const ArticleEdit: React.FC = () => {
       </Card>
 
       <Card className="article-table-card">
-        <Table
-          dataSource={data}
-          pagination={{
-            pageSize: 10,
-            total: total,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`
-          }}
+        <CommonTable
+          data={data}
+          total={total}
+          config={tableConfig}
           onChange={pageChange}
-          rowKey="id"
-          className="article-table"
-        >
-          <Column
-            title="标题"
-            dataIndex="title"
-            key="title"
-            render={(title: string) => (
-              <div className="article-title">
-                <FileTextOutlined className="title-icon" />
-                <span className="title-text">{title}</span>
-              </div>
-            )}
-          />
-          <Column
-            title="作者"
-            dataIndex="author"
-            key="author"
-            render={(author: string) => (
-              <Tag color="blue">{author}</Tag>
-            )}
-          />
-          <Column
-            title="分类"
-            dataIndex="category"
-            key="category"
-            render={(category: string) => (
-              <Tag color="purple">{category || '未分类'}</Tag>
-            )}
-          />
-          <Column
-            title="状态"
-            dataIndex="status"
-            key="status"
-            render={(status: string) => getStatusTag(status)}
-          />
-          <Column
-            title="更新时间"
-            dataIndex="updatedAt"
-            key="updatedAt"
-            render={(date: string) => (
-              <Tooltip title={formatDate(date)}>
-                <span className="update-time">{formatDate(date)}</span>
-              </Tooltip>
-            )}
-          />
-          <Column
-            title="操作"
-            key="action"
-            width={180}
-            render={(_: any, record: DataType) => (
-              <Space size="small">
-                <Tooltip title="预览">
-                  <Button
-                    type="text"
-                    icon={<EyeOutlined />}
-                    size="small"
-                    onClick={() => handlePreview(record)}
-                    className="action-btn preview-btn"
-                  />
-                </Tooltip>
-                <Tooltip title="编辑">
-                  <Button
-                    type="text"
-                    icon={<EditOutlined />}
-                    size="small"
-                    onClick={() => handleUpdate(record)}
-                    className="action-btn edit-btn"
-                  />
-                </Tooltip>
-                <Tooltip title="删除">
-                  <Popconfirm
-                    title="确认删除"
-                    description="确定要删除这篇文章吗？此操作不可恢复。"
-                    onConfirm={() => handleDelete(record)}
-                    okText="确认"
-                    cancelText="取消"
-                  >
-                    <Button
-                      type="text"
-                      icon={<DeleteOutlined />}
-                      size="small"
-                      danger
-                      className="action-btn delete-btn"
-                    />
-                  </Popconfirm>
-                </Tooltip>
-              </Space>
-            )}
-          />
-        </Table>
+        />
       </Card>
 
       <AddArticleModal

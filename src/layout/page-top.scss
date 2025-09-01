@@ -111,24 +111,6 @@
     .anticon {
       font-size: 18px;
     }
-
-    &.notification {
-      .badge {
-        position: absolute;
-        top: 2px;
-        right: 2px;
-        background: #ff4d4f;
-        color: white;
-        border-radius: 50%;
-        width: 18px;
-        height: 18px;
-        font-size: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-      }
-    }
   }
 }
 

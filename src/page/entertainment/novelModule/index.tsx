@@ -1,60 +1,33 @@
 import React, { useEffect, useState } from "react";
 import { 
-  Space, 
-  Table, 
   Button, 
   message, 
   TablePaginationConfig, 
   Input, 
-  Tag, 
-  Tooltip, 
   Modal, 
   Form,
   Select,
   Card,
-  Progress,
-  Popconfirm
+  Tag,
+  Space
 } from "antd";
 import { 
   SearchOutlined, 
-  DownloadOutlined, 
-  EyeOutlined, 
-  DeleteOutlined,
   BookOutlined,
-  PlayCircleOutlined,
-  PauseCircleOutlined
+  PlayCircleOutlined
 } from "@ant-design/icons";
 
-import httpService from "../../../common/request";
+import CommonTable from "@components/CommonTable";
+import { createNovelTableConfig, NovelDataType } from "./config/novelTableConfig";
+import httpService from "@common/request";
 import ChapterModal from "./components/ChapterModal";
 import "./index.scss";
 
-const { Column } = Table;
 const { Search } = Input;
 const { Option } = Select;
 
-// 小说数据类型
-interface NovelType {
-  id: React.Key;
-  title: string;
-  author: string;
-  description: string;
-  category: string;
-  coverImage: string;
-  status: string;
-  latestChapter: string;
-  latestUpdateTime: string;
-  totalChapters: number;
-  crawledChapters: number;
-  crawlStatus: string;
-  sourceUrl: string;
-  sourceId: string;
-  tags: string[];
-  viewCount: number;
-  favoriteCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
+// 使用从配置文件导入的类型
+type NovelType = NovelDataType;
 
 // 搜索结果类型
 interface SearchResult {
@@ -179,6 +152,44 @@ const NovelModule: React.FC = () => {
     setChapterModalVisible(true);
   };
 
+  // 开始爬取（表格操作）
+  const handleStartCrawl = async (novel: NovelType) => {
+    try {
+      const res = await httpService.post("/novel/start-crawl", {
+        id: novel.id
+      });
+      
+      if (res.code === 200) {
+        message.success('开始爬取');
+        getNovelList();
+      } else {
+        message.error(res.msg || '开始爬取失败');
+      }
+    } catch (error) {
+      console.error('开始爬取失败:', error);
+      message.error('开始爬取失败');
+    }
+  };
+
+  // 暂停爬取
+  const handlePauseCrawl = async (novel: NovelType) => {
+    try {
+      const res = await httpService.post("/novel/pause-crawl", {
+        id: novel.id
+      });
+      
+      if (res.code === 200) {
+        message.success('暂停爬取');
+        getNovelList();
+      } else {
+        message.error(res.msg || '暂停爬取失败');
+      }
+    } catch (error) {
+      console.error('暂停爬取失败:', error);
+      message.error('暂停爬取失败');
+    }
+  };
+
   // 分页变化
   const pageChange = (pagination: TablePaginationConfig) => {
     const { current = 1, pageSize = 10 } = pagination;
@@ -208,6 +219,14 @@ const NovelModule: React.FC = () => {
     const statusInfo = statusMap[status] || { color: 'default', text: status };
     return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>;
   };
+
+  // 创建表格配置
+  const tableConfig = createNovelTableConfig(
+    viewChapters,
+    handleStartCrawl,
+    handlePauseCrawl,
+    deleteNovel
+  );
 
   useEffect(() => {
     getNovelList();
@@ -249,173 +268,15 @@ const NovelModule: React.FC = () => {
 
       {/* 小说列表 */}
       <Card className="table-card">
-        <Table
-          dataSource={data}
-          loading={loading}
-          pagination={{
-            pageSize: 10,
-            total: total,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`
+        <CommonTable
+          data={data}
+          total={total}
+          config={{
+            ...tableConfig,
+            loading: loading
           }}
           onChange={pageChange}
-          rowKey="id"
-          scroll={{ x: 1400 }}
-        >
-          <Column
-            width={80}
-            title="ID"
-            dataIndex="id"
-            key="id"
-            sorter={(a: NovelType, b: NovelType) => Number(a.id) - Number(b.id)}
-          />
-          <Column
-            width={200}
-            title="小说名称"
-            dataIndex="title"
-            key="title"
-            ellipsis={{ showTitle: false }}
-            render={(title: string, record: NovelType) => (
-              <Tooltip placement="topLeft" title={title}>
-                <div className="novel-title">
-                  <BookOutlined className="book-icon" />
-                  <span>{title}</span>
-                </div>
-              </Tooltip>
-            )}
-          />
-          <Column
-            width={120}
-            title="作者"
-            dataIndex="author"
-            key="author"
-            ellipsis={{ showTitle: false }}
-            render={(author: string) => (
-              <Tooltip placement="topLeft" title={author}>
-                {author}
-              </Tooltip>
-            )}
-          />
-          <Column
-            width={80}
-            title="分类"
-            dataIndex="category"
-            key="category"
-            render={(category: string) => (
-              <Tag color="purple">{category}</Tag>
-            )}
-          />
-          <Column
-            width={100}
-            title="状态"
-            dataIndex="status"
-            key="status"
-            render={(status: string) => getNovelStatusTag(status)}
-          />
-          <Column
-            width={100}
-            title="爬取状态"
-            dataIndex="crawlStatus"
-            key="crawlStatus"
-            render={(status: string) => getCrawlStatusTag(status)}
-          />
-          <Column
-            width={120}
-            title="章节进度"
-            key="progress"
-            render={(_: any, record: NovelType) => (
-              <div>
-                <Progress
-                  percent={record.totalChapters > 0 ? Math.round((record.crawledChapters / record.totalChapters) * 100) : 0}
-                  size="small"
-                  status={record.crawlStatus === 'failed' ? 'exception' : 'normal'}
-                />
-                <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
-                  {record.crawledChapters}/{record.totalChapters}
-                </div>
-              </div>
-            )}
-          />
-          <Column
-            width={100}
-            title="阅读量"
-            dataIndex="viewCount"
-            key="viewCount"
-            render={(count: number) => (
-              <span style={{ color: count > 0 ? '#52c41a' : '#999' }}>
-                {count.toLocaleString()}
-              </span>
-            )}
-            sorter={(a: NovelType, b: NovelType) => a.viewCount - b.viewCount}
-          />
-          <Column
-            width={120}
-            title="标签"
-            dataIndex="tags"
-            key="tags"
-            render={(tags: string[]) => (
-              <div>
-                {tags.slice(0, 2).map((tag, index) => (
-                  <Tag key={index} style={{ marginBottom: 2, fontSize: '11px' }}>
-                    {tag}
-                  </Tag>
-                ))}
-                {tags.length > 2 && (
-                  <Tooltip title={tags.slice(2).join(', ')}>
-                    <Tag style={{ marginBottom: 2, fontSize: '11px' }}>
-                      +{tags.length - 2}
-                    </Tag>
-                  </Tooltip>
-                )}
-              </div>
-            )}
-          />
-          <Column
-            title="操作"
-            key="action"
-            width={150}
-            fixed="right"
-            render={(_: any, record: NovelType) => (
-              <Space size="small">
-                <Tooltip title="查看章节">
-                  <Button
-                    type="text"
-                    icon={<EyeOutlined />}
-                    size="small"
-                    onClick={() => viewChapters(record)}
-                  />
-                </Tooltip>
-                {record.sourceUrl && (
-                  <Tooltip title="访问原站">
-                    <Button
-                      type="text"
-                      icon={<DownloadOutlined />}
-                      size="small"
-                      onClick={() => window.open(record.sourceUrl, '_blank')}
-                    />
-                  </Tooltip>
-                )}
-                <Tooltip title="删除">
-                  <Popconfirm
-                    title="确认删除"
-                    description="确定要删除这部小说吗？此操作不可恢复。"
-                    onConfirm={() => deleteNovel(record)}
-                    okText="确认"
-                    cancelText="取消"
-                  >
-                    <Button
-                      type="text"
-                      icon={<DeleteOutlined />}
-                      size="small"
-                      danger
-                    />
-                  </Popconfirm>
-                </Tooltip>
-              </Space>
-            )}
-          />
-        </Table>
+        />
       </Card>
 
       {/* 搜索结果模态框 */}

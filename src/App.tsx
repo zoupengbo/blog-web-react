@@ -1,10 +1,10 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { PageLeft } from "./layout/page-left";
-import { PageTop } from "./layout/page-top";
-import { PageContent } from "./layout/page-content";
-import LoginPage from "./page/login";
-import { AuthProvider, useAuth } from "./context/authContext.tsx";
+import { PageLeft } from "@layout/page-left";
+import { PageTop } from "@layout/page-top";
+import { PageContent } from "@layout/page-content";
+import LoginPage from "@pages/login";
+import { AuthProvider, useAuth } from "@context/authContext.tsx";
 // 引入富文本编辑器的样式文件
 import "react-quill/dist/quill.bubble.css";
 import "quill/dist/quill.snow.css";

@@ -1,9 +1,9 @@
 import React from "react";
 import { Route, Routes } from "react-router-dom";
-import { ArticleEdit } from "../page/article/articleEdit/index.tsx";
-import { EbookModule } from "../page/article/ebookModule/index.tsx";
-import { AccessManager } from "../page/count/accessManager/index.tsx";
-import { NovelModule } from "../page/entertainment/novelModule/index.tsx";
+import { ArticleEdit } from "@pages/article/articleEdit/index.tsx";
+import { EbookModule } from "@pages/article/ebookModule/index.tsx";
+import { AccessManager } from "@pages/count/accessManager/index.tsx";
+import { NovelModule } from "@pages/entertainment/novelModule/index.tsx";
 import "./page-content.scss";
 
 const PageContent: React.FC = () => {

@@ -76,11 +76,6 @@ const PageTop: React.FC = () => {
 
       <div className="page-top-right">
         <div className="header-actions">
-          <div className="action-item notification">
-            <BellOutlined />
-            <span className="badge">3</span>
-          </div>
-
           <div className="action-item settings">
             <SettingOutlined />
           </div>
