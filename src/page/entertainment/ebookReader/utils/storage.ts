@@ -1,5 +1,5 @@
 import { STORAGE_KEYS } from '../constants';
-import { Book, ReadingProgress, ReaderSettings } from '../types';
+import { Book, ReaderSettings } from '../types';
 
 // 本地存储工具类
 export class StorageUtil {
@@ -40,29 +40,6 @@ export class StorageUtil {
     this.saveBookshelf(filteredBooks);
   }
 
-  // 获取阅读进度
-  static getReadingProgress(bookId: string): ReadingProgress | null {
-    try {
-      const data = localStorage.getItem(STORAGE_KEYS.READING_PROGRESS);
-      const allProgress = data ? JSON.parse(data) : {};
-      return allProgress[bookId] || null;
-    } catch (error) {
-      console.error('获取阅读进度失败:', error);
-      return null;
-    }
-  }
-
-  // 保存阅读进度
-  static saveReadingProgress(progress: ReadingProgress): void {
-    try {
-      const data = localStorage.getItem(STORAGE_KEYS.READING_PROGRESS);
-      const allProgress = data ? JSON.parse(data) : {};
-      allProgress[progress.bookId] = progress;
-      localStorage.setItem(STORAGE_KEYS.READING_PROGRESS, JSON.stringify(allProgress));
-    } catch (error) {
-      console.error('保存阅读进度失败:', error);
-    }
-  }
 
   // 获取阅读设置
   static getReaderSettings(): ReaderSettings | null {

@@ -43,7 +43,6 @@ export const FONT_FAMILIES = [
 // 本地存储键名
 export const STORAGE_KEYS = {
   BOOKSHELF: 'ebook_bookshelf',
-  READING_PROGRESS: 'ebook_reading_progress',
   READER_SETTINGS: 'ebook_reader_settings',
   SEARCH_HISTORY: 'ebook_search_history',
   BOOKMARKS: 'ebook_bookmarks',

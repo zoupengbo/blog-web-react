@@ -41,14 +41,28 @@ export const useChapterContent = (): UseChapterContentReturn => {
       );
 
       if (response.code === 200) {
-        // 清理HTML标签，提取纯文本内容
-        const cleanContent = response.data.content
-          .replace(/<[^>]*>/g, '') // 移除HTML标签
-          .replace(/&nbsp;/g, ' ') // 替换&nbsp;
+        // 处理带有p标签的内容，保持自然段结构
+        let cleanContent = response.data.content
+          .replace(/&nbsp;/g, ' ') // 替换&nbsp;为普通空格
           .replace(/&lt;/g, '<')   // 替换HTML实体
           .replace(/&gt;/g, '>')
           .replace(/&amp;/g, '&')
-          .trim();
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'");
+
+        // 提取p标签内容，每个p标签作为一个自然段
+        const paragraphMatches = cleanContent.match(/<p[^>]*>(.*?)<\/p>/gi);
+        if (paragraphMatches && paragraphMatches.length > 0) {
+          // 提取每个p标签的内容，保持段落结构
+          const paragraphs = paragraphMatches.map((p: string) => 
+            p.replace(/<p[^>]*>/, '').replace(/<\/p>/, '').trim()
+          ).filter((p: string) => p.length > 0); // 过滤空段落
+          
+          cleanContent = paragraphs.join('\n\n'); // 段落间用双换行分隔
+        } else {
+          // 如果没有p标签，移除所有HTML标签
+          cleanContent = cleanContent.replace(/<[^>]*>/g, '').trim();
+        }
 
         const chapterData: Chapter = {
           id: response.data.sourceId,
@@ -58,7 +72,6 @@ export const useChapterContent = (): UseChapterContentReturn => {
           content: cleanContent,
           wordCount: response.data.wordCount || cleanContent.length,
           isDownloaded: true,
-          readProgress: 0,
           lastReadTime: new Date().toISOString(),
         };
 

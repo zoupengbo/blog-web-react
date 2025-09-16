@@ -3,7 +3,6 @@ import {
   Button,
   Typography,
   Spin,
-  Progress,
   Space,
   Drawer,
   Slider,
@@ -47,8 +46,6 @@ const Reader: React.FC<ReaderProps> = ({
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [chaptersVisible, setChaptersVisible] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [readProgress, setReadProgress] = useState(0);
-  const [scrollProgress, setScrollProgress] = useState(0);
   
   const readerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -94,23 +91,7 @@ const Reader: React.FC<ReaderProps> = ({
       const element = contentRef.current;
       const scrollTop = element.scrollTop;
       const scrollHeight = element.scrollHeight - element.clientHeight;
-      const progress = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
-      
-      setScrollProgress(Math.min(100, Math.max(0, progress)));
-      
-      // 更新阅读进度
-      if (currentChapter) {
-        const updatedProgress = {
-          bookId: book.id,
-          currentChapterId: currentChapter.id,
-          currentChapterProgress: progress,
-          totalProgress: ((currentChapterIndex + progress / 100) / chapters.length) * 100,
-          readingTime: 0, // 这里可以添加阅读时间计算
-          lastReadTime: new Date().toISOString(),
-        };
-        StorageUtil.saveReadingProgress(updatedProgress);
-        setReadProgress(updatedProgress.totalProgress);
-      }
+      // 滚动处理逻辑（进度条功能已移除）
     };
 
     const element = contentRef.current;
@@ -233,15 +214,6 @@ const Reader: React.FC<ReaderProps> = ({
         </div>
       </div>
 
-      {/* 阅读进度条 */}
-      <div className="progress-bar">
-        <Progress
-          percent={readProgress}
-          showInfo={false}
-          strokeColor="#1890ff"
-          trailColor="rgba(255,255,255,0.3)"
-        />
-      </div>
 
       {/* 主要内容区域 */}
       <div className="reader-content" ref={contentRef}>
@@ -272,14 +244,16 @@ const Reader: React.FC<ReaderProps> = ({
                   fontFamily: settings.fontFamily,
                   lineHeight: settings.lineHeight,
                 }}>
-                  {currentChapter.content?.split('\n').map((paragraph, index) => (
-                    <p key={index} className="paragraph" style={{
-                      fontSize: `${settings.fontSize}px`,
-                      fontFamily: settings.fontFamily,
-                      lineHeight: settings.lineHeight,
-                    }}>
-                      {paragraph}
-                    </p>
+                  {currentChapter.content?.split('\n\n').map((paragraph, index) => (
+                    paragraph.trim() && (
+                      <p key={index} className="paragraph" style={{
+                        fontSize: `${settings.fontSize}px`,
+                        fontFamily: settings.fontFamily,
+                        lineHeight: settings.lineHeight,
+                      }}>
+                        {paragraph.trim()}
+                      </p>
+                    )
                   ))}
                 </div>
               </div>
@@ -305,16 +279,10 @@ const Reader: React.FC<ReaderProps> = ({
           上一章
         </Button>
         
-        <div className="chapter-progress">
+        <div className="chapter-info">
           <span>
             {currentChapterIndex + 1} / {chapters.length}
           </span>
-          <Progress
-            percent={scrollProgress}
-            showInfo={false}
-            size="small"
-            strokeColor="#1890ff"
-          />
         </div>
         
         <Button

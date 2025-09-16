@@ -5,7 +5,6 @@ import {
   Button,
   Empty,
   Tag,
-  Progress,
   Space,
   Select,
   Input,
@@ -73,9 +72,8 @@ const BookShelf: React.FC<BookShelfProps> = ({
         case 'author':
           return a.author.localeCompare(b.author);
         case 'progress':
-          const pA = StorageUtil.getReadingProgress(a.id)?.totalProgress || 0;
-          const pB = StorageUtil.getReadingProgress(b.id)?.totalProgress || 0;
-          return pB - pA;
+          // 进度条功能已移除，按添加时间排序
+          return new Date(b.addedTime).getTime() - new Date(a.addedTime).getTime();
         default:
           return 0;
       }
@@ -91,11 +89,6 @@ const BookShelf: React.FC<BookShelfProps> = ({
     message.success('已从书架移除');
   };
 
-  // 获取阅读进度
-  const getReadingProgress = (bookId: string) => {
-    const progress = StorageUtil.getReadingProgress(bookId);
-    return progress?.totalProgress || 0;
-  };
 
   // 获取状态标签颜色
   const getStatusColor = (status: string) => {
@@ -170,13 +163,10 @@ const BookShelf: React.FC<BookShelfProps> = ({
             }}
             dataSource={filteredBooks}
             renderItem={(book) => {
-              const progress = getReadingProgress(book.id);
-              const hasProgress = progress > 0;
-              
               return (
                 <List.Item>
                   <Card
-                    className={`book-card ${hasProgress ? 'has-progress' : ''}`}
+                    className="book-card"
                     hoverable
                     onClick={() => {
                       onBookOpen(book);
@@ -186,17 +176,6 @@ const BookShelf: React.FC<BookShelfProps> = ({
                         <div className="cover-placeholder">
                           <BookOutlined />
                         </div>
-                        {hasProgress && (
-                          <div className="progress-overlay">
-                            <Progress
-                              type="circle"
-                              percent={Math.round(progress)}
-                              size={40}
-                              strokeColor="#1890ff"
-                              format={(percent) => `${percent}%`}
-                            />
-                          </div>
-                        )}
                       </div>
                     }
                     actions={[
@@ -210,7 +189,7 @@ const BookShelf: React.FC<BookShelfProps> = ({
                           onBookOpen(book);
                         }}
                       >
-                        {hasProgress ? '继续阅读' : '开始阅读'}
+                        开始阅读
                       </Button>,
                       <Popconfirm
                         key="delete"
@@ -250,11 +229,6 @@ const BookShelf: React.FC<BookShelfProps> = ({
                           {book.totalChapters > 0 && (
                             <div className="chapter-count">
                               共 {book.totalChapters} 章
-                            </div>
-                          )}
-                          {hasProgress && (
-                            <div className="reading-progress">
-                              阅读进度: {Math.round(progress)}%
                             </div>
                           )}
                         </div>

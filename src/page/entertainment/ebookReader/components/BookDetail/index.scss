@@ -66,21 +66,6 @@
           }
         }
 
-        .reading-progress-info {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-
-          .ant-typography {
-            margin: 0;
-            color: #333;
-          }
-
-          .ant-progress {
-            flex: 1;
-            max-width: 200px;
-          }
-        }
 
         .book-actions {
           margin-top: auto;
@@ -291,13 +276,6 @@
             font-size: 24px;
           }
 
-          .reading-progress-info {
-            justify-content: center;
-
-            .ant-progress {
-              max-width: 150px;
-            }
-          }
         }
       }
     }

@@ -7,7 +7,6 @@ import {
   Tag,
   Space,
   Spin,
-  Progress,
   Input,
   message,
   Divider,
@@ -75,45 +74,22 @@ const BookDetail: React.FC<BookDetailProps> = ({
     }
   }, [chapters, searchKeyword]);
 
-  // 获取阅读进度
-  const getReadingProgress = () => {
-    const progress = StorageUtil.getReadingProgress(book.id);
-    return progress?.totalProgress || 0;
-  };
 
-  // 获取当前阅读章节
-  const getCurrentChapterIndex = () => {
-    const progress = StorageUtil.getReadingProgress(book.id);
-    if (!progress) return 0;
-    
-    const currentChapter = chapters.find(ch => ch.id === progress.currentChapterId);
-    return currentChapter ? chapters.indexOf(currentChapter) : 0;
-  };
-
-  // 滚动到当前章节
-  const scrollToCurrentChapter = () => {
-    const currentIndex = getCurrentChapterIndex();
-    const currentChapter = filteredChapters[currentIndex];
-    
-    if (currentChapter && chaptersListRef.current) {
-      const chapterElement = chaptersListRef.current.querySelector(
-        `[data-chapter-id="${currentChapter.id}"]`
-      ) as HTMLElement;
-      
-      if (chapterElement) {
-        chapterElement.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-        });
-      }
+  // 滚动到顶部（进度功能已移除）
+  const scrollToTop = () => {
+    if (chaptersListRef.current) {
+      chaptersListRef.current.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
     }
   };
 
-  // 当章节列表加载完成后，滚动到当前章节
+  // 当章节列表加载完成后，滚动到顶部
   useEffect(() => {
     if (filteredChapters.length > 0) {
       setTimeout(() => {
-        scrollToCurrentChapter();
+        scrollToTop();
       }, 100);
     }
   }, [filteredChapters.length]);
@@ -134,15 +110,6 @@ const BookDetail: React.FC<BookDetailProps> = ({
     }
   }, [filteredChapters.length]);
 
-  // 回到顶部
-  const scrollToTop = () => {
-    if (chaptersListRef.current) {
-      chaptersListRef.current.scrollTo({
-        top: 0,
-        behavior: 'smooth',
-      });
-    }
-  };
 
   // 添加到书架
   const handleAddToShelf = () => {
@@ -159,7 +126,7 @@ const BookDetail: React.FC<BookDetailProps> = ({
 
   // 开始阅读
   const handleStartReading = (chapterIndex?: number) => {
-    const targetIndex = chapterIndex ?? getCurrentChapterIndex();
+    const targetIndex = chapterIndex ?? 0; // 从第一章开始
     onStartReading(targetIndex, filteredChapters);
   };
 
@@ -170,8 +137,6 @@ const BookDetail: React.FC<BookDetailProps> = ({
     return <Tag color={color}>{text}</Tag>;
   };
 
-  const readingProgress = getReadingProgress();
-  const hasProgress = readingProgress > 0;
 
   return (
     <div className="book-detail">
@@ -221,16 +186,6 @@ const BookDetail: React.FC<BookDetailProps> = ({
               </div>
             )}
 
-            {hasProgress && (
-              <div className="reading-progress-info">
-                <Text strong>阅读进度：</Text>
-                <Progress
-                  percent={Math.round(readingProgress)}
-                  size="small"
-                  strokeColor="#1890ff"
-                />
-              </div>
-            )}
 
             <div className="book-actions">
               <Space>
@@ -240,7 +195,7 @@ const BookDetail: React.FC<BookDetailProps> = ({
                   icon={<ReadOutlined />}
                   onClick={() => handleStartReading()}
                 >
-                  {hasProgress ? '继续阅读' : '开始阅读'}
+                  开始阅读
                 </Button>
                 
                 {!isInShelf && (
@@ -288,9 +243,8 @@ const BookDetail: React.FC<BookDetailProps> = ({
           ) : (
             <div ref={chaptersListRef} className="chapters-list">
               {filteredChapters.map((chapter, index) => {
-                const progress = StorageUtil.getReadingProgress(book.id);
-                const isCurrentChapter = progress?.currentChapterId === chapter.id;
-                const isRead = progress && chapters.indexOf(chapter) <= getCurrentChapterIndex();
+                const isCurrentChapter = false;
+                const isRead = false;
 
                 return (
                   <div

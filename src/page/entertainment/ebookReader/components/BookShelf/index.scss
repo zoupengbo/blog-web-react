@@ -86,9 +86,6 @@
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
       }
 
-      &.has-progress {
-        border-left: 4px solid #1890ff;
-      }
 
       .book-cover {
         height: 160px;
@@ -103,14 +100,6 @@
           color: rgba(255, 255, 255, 0.8);
         }
 
-        .progress-overlay {
-          position: absolute;
-          top: 8px;
-          right: 8px;
-          background: rgba(255, 255, 255, 0.9);
-          border-radius: 50%;
-          padding: 4px;
-        }
       }
 
       .ant-card-meta {
@@ -158,11 +147,6 @@
             margin-bottom: 4px;
           }
 
-          .reading-progress {
-            font-size: 11px;
-            color: #1890ff;
-            font-weight: 500;
-          }
         }
       }
 
@@ -293,12 +277,6 @@
             font-size: 36px;
           }
 
-          .progress-overlay {
-            .ant-progress-circle {
-              width: 32px !important;
-              height: 32px !important;
-            }
-          }
         }
 
         .ant-card-meta {

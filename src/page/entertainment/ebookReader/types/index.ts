@@ -25,19 +25,9 @@ export interface Chapter {
   wordCount: number;
   isDownloaded: boolean;
   lastReadTime?: string;
-  readProgress: number; // 0-100
   sourceUrl?: string; // 章节的完整URL
 }
 
-// 阅读进度类型
-export interface ReadingProgress {
-  bookId: string;
-  currentChapterId: string;
-  currentChapterProgress: number; // 0-100
-  totalProgress: number; // 0-100
-  readingTime: number; // 分钟
-  lastReadTime: string;
-}
 
 // 阅读设置类型
 export interface ReaderSettings {
@@ -109,4 +99,4 @@ export interface BookDetailResponse {
 export type ViewType = 'search' | 'shelf' | 'detail' | 'reader';
 
 // 排序类型
-export type SortType = 'addTime' | 'lastRead' | 'title' | 'author' | 'progress';
+export type SortType = 'addTime' | 'lastRead' | 'title' | 'author';
