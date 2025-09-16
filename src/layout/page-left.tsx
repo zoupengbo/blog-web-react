@@ -36,12 +36,12 @@ function getItem(
 const items: MenuItem[] = [
   getItem("数据概览", "/", <DashboardOutlined />),
   getItem("内容管理", "content", <FileTextOutlined />, [
-    getItem("文章管理", "/2", <EditOutlined />),
+    getItem("文章管理", "/article-edit", <EditOutlined />),
     getItem("文章列表", "/article-list", <UnorderedListOutlined />),
   ]),
   getItem("娱乐模块", "entertainment", <SmileOutlined />, [
-    getItem("电子书管理", "/3", <BookOutlined />),
-    getItem("小说爬虫", "/4", <ReadOutlined />),
+    getItem("小说爬虫", "/novel-crawler", <BookOutlined />),
+    getItem("电子书阅读", "/ebook-reader", <ReadOutlined />),
   ]),
   getItem("数据统计", "analytics", <BarChartOutlined />, [
     getItem("访问统计", "/analytics", <BarChartOutlined />),
@@ -69,8 +69,8 @@ const PageLeft: React.FC = () => {
   // 获取当前展开的菜单项
   const getOpenKeys = () => {
     const path = location.pathname;
-    if (path === "/2" || path === "/article-list") return ["content"];
-    if (path === "/3" || path === "/4") return ["entertainment"];
+    if (path === "/article-edit" || path === "/article-list") return ["content"];
+    if (path === "/novel-crawler" || path === "/ebook-reader") return ["entertainment"];
     if (path === "/analytics") return ["analytics"];
     return [];
   };

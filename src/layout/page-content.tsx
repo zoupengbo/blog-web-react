@@ -4,6 +4,7 @@ import { ArticleEdit } from "@pages/article/articleEdit/index.tsx";
 import { EbookModule } from "@pages/article/ebookModule/index.tsx";
 import { AccessManager } from "@pages/count/accessManager/index.tsx";
 import { NovelModule } from "@pages/entertainment/novelModule/index.tsx";
+import EbookReader from "@pages/entertainment/ebookReader/index.tsx";
 import "./page-content.scss";
 
 const PageContent: React.FC = () => {
@@ -14,19 +15,19 @@ const PageContent: React.FC = () => {
       title: "数据概览"
     },
     {
-      path: "/2",
+      path: "/article-edit",
       element: <ArticleEdit />,
       title: "文章管理"
     },
     {
-      path: "/3",
-      element: <EbookModule />,
-      title: "电子书管理"
-    },
-    {
-      path: "/4",
+      path: "/novel-crawler",
       element: <NovelModule />,
       title: "小说爬虫"
+    },
+    {
+      path: "/ebook-reader",
+      element: <EbookReader />,
+      title: "电子书阅读"
     },
     {
       path: "/article-list",

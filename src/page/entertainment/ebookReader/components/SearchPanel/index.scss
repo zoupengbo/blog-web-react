@@ -1,0 +1,157 @@
+.search-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background: #f5f5f5;
+
+  .search-card {
+    .search-header {
+      margin-bottom: 24px;
+
+      .search-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        .title-icon {
+          font-size: 24px;
+          color: #1890ff;
+        }
+
+        h2 {
+          margin: 0;
+          font-size: 20px;
+          font-weight: 600;
+        }
+
+        p {
+          margin: 0;
+          color: #666;
+          font-size: 14px;
+        }
+      }
+    }
+
+    .search-input-area {
+      margin-bottom: 20px;
+    }
+
+    .search-history {
+      .history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .history-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+
+        .history-tag {
+          cursor: pointer;
+          transition: all 0.2s;
+          
+          &:hover {
+            background: #1890ff;
+            color: white;
+            border-color: #1890ff;
+          }
+        }
+      }
+    }
+  }
+
+  .results-card {
+    flex: 1;
+    overflow: hidden;
+    
+    .ant-card-body {
+      height: calc(100% - 57px);
+      overflow-y: auto;
+    }
+
+    .search-result-item {
+      padding: 16px 0;
+      border-bottom: 1px solid #f0f0f0;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      .book-avatar {
+        width: 48px;
+        height: 48px;
+        background: #f0f0f0;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        color: #1890ff;
+      }
+
+      .book-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 4px;
+
+        span {
+          font-weight: 600;
+          font-size: 16px;
+        }
+
+        .author {
+          font-size: 14px;
+        }
+      }
+
+      .book-info {
+        .description {
+          margin-bottom: 8px;
+          color: #666;
+        }
+
+        .book-meta {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+      }
+    }
+  }
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  .search-panel {
+    padding: 12px;
+
+    .search-card {
+      .search-header {
+        .search-title {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 8px;
+
+          h2 {
+            font-size: 18px;
+          }
+        }
+      }
+    }
+
+    .results-card {
+      .search-result-item {
+        .ant-list-item-action {
+          flex-direction: column;
+          gap: 8px;
+        }
+      }
+    }
+  }
+}
