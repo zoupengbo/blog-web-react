@@ -5,6 +5,7 @@ import { PageTop } from "@layout/page-top";
 import { PageContent } from "@layout/page-content";
 import LoginPage from "@pages/login";
 import { AuthProvider, useAuth } from "@context/authContext.tsx";
+import { NavigationProvider } from "@context/NavigationContext";
 // 引入富文本编辑器的样式文件
 import "react-quill/dist/quill.bubble.css";
 import "quill/dist/quill.snow.css";
@@ -41,7 +42,7 @@ const ProtectedRoutes: React.FC = () => {
   }
 
   return isAuthenticated ? (
-    <>
+    <NavigationProvider>
       <PageTop />
       <div className="App-bottom">
         <PageLeft />
@@ -49,7 +50,7 @@ const ProtectedRoutes: React.FC = () => {
           <PageContent />
         </div>
       </div>
-    </>
+    </NavigationProvider>
   ) : (
     <Navigate to="/login" replace />
   );

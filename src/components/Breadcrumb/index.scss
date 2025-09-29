@@ -1,0 +1,69 @@
+.page-breadcrumb-wrapper {
+  padding: 12px 24px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+  
+  .page-breadcrumb {
+    .ant-breadcrumb-link {
+      color: #1890ff;
+      
+      &:hover {
+        color: #40a9ff;
+      }
+    }
+    
+    .breadcrumb-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      
+      .breadcrumb-icon {
+        display: inline-flex;
+        align-items: center;
+        font-size: 14px;
+        
+        .anticon {
+          font-size: 14px;
+        }
+      }
+      
+      .breadcrumb-link {
+        color: #1890ff;
+        text-decoration: none;
+        transition: color 0.2s;
+        
+        &:hover {
+          color: #40a9ff;
+        }
+      }
+      
+      .breadcrumb-text {
+        color: #666;
+        
+        &.current {
+          color: #333;
+          font-weight: 500;
+        }
+      }
+    }
+  }
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  .page-breadcrumb-wrapper {
+    padding: 8px 16px;
+    
+    .page-breadcrumb {
+      .breadcrumb-item {
+        .breadcrumb-icon {
+          font-size: 12px;
+          
+          .anticon {
+            font-size: 12px;
+          }
+        }
+      }
+    }
+  }
+}

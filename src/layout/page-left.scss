@@ -223,6 +223,31 @@
       }
     }
   }
+
+  // 修复缩起状态下图标对齐问题
+  &.ant-menu-inline-collapsed {
+    .ant-menu-submenu {
+      margin: 4px 0 !important; // 移除左右边距，保持上下边距
+      
+      .ant-menu-submenu-title {
+        padding: 0 !important;
+        text-align: center;
+        width: 80px; // 确保宽度一致
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        
+        .anticon {
+          margin-right: 0 !important;
+          margin-left: 0 !important;
+        }
+        
+        .ant-menu-submenu-arrow {
+          display: none;
+        }
+      }
+    }
+  }
 }
 
 .sidebar-footer {
