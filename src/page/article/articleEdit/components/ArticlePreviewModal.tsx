@@ -65,8 +65,12 @@ const ArticlePreviewModal: React.FC<ArticlePreviewModalProps> = ({
       open={open}
       onCancel={onClose}
       footer={null}
-      width={900}
+      width="100vw"
+      centered={false}
       className="article-preview-modal"
+      wrapClassName="article-preview-modal-fullscreen"
+      style={{ top: 0, maxWidth: '100vw', paddingBottom: 0, height: '100vh' }}
+      bodyStyle={{ height: 'calc(100vh - 55px)', padding: '24px', overflow: 'hidden' }}
     >
       <div className="preview-content">
         {/* 文章头部信息 */}

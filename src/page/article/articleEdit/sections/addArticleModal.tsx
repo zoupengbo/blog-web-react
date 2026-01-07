@@ -3,6 +3,8 @@ import { SaveOutlined, EyeOutlined } from "@ant-design/icons";
 import React, { useEffect, useState } from "react";
 import ReactQuillEditor from "../components/ReactQuill";
 import { saveArticle } from "../../../../common/articleApi";
+import { getActiveCategories } from "../../../../common/categoryApi";
+import { getActiveTags } from "../../../../common/tagApi";
 import ArticlePreviewModal from "../components/ArticlePreviewModal";
 import "./addArticleModal.scss";
 interface editData {
@@ -35,6 +37,9 @@ const App: React.FC<AppProps> = (props) => {
   const [tags, setTags] = useState<string[]>([]);
   const [summary, setSummary] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [tagOptions, setTagOptions] = useState<any[]>([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   const handleOk = async () => {
     try {
@@ -104,6 +109,38 @@ const App: React.FC<AppProps> = (props) => {
   const handlePreviewClose = () => {
     setPreviewOpen(false);
   };
+
+  // 加载分类和标签
+  const loadCategoriesAndTags = async () => {
+    // 避免重复加载
+    if (dataLoaded) return;
+    
+    try {
+      const [categoriesRes, tagsRes] = await Promise.all([
+        getActiveCategories(),
+        getActiveTags()
+      ]);
+      
+      if (categoriesRes.code === 200) {
+        setCategories(categoriesRes.data || []);
+      }
+      
+      if (tagsRes.code === 200) {
+        setTagOptions(tagsRes.data || []);
+      }
+      
+      setDataLoaded(true);
+    } catch (error) {
+      console.error('加载分类和标签失败:', error);
+    }
+  };
+
+  useEffect(() => {
+    // 只在第一次打开时加载分类和标签数据
+    if (props.open && !dataLoaded) {
+      loadCategoriesAndTags();
+    }
+  }, [props.open, dataLoaded]);
 
   useEffect(() => {
     if (props.editData) {
@@ -241,12 +278,16 @@ const App: React.FC<AppProps> = (props) => {
                   onChange={setCategory}
                   size="large"
                   allowClear
+                  showSearch
+                  filterOption={(input, option) =>
+                    (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+                  }
                 >
-                  <Option value="技术">技术</Option>
-                  <Option value="生活">生活</Option>
-                  <Option value="随笔">随笔</Option>
-                  <Option value="教程">教程</Option>
-                  <Option value="其他">其他</Option>
+                  {categories.map((cat) => (
+                    <Option key={cat.id} value={cat.name}>
+                      {cat.name}
+                    </Option>
+                  ))}
                 </Select>
               </Form.Item>
             </div>
@@ -262,12 +303,16 @@ const App: React.FC<AppProps> = (props) => {
                   onChange={setTags}
                   size="large"
                   tokenSeparators={[',']}
+                  showSearch
+                  filterOption={(input, option) =>
+                    (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+                  }
                 >
-                  <Option value="React">React</Option>
-                  <Option value="Vue">Vue</Option>
-                  <Option value="JavaScript">JavaScript</Option>
-                  <Option value="TypeScript">TypeScript</Option>
-                  <Option value="Node.js">Node.js</Option>
+                  {tagOptions.map((tag) => (
+                    <Option key={tag.id} value={tag.name}>
+                      <Tag color={tag.color}>{tag.name}</Tag>
+                    </Option>
+                  ))}
                 </Select>
               </Form.Item>
             </div>

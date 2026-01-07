@@ -7,9 +7,13 @@ import {
   EditOutlined,
   UnorderedListOutlined,
   ReadOutlined,
+  FolderOutlined,
+  TagOutlined,
 } from '@ant-design/icons';
 import { AccessManager } from '@pages/count/accessManager/index.tsx';
 import { ArticleEdit } from '@pages/article/articleEdit/index.tsx';
+import { CategoryModule } from '@pages/article/categoryModule/index.tsx';
+import { TagModule } from '@pages/article/tagModule/index.tsx';
 import EbookReader from '@pages/entertainment/ebookReader/index.tsx';
 
 // 路由配置接口
@@ -73,6 +77,20 @@ export const routeConfigs: RouteConfig[] = [
     title: "文章列表",
     icon: <UnorderedListOutlined />,
     component: () => <div>文章列表页面</div>, // 临时组件
+    group: "content"
+  },
+  {
+    path: "/category-manage",
+    title: "分类管理",
+    icon: <FolderOutlined />,
+    component: CategoryModule,
+    group: "content"
+  },
+  {
+    path: "/tag-manage",
+    title: "标签管理",
+    icon: <TagOutlined />,
+    component: TagModule,
     group: "content"
   },
   {
