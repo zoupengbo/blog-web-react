@@ -4,6 +4,18 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+// 屏蔽 ResizeObserver 浏览器无害通知（防止触发 React 开发环境红屏 Overlay 误报）
+window.addEventListener('error', (e) => {
+  if (
+    e.message &&
+    (e.message.includes('ResizeObserver loop completed with undelivered notifications') ||
+     e.message.includes('ResizeObserver loop limit exceeded'))
+  ) {
+    e.stopImmediatePropagation();
+    e.stopPropagation();
+  }
+});
+
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );

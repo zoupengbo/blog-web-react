@@ -61,8 +61,8 @@ const httpService = axios.create({
   headers: {
     authorization: localStorage.getItem("token"),
   },
-  // 请求超时时间
-  timeout: 3000, // 需自定义
+  // 请求超时时间 (支持 AI 复杂逻辑审核与长文本生成，提升为 5 分钟)
+  timeout: 300000,
 });
 
 /* 网络请求部分 */

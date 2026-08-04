@@ -9,12 +9,24 @@ import {
   ReadOutlined,
   FolderOutlined,
   TagOutlined,
+  VideoCameraOutlined,
+  LineChartOutlined,
+  SettingOutlined,
+  ExperimentOutlined,
+  PlayCircleOutlined,
 } from '@ant-design/icons';
 import { AccessManager } from '@pages/count/accessManager/index.tsx';
 import { ArticleEdit } from '@pages/article/articleEdit/index.tsx';
 import { CategoryModule } from '@pages/article/categoryModule/index.tsx';
 import { TagModule } from '@pages/article/tagModule/index.tsx';
 import EbookReader from '@pages/entertainment/ebookReader/index.tsx';
+import VideoDownloader from '../page/video/VideoDownloader';
+import AiNovelDashboard from '../page/ai-novel/index';
+import PriceCompareDashboard from '../page/price-compare/index';
+import QuantDashboard from '../page/quant/dashboard/index';
+import QuantStrategies from '../page/quant/strategies/index';
+import QuantBacktesting from '../page/quant/backtesting/index';
+import QuantLiveTrading from '../page/quant/live-trading/index';
 
 // 路由配置接口
 export interface RouteConfig {
@@ -103,6 +115,27 @@ export const routeConfigs: RouteConfig[] = [
     groupIcon: <SmileOutlined />
   },
   {
+    path: "/video-downloader",
+    title: "视频下载",
+    icon: <VideoCameraOutlined />,
+    component: VideoDownloader,
+    group: "entertainment"
+  },
+  {
+    path: "/ai-novel",
+    title: "AI 写作工坊",
+    icon: <EditOutlined />,
+    component: AiNovelDashboard,
+    group: "entertainment"
+  },
+  {
+    path: "/price-compare",
+    title: "全网比价助手",
+    icon: <ExperimentOutlined />,
+    component: PriceCompareDashboard,
+    group: "entertainment"
+  },
+  {
     path: "/analytics",
     title: "访问统计",
     icon: <BarChartOutlined />,
@@ -110,6 +143,36 @@ export const routeConfigs: RouteConfig[] = [
     group: "analytics",
     groupTitle: "数据统计",
     groupIcon: <BarChartOutlined />
+  },
+  {
+    path: "/quant/dashboard",
+    title: "我的炒币控制台",
+    icon: <DashboardOutlined />,
+    component: QuantDashboard,
+    group: "quant",
+    groupTitle: "智能托管炒币",
+    groupIcon: <LineChartOutlined />
+  },
+  {
+    path: "/quant/strategies",
+    title: "机器人管家",
+    icon: <SettingOutlined />,
+    component: QuantStrategies,
+    group: "quant"
+  },
+  {
+    path: "/quant/backtest",
+    title: "时光模拟演练",
+    icon: <ExperimentOutlined />,
+    component: QuantBacktesting,
+    group: "quant"
+  },
+  {
+    path: "/quant/live",
+    title: "机器人工作直播",
+    icon: <PlayCircleOutlined />,
+    component: QuantLiveTrading,
+    group: "quant"
   }
 ];
 

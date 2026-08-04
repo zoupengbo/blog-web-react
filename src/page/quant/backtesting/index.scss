@@ -1,0 +1,48 @@
+.quant-backtest {
+  padding: 24px;
+  background-color: #f7f9fc;
+  min-height: 100vh;
+
+  .backtest-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+
+    .header-icon {
+      font-size: 28px;
+      color: #1890ff;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      color: #1f2937;
+    }
+
+    p {
+      margin: 4px 0 0 0;
+      font-size: 14px;
+      color: #6b7280;
+    }
+  }
+
+  .shadow-card {
+    border-radius: 12px;
+    border: 1px solid #f0f0f0;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+  }
+
+  .metric-card {
+    background-color: #fff;
+    border-radius: 10px;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+  }
+
+  .loading-card, .placeholder-card {
+    border-radius: 12px;
+    background-color: #fff;
+  }
+}
