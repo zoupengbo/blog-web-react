@@ -51,6 +51,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
   const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
   const [targetWords, setTargetWords] = useState<number>(2500);
   const [startChapterNum, setStartChapterNum] = useState<number>(lastChapterNum + 1);
+  const [enableAuditor, setEnableAuditor] = useState<boolean>(false);
 
   // Preview step state
   const [outlinePreviews, setOutlinePreviews] = useState<OutlinePreviewItem[]>([]);
@@ -230,7 +231,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
         freeText: freeText.trim(),
         targetWords,
         startChapterNum,
-        enableAuditor: false
+        enableAuditor
       })
     }).then(response => {
       if (!response.body) throw new Error('服务器响应异常');
@@ -404,6 +405,16 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
           />
           <span style={{ fontSize: 13, color: '#666' }}>章</span>
         </Space>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+        <Checkbox
+          checked={enableAuditor}
+          onChange={e => setEnableAuditor(e.target.checked)}
+          style={{ fontSize: 13, color: '#4b5563', fontWeight: 500 }}
+        >
+          🛡️ 开启 AI 逻辑审核官（自修连续因果漏洞与字数强校验）
+        </Checkbox>
       </div>
 
       <Divider style={{ margin: '12px 0' }} />
