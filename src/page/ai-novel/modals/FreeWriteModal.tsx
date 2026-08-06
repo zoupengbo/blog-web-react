@@ -132,6 +132,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
+      let currentEvent = 'chunk';
 
       const processChunk = ({ done, value }: { done: boolean; value?: Uint8Array }) => {
         if (done) {
@@ -142,16 +143,18 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
-        let currentEvent = '';
         for (const line of lines) {
           const trimmed = line.trim();
+          if (!trimmed) continue;
           if (trimmed.startsWith('event: ')) {
-            currentEvent = trimmed.slice(7);
-          } else if (trimmed.startsWith('data: ') && currentEvent) {
+            currentEvent = trimmed.slice(7).trim();
+          } else if (trimmed.startsWith('data: ')) {
             try {
               const data = JSON.parse(trimmed.slice(6));
               if (currentEvent === 'chunk' && data.text) {
-                setFreeText(prev => prev + data.text);
+                // 过滤微小多余完结标签
+                const cleanText = data.text.replace(/\[完结\]|【完结】/g, '');
+                if (cleanText) setFreeText(prev => prev + cleanText);
               } else if (currentEvent === 'done') {
                 setIsGeneratingDraft(false);
               } else if (currentEvent === 'error') {
@@ -159,16 +162,15 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
                 setIsGeneratingDraft(false);
               }
             } catch (e) {}
-            currentEvent = '';
           }
         }
 
-        reader.read().then(processChunk).catch((err: any) => {
+        reader.read().then(processChunk).catch(() => {
           setIsGeneratingDraft(false);
         });
       };
 
-      reader.read().then(processChunk).catch((err: any) => {
+      reader.read().then(processChunk).catch(() => {
         setIsGeneratingDraft(false);
       });
     }).catch((err: any) => {
@@ -235,6 +237,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
+      let currentEvent = 'status';
 
       const processChunk = ({ done, value }: { done: boolean; value?: Uint8Array }) => {
         if (done) {
@@ -245,12 +248,12 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
-        let currentEvent = '';
         for (const line of lines) {
           const trimmed = line.trim();
+          if (!trimmed) continue;
           if (trimmed.startsWith('event: ')) {
-            currentEvent = trimmed.slice(7);
-          } else if (trimmed.startsWith('data: ') && currentEvent) {
+            currentEvent = trimmed.slice(7).trim();
+          } else if (trimmed.startsWith('data: ')) {
             try {
               const data = JSON.parse(trimmed.slice(6));
               handleSseEvent(currentEvent, data);
@@ -259,7 +262,6 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
                 return;
               }
             } catch (e) {}
-            currentEvent = '';
           }
         }
 
@@ -278,6 +280,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
       setGeneratingDone(true);
     });
   };
+
 
   const handleSseEvent = (event: string, data: any) => {
     switch (event) {
