@@ -118,9 +118,12 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
     setFreeText(''); // 清空旧白稿
 
     const baseUrl = (window as any).__API_BASE__ || '';
-    fetch(`${baseUrl}/api/v1/ai-novel/free-write-generate-draft`, {
+    fetch(`${baseUrl}/api/ai-novel/free-write-generate-draft`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': localStorage.getItem('token') || ''
+      },
       body: JSON.stringify({
         novelId,
         userPrompt: aiStoryInstruction.trim()
@@ -215,9 +218,12 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
 
     // 用 fetch SSE（因为 EventSource 不支持 POST）
     const baseUrl = (window as any).__API_BASE__ || '';
-    fetch(`${baseUrl}/api/v1/ai-novel/free-write-split`, {
+    fetch(`${baseUrl}/api/ai-novel/free-write-split`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': localStorage.getItem('token') || ''
+      },
       body: JSON.stringify({
         novelId,
         freeText: freeText.trim(),
