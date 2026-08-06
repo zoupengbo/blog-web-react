@@ -47,6 +47,8 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
 
   // Write step state
   const [freeText, setFreeText] = useState('');
+  const [aiStoryInstruction, setAiStoryInstruction] = useState('');
+  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
   const [targetWords, setTargetWords] = useState<number>(2500);
   const [startChapterNum, setStartChapterNum] = useState<number>(lastChapterNum + 1);
 
@@ -106,6 +108,71 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
   const handleClose = () => {
     handleReset();
     onCancel();
+  };
+
+  // ───────── Step 0: 一句话让 AI 自动生成剧情长稿白稿 ─────────
+  const handleGenerateAiDraft = () => {
+    if (!aiStoryInstruction.trim() || !novelId) return;
+
+    setIsGeneratingDraft(true);
+    setFreeText(''); // 清空旧白稿
+
+    const baseUrl = (window as any).__API_BASE__ || '';
+    fetch(`${baseUrl}/api/v1/ai-novel/free-write-generate-draft`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        novelId,
+        userPrompt: aiStoryInstruction.trim()
+      })
+    }).then(response => {
+      if (!response.body) throw new Error('服务器响应异常');
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      const processChunk = ({ done, value }: { done: boolean; value?: Uint8Array }) => {
+        if (done) {
+          setIsGeneratingDraft(false);
+          return;
+        }
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        let currentEvent = '';
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('event: ')) {
+            currentEvent = trimmed.slice(7);
+          } else if (trimmed.startsWith('data: ') && currentEvent) {
+            try {
+              const data = JSON.parse(trimmed.slice(6));
+              if (currentEvent === 'chunk' && data.text) {
+                setFreeText(prev => prev + data.text);
+              } else if (currentEvent === 'done') {
+                setIsGeneratingDraft(false);
+              } else if (currentEvent === 'error') {
+                import('antd').then(({ message }) => message.error('AI 生成长稿失败：' + data.message));
+                setIsGeneratingDraft(false);
+              }
+            } catch (e) {}
+            currentEvent = '';
+          }
+        }
+
+        reader.read().then(processChunk).catch((err: any) => {
+          setIsGeneratingDraft(false);
+        });
+      };
+
+      reader.read().then(processChunk).catch((err: any) => {
+        setIsGeneratingDraft(false);
+      });
+    }).catch((err: any) => {
+      import('antd').then(({ message }) => message.error('请求失败：' + err.message));
+      setIsGeneratingDraft(false);
+    });
   };
 
   // ───────── Step 1: 先获取细纲预览（先拆细纲再确认） ─────────
@@ -252,28 +319,51 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
 
   const renderWriteStep = () => (
     <div>
-      <Alert
-        type="info"
-        showIcon
-        icon={<InfoCircleOutlined />}
-        message="自由创作模式"
-        description="在下方自由书写剧情内容，不用考虑分章节，只需把故事讲完。写完后，AI 会自动分析并拆分成连贯的章节正文。"
-        style={{ marginBottom: 16 }}
-      />
+      <Card
+        size="small"
+        style={{ background: '#fcf8ff', border: '1px solid #e9d5ff', borderRadius: 8, marginBottom: 14 }}
+      >
+        <div style={{ fontWeight: 700, color: '#6b21a8', fontSize: 13, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span>🪄 选项 A：一句话让 AI 自动写完故事/案件长稿（推荐）</span>
+        </div>
+        <Space.Compact style={{ width: '100%' }}>
+          <Input
+            value={aiStoryInstruction}
+            onChange={e => setAiStoryInstruction(e.target.value)}
+            placeholder="例如：把这个案件写完，警方通过手机恢复发现证据，并在废弃工厂抓获嫌疑人"
+            disabled={isGeneratingDraft}
+            onPressEnter={handleGenerateAiDraft}
+            style={{ borderRadius: '6px 0 0 6px' }}
+          />
+          <Button
+            type="primary"
+            loading={isGeneratingDraft}
+            onClick={handleGenerateAiDraft}
+            disabled={!aiStoryInstruction.trim()}
+            style={{ backgroundColor: '#7c3aed', borderColor: '#7c3aed', fontWeight: 600 }}
+          >
+            🤖 召唤 AI 自动写剧情长稿
+          </Button>
+        </Space.Compact>
+      </Card>
+
+      <div style={{ fontSize: 12, color: '#666', marginBottom: 6, fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}>
+        <span>✍️ 选项 B：自由编辑 / 审核修改剧情长稿（下面可实时编辑，写完后一键拆分成章）：</span>
+        {isGeneratingDraft && <span style={{ color: '#7c3aed' }}><LoadingOutlined spin /> AI 正在流式生成长稿...</span>}
+      </div>
 
       <TextArea
         value={freeText}
         onChange={e => setFreeText(e.target.value)}
-        placeholder={`在此自由书写您的剧情构思...
+        placeholder={`在此自由书写或贴入您的剧情白稿/案件长稿...
 
-例如：
-  李峥接到通知，正式转正为正式民警。仪式简短，但苏晴随后递来借调函，推荐他去刑侦支队技术中队。赵铁柱拍了拍他的肩，说了句"少说话，多做事"，然后走了。
-  
-  周末，赵铁柱突然约李峥在街边小馆吃饭，两人吃到一半，赵铁柱放下筷子，认真说：局里有人觉得你查案太快，让你低调点，不然会有麻烦...
+支持以下两种方式：
+  1. 上方输入一句话，点击【🤖 召唤 AI 自动写剧情长稿】，看 AI 实时写完整个案件；
+  2. 自己在此手动书写或粘贴任意长度的故事白稿。
 
-（不限长度，写到自然结束即可）`}
-        autoSize={{ minRows: 14 }}
-        style={{ fontSize: 15, lineHeight: 1.8, marginBottom: 12 }}
+（内容不限长度，写完后点击下方【一键拆分生成正文】或【先看细纲】即可自动切割拆分成章！）`}
+        autoSize={{ minRows: 12, maxRows: 22 }}
+        style={{ fontSize: 14, lineHeight: 1.8, marginBottom: 12, fontFamily: 'monospace' }}
       />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
