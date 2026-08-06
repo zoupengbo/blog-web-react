@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Modal, Button, Input, Select, Space, Tag, Spin, Alert,
-  Progress, Divider, Tooltip, InputNumber, Steps, Card
+  Progress, Divider, Tooltip, InputNumber, Steps, Card, Checkbox
 } from 'antd';
 import {
   EditOutlined, ScissorOutlined, CheckCircleFilled,
