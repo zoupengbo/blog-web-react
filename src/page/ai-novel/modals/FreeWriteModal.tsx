@@ -83,8 +83,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
   // Estimated chapter count
   const estimatedChapters = useMemo(() => {
     if (!freeText.trim()) return 0;
-    const expandRatio = 4;
-    return Math.max(1, Math.min(Math.ceil(freeText.trim().length * expandRatio / targetWords), 30));
+    return Math.max(1, Math.ceil(freeText.trim().length / targetWords));
   }, [freeText, targetWords]);
 
   const wordCount = freeText.length;
