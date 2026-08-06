@@ -42,6 +42,7 @@ interface EditorViewProps {
   onConfirmBatchDelete: () => void;
   onOpenBatchModal: () => void;
   onOpenInsertModal: (defaultAfterNum?: number) => void;
+  onOpenFreeWrite: () => void;
   chapterSortAsc: boolean;
   setChapterSortAsc: React.Dispatch<React.SetStateAction<boolean>>;
   selectedVolumeNum: number | null;
@@ -191,6 +192,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   onTogglePastStatus,
   onStartEditRelationship,
   onDeleteRelationship,
+  onOpenFreeWrite,
 }) => {
   if (!selectedNovel) return null;
 
@@ -317,6 +319,14 @@ export const EditorView: React.FC<EditorViewProps> = ({
                     style={{ background: 'transparent', color: '#d4b106', borderColor: 'rgba(212, 177, 6, 0.3)' }}
                   />
                 </Tooltip>
+                <Tooltip title="📝 自由创作 → 智能拆章（先写剧情白稿，AI 自动分章生成正文）">
+                  <Button
+                    size="small"
+                    icon={<EditOutlined />}
+                    onClick={onOpenFreeWrite}
+                    style={{ background: 'transparent', color: '#7c3aed', borderColor: 'rgba(124, 58, 237, 0.3)' }}
+                  />
+                </Tooltip>
                 <Tooltip title="🗑️ 批量删除章节">
                   <Button
                     size="small"
@@ -372,7 +382,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
           )}
           {(() => {
             const volumeInfo = parseVolumeStructure(selectedOutline?.mainLine || '');
-            let filteredChapters = selectedOutline.chaptersOutline.filter(chap => {
+            let filteredChapters = (selectedOutline?.chaptersOutline || []).filter(chap => {
               if (!volumeInfo.parsed || selectedVolumeNum === null) return true;
               const chapVol = getChapterVolume(chap.chapterNumber, volumeInfo.volumes);
               return chapVol.volumeNumber === selectedVolumeNum;
