@@ -91,7 +91,7 @@
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
 
   .action-item {
     position: relative;
@@ -110,6 +110,30 @@
 
     .anticon {
       font-size: 18px;
+    }
+
+    &.theme-switch-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.25);
+        transform: scale(1.1) rotate(15deg);
+        box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+      }
+
+      &.dark {
+        background: rgba(212, 177, 6, 0.2);
+        border-color: rgba(212, 177, 6, 0.4);
+      }
     }
   }
 }
@@ -225,7 +249,50 @@
 
   .user-menu-divider {
     height: 1px;
-    background: #f0f0f0;
+    background: #e8e8e8;
     margin: 4px 0;
+  }
+}
+
+// 🌑 深色暗黑模式下的头部栏 (Dark Mode Header)
+.page-top-dark {
+  background: linear-gradient(135deg, #141417 0%, #0d0d10 100%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+
+  .logo-section .logo-text h1 {
+    background: linear-gradient(135deg, #ffd666, #faad14) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+  }
+
+  .user-menu {
+    background: #1e1e24 !important;
+    border: 1px solid #2e2e38 !important;
+    color: #e4e4e7 !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+
+    &::before {
+      background: #1e1e24 !important;
+      box-shadow: -2px -2px 4px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    .user-menu-item {
+      color: #d4d4d8 !important;
+      &:hover {
+        background: #272730 !important;
+        color: #f4f4f5 !important;
+      }
+      &.logout {
+        color: #ff7875 !important;
+        &:hover {
+          background: rgba(255, 77, 79, 0.15) !important;
+        }
+      }
+    }
+
+    .user-menu-divider {
+      background: #2e2e38 !important;
+    }
   }
 }

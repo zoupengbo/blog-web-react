@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/authContext";
-import { UserOutlined, LogoutOutlined, SettingOutlined, BellOutlined } from "@ant-design/icons";
+import { useTheme } from "../context/themeContext";
+import { UserOutlined, LogoutOutlined, SettingOutlined } from "@ant-design/icons";
+import { Tooltip } from "antd";
 import "./page-top.scss";
 
 const PageTop: React.FC = () => {
   const { logout } = useAuth();
+  const { themeMode, toggleTheme, isDark } = useTheme();
   const [showMenu, setShowMenu] = useState(false);
   const [currentTime, setCurrentTime] = useState('');
   const userName = JSON.parse(localStorage.getItem("userInfo") || "{}").name || "管理员";
@@ -57,7 +60,7 @@ const PageTop: React.FC = () => {
   }, []);
 
   return (
-    <div className="page-top">
+    <div className={`page-top ${isDark ? 'page-top-dark' : ''}`}>
       <div className="page-top-left">
         <div className="logo-section">
           <div className="logo-icon">📝</div>
@@ -76,6 +79,17 @@ const PageTop: React.FC = () => {
 
       <div className="page-top-right">
         <div className="header-actions">
+          {/* ☀️/🌙 全局明暗主题切换按钮 */}
+          <Tooltip title={isDark ? '切换为明亮模式 ☀️' : '切换为深色暗黑模式 🌙'}>
+            <div className={`action-item theme-switch-btn ${isDark ? 'dark' : 'light'}`} onClick={toggleTheme}>
+              {isDark ? (
+                <span className="theme-icon moon-icon">🌙</span>
+              ) : (
+                <span className="theme-icon sun-icon">☀️</span>
+              )}
+            </div>
+          </Tooltip>
+
           <div className="action-item settings">
             <SettingOutlined />
           </div>
@@ -98,9 +112,9 @@ const PageTop: React.FC = () => {
                 <UserOutlined />
                 <span>个人中心</span>
               </div>
-              <div className="user-menu-item">
-                <SettingOutlined />
-                <span>系统设置</span>
+              <div className="user-menu-item" onClick={toggleTheme}>
+                <span style={{ marginRight: 8 }}>{isDark ? '☀️' : '🌙'}</span>
+                <span>{isDark ? '明亮模式' : '深色模式'}</span>
               </div>
               <div className="user-menu-divider"></div>
               <div className="user-menu-item logout" onClick={logout}>
@@ -116,3 +130,4 @@ const PageTop: React.FC = () => {
 };
 
 export { PageTop };
+

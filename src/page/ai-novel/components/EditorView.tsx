@@ -9,13 +9,12 @@ import {
   RocketOutlined, CloudDownloadOutlined, DeleteOutlined, PlusOutlined, PlusCircleOutlined,
   SortAscendingOutlined, SortDescendingOutlined, InteractionOutlined, LoadingOutlined,
   HighlightOutlined, RedoOutlined, PlayCircleOutlined, CheckCircleFilled, UserAddOutlined,
-  UserDeleteOutlined, EditOutlined, EyeOutlined
+  UserDeleteOutlined, EditOutlined, EyeOutlined, SaveOutlined
 } from '@ant-design/icons';
-import { Novel, NovelOutline, CharacterRelationship } from '../types';
+import { Novel, NovelOutline, CharacterRelationship, VectorMemoryItem, PaperTheme } from '../types';
 import { parseVolumeStructure, getChapterVolume, isPastCharacter } from '../utils/volumeParser';
 
 const { TextArea } = Input;
-const { TabPane } = Tabs;
 
 interface EditorViewProps {
   selectedNovel: Novel | null;
@@ -23,8 +22,8 @@ interface EditorViewProps {
   setSelectedOutline: React.Dispatch<React.SetStateAction<NovelOutline>>;
   activeChapterNum: number;
   onExitEditor: () => void;
-  paperTheme: 'light' | 'paper' | 'mint';
-  setPaperTheme: (theme: 'light' | 'paper' | 'mint') => void;
+  paperTheme: PaperTheme;
+  setPaperTheme: (theme: PaperTheme) => void;
   fontSize: number;
   setFontSize: React.Dispatch<React.SetStateAction<number>>;
   leftCollapsed: boolean;
@@ -52,6 +51,7 @@ interface EditorViewProps {
   onToggleSyncStatus: (chNum: number, currentIsSynced: boolean) => void;
   onDeleteChapter: (e: React.MouseEvent, chNum: number) => void;
   onAiRenameChapter: () => void;
+  onManualRenameChapter: (chNum: number, newTitle: string) => void;
   renamingChapter: boolean;
   chapterContent: string;
   setChapterContent: (val: string) => void;
@@ -71,6 +71,7 @@ interface EditorViewProps {
   onReplacePolishedText: () => void;
   textRef: React.RefObject<HTMLTextAreaElement>;
   saveManualEdits: (content: string) => void;
+  onSaveChapterContent?: (showToast?: boolean) => void;
   wordCountLimit: number;
   setWordCountLimit: (val: number) => void;
   onContinueWriting: () => void;
@@ -102,6 +103,8 @@ interface EditorViewProps {
   activeRelNode: CharacterRelationship | null;
   setActiveRelNode: (node: CharacterRelationship | null) => void;
   onTogglePastStatus: (relName: string) => Promise<void>;
+  isDeslopping?: boolean;
+  onDeslopContent?: (customInstruction?: string) => void;
   onStartEditRelationship: (rel: CharacterRelationship) => void;
   onDeleteRelationship: (name: string) => void;
 }
@@ -111,6 +114,8 @@ export const EditorView: React.FC<EditorViewProps> = ({
   selectedOutline,
   setSelectedOutline,
   activeChapterNum,
+  isDeslopping = false,
+  onDeslopContent,
   onExitEditor,
   paperTheme,
   setPaperTheme,
@@ -140,6 +145,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   onToggleSyncStatus,
   onDeleteChapter,
   onAiRenameChapter,
+  onManualRenameChapter,
   renamingChapter,
   chapterContent,
   setChapterContent,
@@ -159,6 +165,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   onReplacePolishedText,
   textRef,
   saveManualEdits,
+  onSaveChapterContent,
   wordCountLimit,
   setWordCountLimit,
   onContinueWriting,
@@ -194,6 +201,69 @@ export const EditorView: React.FC<EditorViewProps> = ({
   onDeleteRelationship,
   onOpenFreeWrite,
 }) => {
+  const [isEditingTitle, setIsEditingTitle] = React.useState(false);
+  const [titleInputValue, setTitleInputValue] = React.useState('');
+  const [popoverRenameNum, setPopoverRenameNum] = React.useState<number | null>(null);
+  const [popoverRenameValue, setPopoverRenameValue] = React.useState('');
+  const debounceSaveRef = React.useRef<any>(null);
+
+  const getCleanChapterTitle = (chap: any) => {
+    if (!chap || !chap.title) return `第${chap?.chapterNumber || ''}章`;
+    const num = chap.chapterNumber;
+    const numPattern = new RegExp(`^第\\s*${num}\\s*章[\\s:：·—\\-]*`, 'i');
+    const clean = chap.title.replace(numPattern, '').trim();
+    return clean || chap.title;
+  };
+
+  // 🧠 向量长程记忆库状态
+  const [vectorMemories, setVectorMemories] = React.useState<VectorMemoryItem[]>([]);
+  const [loadingMemories, setLoadingMemories] = React.useState(false);
+  const [memorySearchText, setMemorySearchText] = React.useState('');
+  const [selectedMemoryType, setSelectedMemoryType] = React.useState('all');
+
+  const fetchVectorMemories = React.useCallback(async () => {
+    if (!selectedNovel?.id) return;
+    try {
+      setLoadingMemories(true);
+      const res: any = await httpService.get(`/ai-novel/vector-memories?novelId=${selectedNovel.id}&memoryType=${selectedMemoryType}&search=${encodeURIComponent(memorySearchText)}`);
+      if (res.code === 200) {
+        setVectorMemories(res.data || []);
+      }
+    } catch (err) {
+      console.warn('获取向量记忆列表失败:', err);
+    } finally {
+      setLoadingMemories(false);
+    }
+  }, [selectedNovel?.id, selectedMemoryType, memorySearchText, httpService]);
+
+  React.useEffect(() => {
+    fetchVectorMemories();
+  }, [fetchVectorMemories]);
+
+  const handleDeleteMemoryItem = async (memId: number) => {
+    try {
+      const res: any = await httpService.delete(`/ai-novel/vector-memory/${memId}`);
+      if (res.code === 200) {
+        message.success('已删除该条深层记忆');
+        fetchVectorMemories();
+      }
+    } catch (e: any) {
+      message.error(e?.message || '删除记忆失败');
+    }
+  };
+
+  const handleTextChange = (newVal: string) => {
+    setChapterContent(newVal);
+    if (debounceSaveRef.current) {
+      clearTimeout(debounceSaveRef.current);
+    }
+    debounceSaveRef.current = setTimeout(() => {
+      if (onSaveChapterContent) {
+        onSaveChapterContent(false);
+      }
+    }, 1500);
+  };
+
   if (!selectedNovel) return null;
 
   const safeOutline = selectedOutline || { chaptersOutline: [], characterRelationships: [], systemAndCultivationState: {}, theme: '', worldSetting: '', characterSetting: '', mainLine: '' };
@@ -228,6 +298,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
               <Radio.Button value="light">极简白</Radio.Button>
               <Radio.Button value="paper">羊皮纸</Radio.Button>
               <Radio.Button value="mint">薄荷绿</Radio.Button>
+              <Radio.Button value="dark">🌑 暗夜黑</Radio.Button>
             </Radio.Group>
           </Tooltip>
           <Tooltip title="字号调节">
@@ -394,17 +465,20 @@ export const EditorView: React.FC<EditorViewProps> = ({
             return (
               <>
                 {volumeInfo.parsed && (
-                  <div className="volume-selector-container" style={{ padding: '8px 12px', background: '#fafafa', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <BookOutlined style={{ color: '#d4b106', fontSize: 14 }} />
+                  <div className="volume-selector-container" style={{ padding: '8px 12px', borderBottom: '1px solid rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <BookOutlined style={{ color: '#d4b106', fontSize: 14, flexShrink: 0 }} />
                     <Select
-                      value={selectedVolumeNum}
-                      onChange={val => setSelectedVolumeNum(val)}
+                      value={selectedVolumeNum === null ? 'all' : selectedVolumeNum}
+                      onChange={val => setSelectedVolumeNum(val === 'all' ? null : Number(val))}
                       style={{ flex: 1, minWidth: 0 }}
                       size="small"
                       bordered={false}
                       dropdownMatchSelectWidth={false}
                       className="volume-select-dropdown"
                     >
+                      <Select.Option value="all">
+                        📖 全部卷章 (共 {selectedOutline?.chaptersOutline?.length || 0} 章)
+                      </Select.Option>
                       {volumeInfo.volumes.map(vol => {
                         const nextVol = volumeInfo.volumes.find((v: any) => v.volumeNumber === vol.volumeNumber + 1);
                         const rangeText = nextVol
@@ -420,36 +494,46 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   </div>
                 )}
                 <div className="tree-scroll">
-                  {filteredChapters.map(chap => {
-                    const chapVol = getChapterVolume(chap.chapterNumber, volumeInfo.volumes);
-                    return (
-                      <div
-                        key={chap.chapterNumber}
-                        className={`tree-item ${chap.chapterNumber === activeChapterNum ? 'active' : ''}`}
-                        onClick={() => {
-                          if (isDeleteMode) {
-                            toggleCheckChapter(chap.chapterNumber);
-                          } else {
-                            onSelectChapter(chap.chapterNumber);
-                          }
-                        }}
-                      >
-                        {isDeleteMode && (
-                          <Checkbox
-                            checked={checkedChapters.includes(chap.chapterNumber)}
-                            onChange={() => toggleCheckChapter(chap.chapterNumber)}
-                            style={{ marginRight: 8 }}
-                            onClick={e => e.stopPropagation()}
-                          />
-                        )}
-                        <span className="chap-num">#{chap.chapterNumber}</span>
-                        {volumeInfo.parsed && (
-                          <span style={{ fontSize: 10, background: '#e8e8e8', color: '#666', padding: '0px 4px', borderRadius: 4, marginRight: 6 }}>
-                            卷 {chapVol.volumeNumber}
-                          </span>
-                        )}
-                        <span className="chap-name" title={chap.title}>{chap.title}</span>
-                        <span className="chap-state-badge" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {filteredChapters.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '30px 12px', color: '#94a3b8' }}>
+                      <div style={{ fontSize: 13, marginBottom: 8 }}>该分卷下暂无章节</div>
+                      <Button size="small" type="dashed" onClick={() => setSelectedVolumeNum(null)}>
+                        显示全部章节
+                      </Button>
+                    </div>
+                  ) : (
+                    filteredChapters.map(chap => {
+                      const chapVol = getChapterVolume(chap.chapterNumber, volumeInfo.volumes);
+                      return (
+                        <div
+                          key={chap.chapterNumber}
+                          className={`tree-item ${chap.chapterNumber === activeChapterNum ? 'active' : ''}`}
+                          onClick={() => {
+                            if (isDeleteMode) {
+                              toggleCheckChapter(chap.chapterNumber);
+                            } else {
+                              onSelectChapter(chap.chapterNumber);
+                            }
+                          }}
+                        >
+                          {isDeleteMode && (
+                            <Checkbox
+                              checked={checkedChapters.includes(chap.chapterNumber)}
+                              onChange={() => toggleCheckChapter(chap.chapterNumber)}
+                              style={{ marginRight: 8 }}
+                              onClick={e => e.stopPropagation()}
+                            />
+                          )}
+                          <span className="chap-num">#{chap.chapterNumber}</span>
+                          {volumeInfo.parsed && (
+                            <span style={{ fontSize: 10, background: '#e8e8e8', color: '#666', padding: '0px 4px', borderRadius: 4, marginRight: 4, flexShrink: 0 }}>
+                              卷 {chapVol.volumeNumber}
+                            </span>
+                          )}
+                        <span className="chap-name" title={chap.title}>
+                          {getCleanChapterTitle(chap)}
+                        </span>
+                        <span className="chap-state-badge" style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                           {chap.crawlStatus === 'published' ? (
                             <Popconfirm
                               title="确定将此章节标记为【未同步】吗？"
@@ -463,7 +547,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                             >
                               <span onClick={(e) => e.stopPropagation()}>
                                 <Tooltip title="点击手动更改同步状态">
-                                  <Badge status="warning" text="已同步草稿" style={{ cursor: 'pointer' }} />
+                                  <Badge status="warning" text="已同步" style={{ cursor: 'pointer', whiteSpace: 'nowrap' }} />
                                 </Tooltip>
                               </span>
                             </Popconfirm>
@@ -480,15 +564,72 @@ export const EditorView: React.FC<EditorViewProps> = ({
                             >
                               <span onClick={(e) => e.stopPropagation()}>
                                 <Tooltip title="点击手动标记为已同步">
-                                  <Badge status="success" text={`${chap.wordCount || 0}字`} style={{ cursor: 'pointer' }} />
+                                  <Badge status="success" text={`${chap.wordCount || 0}字`} style={{ cursor: 'pointer', whiteSpace: 'nowrap' }} />
                                 </Tooltip>
                               </span>
                             </Popconfirm>
                           ) : (
-                            <Badge status="default" text="待写" />
+                            <Badge status="default" text="待写" style={{ whiteSpace: 'nowrap' }} />
                           )}
                           {!isDeleteMode && (
-                            <>
+                            <span className="chap-hover-actions" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                              <Popover
+                                trigger="click"
+                                open={popoverRenameNum === chap.chapterNumber}
+                                onOpenChange={(visible) => {
+                                  if (visible) {
+                                    setPopoverRenameNum(chap.chapterNumber);
+                                    setPopoverRenameValue(chap.title);
+                                  } else {
+                                    setPopoverRenameNum(null);
+                                  }
+                                }}
+                                content={
+                                  <div style={{ padding: 4, display: 'flex', gap: 6, alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+                                    <Input
+                                      size="small"
+                                      value={popoverRenameValue}
+                                      onChange={(e) => setPopoverRenameValue(e.target.value)}
+                                      onPressEnter={() => {
+                                        if (popoverRenameValue.trim()) {
+                                          onManualRenameChapter(chap.chapterNumber, popoverRenameValue);
+                                        }
+                                        setPopoverRenameNum(null);
+                                      }}
+                                      autoFocus
+                                      placeholder="输入新章节名"
+                                      style={{ width: 180 }}
+                                    />
+                                    <Button
+                                      type="primary"
+                                      size="small"
+                                      onClick={() => {
+                                        if (popoverRenameValue.trim()) {
+                                          onManualRenameChapter(chap.chapterNumber, popoverRenameValue);
+                                        }
+                                        setPopoverRenameNum(null);
+                                      }}
+                                    >
+                                      确定
+                                    </Button>
+                                  </div>
+                                }
+                              >
+                                <Tooltip title="修改章节名字">
+                                  <Button
+                                    size="small"
+                                    type="text"
+                                    icon={<EditOutlined />}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setPopoverRenameNum(chap.chapterNumber);
+                                      setPopoverRenameValue(chap.title);
+                                    }}
+                                    className="chap-edit-btn"
+                                    style={{ padding: 0, width: 18, height: 18, fontSize: 11, marginLeft: 2, color: '#595959' }}
+                                  />
+                                </Tooltip>
+                              </Popover>
                               <Tooltip title={`在该章（第 ${chap.chapterNumber} 章）之后插入新章节`}>
                                 <Button
                                   size="small"
@@ -499,7 +640,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                                     onOpenInsertModal(chap.chapterNumber);
                                   }}
                                   className="chap-insert-btn"
-                                  style={{ padding: 0, width: 20, height: 20, fontSize: 12, marginLeft: 4, color: '#1890ff' }}
+                                  style={{ padding: 0, width: 18, height: 18, fontSize: 11, marginLeft: 2, color: '#595959' }}
                                 />
                               </Tooltip>
                               <Tooltip title="删除本章">
@@ -513,12 +654,13 @@ export const EditorView: React.FC<EditorViewProps> = ({
                                   style={{ padding: 0, width: 20, height: 20, fontSize: 12, marginLeft: 2 }}
                                 />
                               </Tooltip>
-                            </>
+                            </span>
                           )}
                         </span>
                       </div>
                     );
-                  })}
+                  })
+                )}
                 </div>
               </>
             );
@@ -530,7 +672,69 @@ export const EditorView: React.FC<EditorViewProps> = ({
           <div className="paper-container">
             <div className="paper-header-info">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <h2 style={{ margin: 0 }}>{currentChapter?.title}</h2>
+                {isEditingTitle ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, marginRight: 16 }}>
+                    <Input
+                      size="large"
+                      value={titleInputValue}
+                      onChange={(e) => setTitleInputValue(e.target.value)}
+                      onPressEnter={() => {
+                        const targetNum = currentChapter?.chapterNumber || activeChapterNum || 1;
+                        if (titleInputValue.trim()) {
+                          onManualRenameChapter(targetNum, titleInputValue.trim());
+                        }
+                        setIsEditingTitle(false);
+                      }}
+                      autoFocus
+                      placeholder="请输入章节名字..."
+                      style={{ fontWeight: 'bold', fontSize: 18 }}
+                    />
+                    <Button
+                      type="primary"
+                      size="small"
+                      onClick={() => {
+                        const targetNum = currentChapter?.chapterNumber || activeChapterNum || 1;
+                        if (titleInputValue.trim()) {
+                          onManualRenameChapter(targetNum, titleInputValue.trim());
+                        }
+                        setIsEditingTitle(false);
+                      }}
+                    >
+                      保存
+                    </Button>
+                    <Button
+                      size="small"
+                      onClick={() => setIsEditingTitle(false)}
+                    >
+                      取消
+                    </Button>
+                  </div>
+                ) : (
+                  <div
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+                    className="editable-chapter-title-group"
+                    onClick={() => {
+                      setIsEditingTitle(true);
+                      setTitleInputValue(currentChapter?.title || '');
+                    }}
+                  >
+                    <h2 style={{ margin: 0 }}>
+                      {currentChapter?.title || (activeChapterNum ? `第 ${activeChapterNum} 章` : '未命名章节')}
+                    </h2>
+                    <Tooltip title="点击修改章节名字">
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<EditOutlined style={{ color: '#1890ff', fontSize: 16 }} />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsEditingTitle(true);
+                          setTitleInputValue(currentChapter?.title || '');
+                        }}
+                      />
+                    </Tooltip>
+                  </div>
+                )}
                 <Button
                   type="primary"
                   ghost
@@ -542,15 +746,53 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   AI起名字
                 </Button>
               </div>
-              <div className="words-stats">
-                <span>字数统计: {chapterContent.length} 字</span>
-                {isGenerating && (
-                  <span className="speed-stats" style={{marginLeft: 15, color: '#389e0d'}}>
-                    <LoadingOutlined /> 生成中: {writingSpeed}字/秒
-                  </span>
-                )}
+              <div className="words-stats" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <span>字数统计: {chapterContent.length} 字</span>
+                  {isGenerating && (
+                    <span className="speed-stats" style={{marginLeft: 15, color: '#389e0d'}}>
+                      <LoadingOutlined /> 生成中: {writingSpeed}字/秒
+                    </span>
+                  )}
+                </div>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<SaveOutlined />}
+                  onClick={() => onSaveChapterContent && onSaveChapterContent(true)}
+                  style={{ borderRadius: 4 }}
+                >
+                  保存正文
+                </Button>
               </div>
             </div>
+
+            {/* 本章高级蓝图指示栏 */}
+            {currentChapter && (currentChapter.suspenseLevel || currentChapter.foreshadowing || currentChapter.hookType || currentChapter.keyItems) && (
+              <div className="chapter-blueprint-bar">
+                <span className="blueprint-label">🎯 本章蓝图：</span>
+                {currentChapter.suspenseLevel && (
+                  <Tag color="volcano" style={{ margin: 0, fontSize: 11 }}>
+                    ⚡ 悬念: {currentChapter.suspenseLevel}
+                  </Tag>
+                )}
+                {currentChapter.foreshadowing && (
+                  <Tag color="purple" style={{ margin: 0, fontSize: 11 }}>
+                    🔍 伏笔: {currentChapter.foreshadowing}
+                  </Tag>
+                )}
+                {currentChapter.hookType && (
+                  <Tag color="cyan" style={{ margin: 0, fontSize: 11 }}>
+                    🪝 留钩: {currentChapter.hookType}
+                  </Tag>
+                )}
+                {currentChapter.keyItems && (
+                  <Tag color="gold" style={{ margin: 0, fontSize: 11 }}>
+                    🎒 道具: {currentChapter.keyItems}
+                  </Tag>
+                )}
+              </div>
+            )}
 
             {isGenerating && chapterContent.length === 0 ? (
               <div className="writing-loading-state">
@@ -599,9 +841,11 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   <textarea
                     ref={textRef}
                     value={chapterContent}
-                    onChange={e => {
-                      setChapterContent(e.target.value);
-                      saveManualEdits(e.target.value);
+                    onChange={e => handleTextChange(e.target.value)}
+                    onBlur={() => {
+                      if (onSaveChapterContent) {
+                        onSaveChapterContent(false);
+                      }
                     }}
                     onMouseUp={handleTextSelect}
                     onKeyUp={handleTextSelect}
@@ -655,6 +899,15 @@ export const EditorView: React.FC<EditorViewProps> = ({
                     }}
                   >
                     修复重写选中段
+                  </Button>
+                  <Button
+                    style={{ backgroundColor: '#722ed1', borderColor: '#722ed1', color: '#fff', fontWeight: 600 }}
+                    loading={isDeslopping}
+                    disabled={isGenerating || !chapterContent.trim()}
+                    onClick={() => onDeslopContent && onDeslopContent()}
+                    icon={<span>✨</span>}
+                  >
+                    深度去 AI 味 (7 Gate)
                   </Button>
                   <Button
                     icon={<PlusOutlined />}
@@ -899,7 +1152,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                 }}
                 rows={6}
                 placeholder="在此输入并修改主线沙盘设定，引导后续剧情的发展大方向..."
-                style={{ fontSize: 13, background: '#fafafa' }}
+                style={{ fontSize: 13 }}
               />
             </Card>
 
@@ -921,299 +1174,450 @@ export const EditorView: React.FC<EditorViewProps> = ({
               }
               size="small"
             >
-              <Tabs size="small">
-                <TabPane
-                  tab={
-                    <Space>
-                      <span>世界观</span>
-                      <Button
-                        size="small"
-                        type="text"
-                        style={{ fontSize: 11, color: '#d4b106', padding: '0 4px', height: 'auto' }}
-                        icon={<RocketOutlined />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setModifyField('worldSetting');
-                          setIsModifyModalOpen(true);
-                        }}
-                      >
-                        AI修改
-                      </Button>
-                    </Space>
-                  }
-                  key="w"
-                >
-                  <TextArea
-                    value={selectedOutline?.worldSetting}
-                    onChange={e => {
-                      if (selectedOutline) {
-                        setSelectedOutline({ ...selectedOutline, worldSetting: e.target.value });
-                      }
-                    }}
-                    onBlur={async e => {
-                      if (!selectedNovel) return;
-                      await httpService.post('/ai-novel/save-outline', {
-                        novelId: selectedNovel.id,
-                        worldSetting: e.target.value
-                      });
-                      message.success({ content: '世界观背景设定已自动保存！', duration: 1.5 });
-                    }}
-                    rows={8}
-                    placeholder="在此输入并修改小说世界观及规则设定..."
-                    style={{ fontSize: 13, background: '#fafafa' }}
-                  />
-                </TabPane>
-                <TabPane
-                  tab={
-                    <Space>
-                      <span>主角团</span>
-                      <Button
-                        size="small"
-                        type="text"
-                        style={{ fontSize: 11, color: '#d4b106', padding: '0 4px', height: 'auto' }}
-                        icon={<RocketOutlined />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setModifyField('characterSetting');
-                          setIsModifyModalOpen(true);
-                        }}
-                      >
-                        AI修改
-                      </Button>
-                    </Space>
-                  }
-                  key="c"
-                >
-                  <TextArea
-                    value={selectedOutline?.characterSetting}
-                    onChange={e => {
-                      if (selectedOutline) {
-                        setSelectedOutline({ ...selectedOutline, characterSetting: e.target.value });
-                      }
-                    }}
-                    onBlur={async e => {
-                      if (!selectedNovel) return;
-                      await httpService.post('/ai-novel/save-outline', {
-                        novelId: selectedNovel.id,
-                        characterSetting: e.target.value
-                      });
-                      message.success({ content: '主角团人设已自动保存！', duration: 1.5 });
-                    }}
-                    rows={8}
-                    placeholder="在此输入并修改主要人物及角色设定..."
-                    style={{ fontSize: 13, background: '#fafafa' }}
-                  />
-                </TabPane>
-
-                <TabPane tab="修仙与金手指" key="sys">
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: "#1890ff" }}>⚡ 战力境界与系统金手指看板</span>
-                      <Space size={4}>
+              <Tabs
+                size="small"
+                items={[
+                  {
+                    key: 'w',
+                    label: (
+                      <Space>
+                        <span>世界观</span>
                         <Button
                           size="small"
-                          icon={isAnalyzingSys ? <LoadingOutlined /> : <RocketOutlined />}
-                          onClick={onAnalyzeSystemAndCultivation}
-                          loading={isAnalyzingSys}
+                          type="text"
+                          style={{ fontSize: 11, color: '#d4b106', padding: '0 4px', height: 'auto' }}
+                          icon={<RocketOutlined />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setModifyField('worldSetting');
+                            setIsModifyModalOpen(true);
+                          }}
                         >
-                          分析本章
-                        </Button>
-                        <Button
-                          size="small"
-                          type="primary"
-                          ghost
-                          icon={<CheckCircleFilled />}
-                          onClick={() => onOpenBatchAnalyzeModal('sys')}
-                        >
-                          勾选多章分析
+                          AI修改
                         </Button>
                       </Space>
-                    </div>
-
-                    <div style={{ maxHeight: 300, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
-                      <Card size="small" style={{ background: "#e6f7ff", border: "1px solid #91d5ff", borderRadius: 6 }} bodyStyle={{ padding: 8 }}>
+                    ),
+                    children: (
+                      <TextArea
+                        value={selectedOutline?.worldSetting}
+                        onChange={e => {
+                          if (selectedOutline) {
+                            setSelectedOutline({ ...selectedOutline, worldSetting: e.target.value });
+                          }
+                        }}
+                        onBlur={async e => {
+                          if (!selectedNovel) return;
+                          await httpService.post('/ai-novel/save-outline', {
+                            novelId: selectedNovel.id,
+                            worldSetting: e.target.value
+                          });
+                          message.success({ content: '世界观背景设定已自动保存！', duration: 1.5 });
+                        }}
+                        rows={8}
+                        placeholder="在此输入并修改小说世界观及规则设定..."
+                        style={{ fontSize: 13 }}
+                      />
+                    )
+                  },
+                  {
+                    key: 'c',
+                    label: (
+                      <Space>
+                        <span>主角团</span>
+                        <Button
+                          size="small"
+                          type="text"
+                          style={{ fontSize: 11, color: '#d4b106', padding: '0 4px', height: 'auto' }}
+                          icon={<RocketOutlined />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setModifyField('characterSetting');
+                            setIsModifyModalOpen(true);
+                          }}
+                        >
+                          AI修改
+                        </Button>
+                      </Space>
+                    ),
+                    children: (
+                      <TextArea
+                        value={selectedOutline?.characterSetting}
+                        onChange={e => {
+                          if (selectedOutline) {
+                            setSelectedOutline({ ...selectedOutline, characterSetting: e.target.value });
+                          }
+                        }}
+                        onBlur={async e => {
+                          if (!selectedNovel) return;
+                          await httpService.post('/ai-novel/save-outline', {
+                            novelId: selectedNovel.id,
+                            characterSetting: e.target.value
+                          });
+                          message.success({ content: '主角团人设已自动保存！', duration: 1.5 });
+                        }}
+                        rows={8}
+                        placeholder="在此输入并修改主要人物及角色设定..."
+                        style={{ fontSize: 13 }}
+                      />
+                    )
+                  },
+                  {
+                    key: 'sys',
+                    label: '修仙与金手指',
+                    children: (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <div>
-                            <div style={{ fontSize: 11, color: "#0050b3", fontWeight: 600 }}>🌟 主角当前突破修为：</div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: "#096dd9", marginTop: 2 }}>
-                              {selectedOutline?.systemAndCultivationState?.protagonistCultivation?.currentRealm || "暂未突破 / 练气期"}
+                          <span style={{ fontSize: 12, fontWeight: 600, color: "#1890ff" }}>⚡ 战力境界与系统金手指看板</span>
+                          <Space size={4}>
+                            <Button
+                              size="small"
+                              icon={isAnalyzingSys ? <LoadingOutlined /> : <RocketOutlined />}
+                              onClick={onAnalyzeSystemAndCultivation}
+                              loading={isAnalyzingSys}
+                            >
+                              分析本章
+                            </Button>
+                            <Button
+                              size="small"
+                              type="primary"
+                              ghost
+                              icon={<CheckCircleFilled />}
+                              onClick={() => onOpenBatchAnalyzeModal('sys')}
+                            >
+                              勾选多章分析
+                            </Button>
+                          </Space>
+                        </div>
+
+                        <div style={{ maxHeight: 300, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
+                          <Card size="small" style={{ background: "#e6f7ff", border: "1px solid #91d5ff", borderRadius: 6 }} bodyStyle={{ padding: 8 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <div>
+                                <div style={{ fontSize: 11, color: "#0050b3", fontWeight: 600 }}>🌟 主角当前突破修为：</div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#096dd9", marginTop: 2 }}>
+                                  {selectedOutline?.systemAndCultivationState?.protagonistCultivation?.currentRealm || "暂未突破 / 练气期"}
+                                </div>
+                              </div>
+                              {selectedOutline?.systemAndCultivationState?.protagonistCultivation?.karmaPoints && (
+                                <div style={{ textAlign: "right" }}>
+                                  <div style={{ fontSize: 11, color: "#d48806", fontWeight: 600 }}>⚡ 剩余因缘值：</div>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: "#d46b08", marginTop: 2 }}>
+                                    {selectedOutline.systemAndCultivationState.protagonistCultivation.karmaPoints}
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                          {selectedOutline?.systemAndCultivationState?.protagonistCultivation?.karmaPoints && (
-                            <div style={{ textAlign: "right" }}>
-                              <div style={{ fontSize: 11, color: "#d48806", fontWeight: 600 }}>⚡ 剩余因缘值：</div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#d46b08", marginTop: 2 }}>
-                                {selectedOutline.systemAndCultivationState.protagonistCultivation.karmaPoints}
+                          </Card>
+
+                          {/* 随身关键道具/战利品 */}
+                          {selectedOutline?.systemAndCultivationState?.protagonistCultivation?.inventory && selectedOutline.systemAndCultivationState.protagonistCultivation.inventory.length > 0 && (
+                            <div>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: "#666", marginBottom: 4 }}>🎒 关键战利品与随身底牌：</div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                {selectedOutline.systemAndCultivationState.protagonistCultivation.inventory.map((item, idx) => (
+                                  <Tag key={idx} color="gold" style={{ fontSize: 10, margin: 0 }}>
+                                    {item}
+                                  </Tag>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="section-sub-title">已解锁金手指/系统功能：</div>
+                          {(!selectedOutline?.systemAndCultivationState?.systemFeatures || selectedOutline.systemAndCultivationState.systemFeatures.length === 0) ? (
+                            <div className="empty-sub-tip">
+                              暂无系统功能记载，可在正文生成后点击上方按钮 AI 分析提取。
+                            </div>
+                          ) : (
+                            selectedOutline.systemAndCultivationState.systemFeatures.map((feat, idx) => (
+                              <div key={idx} className="cultivation-feat-card">
+                                <div className="feat-header">
+                                  <span className="feat-name">{feat.featureName}</span>
+                                  <span className="feat-status-tag">{feat.status}</span>
+                                </div>
+                                <div className="feat-desc">{feat.description}</div>
+                              </div>
+                            ))
+                          )}
+
+                          {/* 活跃伏笔与线索追踪 */}
+                          {selectedOutline?.systemAndCultivationState?.foreshadowingNotes && selectedOutline.systemAndCultivationState.foreshadowingNotes.length > 0 && (
+                            <div style={{ marginTop: 6 }}>
+                              <div className="section-foreshadow-title">🔍 活跃伏笔与悬念线索库：</div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                {selectedOutline.systemAndCultivationState.foreshadowingNotes.map((note, idx) => (
+                                  <div key={idx} className="foreshadow-note-card">
+                                    <div className="foreshadow-header">
+                                      <span className="foreshadow-clue">{note.clue}</span>
+                                      <Tag color={note.status === '已收束' ? 'default' : 'purple'} style={{ margin: 0, fontSize: 9 }}>
+                                        {note.status || '待收束'}
+                                      </Tag>
+                                    </div>
+                                    {note.plantedChapter && (
+                                      <div className="foreshadow-chapter">
+                                        📌 第 {note.plantedChapter} 章埋下
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
                               </div>
                             </div>
                           )}
                         </div>
-                      </Card>
-
-                      <div style={{ fontSize: 11, fontWeight: 600, color: "#666" }}>已解锁金手指/系统功能：</div>
-                      {(!selectedOutline?.systemAndCultivationState?.systemFeatures || selectedOutline.systemAndCultivationState.systemFeatures.length === 0) ? (
-                        <div style={{ textAlign: "center", padding: "15px 0", color: "#ccc", fontSize: 11 }}>
-                          暂无系统功能记载，可在正文生成后点击上方按钮 AI 分析提取。
+                      </div>
+                    )
+                  },
+                  {
+                    key: 'r',
+                    label: '关系网',
+                    children: (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Button
+                            type="primary"
+                            size="small"
+                            icon={<PlusOutlined />}
+                            style={{ background: '#d4b106', borderColor: '#d4b106', color: '#fff' }}
+                            onClick={onStartAddRelationship}
+                          >
+                            手动补录
+                          </Button>
+                          <Space size={4}>
+                            <Tooltip title={relSortAsc ? '当前按登场章节正序，点击倒序' : '当前倒序，点击切换正序'}>
+                              <Button
+                                size="small"
+                                icon={relSortAsc ? <SortAscendingOutlined /> : <SortDescendingOutlined />}
+                                onClick={() => setRelSortAsc(v => !v)}
+                              />
+                            </Tooltip>
+                            <Button
+                              size="small"
+                              icon={isAnalyzingRel ? <LoadingOutlined /> : <RocketOutlined />}
+                              onClick={onAnalyzeRelationships}
+                              loading={isAnalyzingRel}
+                            >
+                              分析本章
+                            </Button>
+                            <Button
+                              size="small"
+                              type="primary"
+                              ghost
+                              icon={<CheckCircleFilled />}
+                              onClick={() => onOpenBatchAnalyzeModal('rel')}
+                            >
+                              勾选多章分析
+                            </Button>
+                          </Space>
                         </div>
-                      ) : (
-                        selectedOutline.systemAndCultivationState.systemFeatures.map((feat, idx) => (
-                          <div key={idx} style={{ background: "#fafafa", border: "1px solid #f0f0f0", padding: 8, borderRadius: 6 }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 600, color: "#333" }}>
-                              <span>{feat.featureName}</span>
-                              <span style={{ fontSize: 10, color: "#52c41a", background: "#f6ffed", padding: "0 4px", border: "1px solid #b7eb8f", borderRadius: 4 }}>{feat.status}</span>
-                            </div>
-                            <div style={{ fontSize: 11, color: "#666", marginTop: 4 }}>{feat.description}</div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </TabPane>
 
-                <TabPane tab="关系网" key="r">
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Button
-                        type="primary"
-                        size="small"
-                        icon={<PlusOutlined />}
-                        style={{ background: '#d4b106', borderColor: '#d4b106', color: '#fff' }}
-                        onClick={onStartAddRelationship}
-                      >
-                        手动补录
-                      </Button>
-                      <Space size={4}>
-                        <Tooltip title={relSortAsc ? '当前按登场章节正序，点击倒序' : '当前倒序，点击切换正序'}>
+                        <div className="relationships-scroll-list" style={{ maxHeight: 340, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, paddingRight: 4 }}>
+                          {(!selectedOutline?.characterRelationships || selectedOutline.characterRelationships.length === 0) ? (
+                            <div style={{ textAlign: 'center', padding: '30px 10px', color: '#ccc', fontSize: 12 }}>
+                              暂无人物关系记录，可在正文生成后自动提取，或点击上方按钮手动录入。
+                            </div>
+                          ) : (() => {
+                            const sortedAll = [...(selectedOutline.characterRelationships)].sort((a, b) => {
+                              const aMax = Math.max(...(a.appearanceChapters || [0]));
+                              const bMax = Math.max(...(b.appearanceChapters || [0]));
+                              return relSortAsc ? aMax - bMax : bMax - aMax;
+                            });
+                            const activeList = sortedAll.filter(r => !isPastCharacter(r));
+                            const pastList = sortedAll.filter(r => isPastCharacter(r));
+
+                            const renderCard = (rel: CharacterRelationship, idx: number, isPast: boolean) => (
+                              <Card
+                                key={`${rel.name}-${idx}`}
+                                size="small"
+                                className={`relationship-card ${isPast ? 'is-past-character' : 'is-active-character'}`}
+                                bodyStyle={{ padding: 10 }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                    <span className="rel-name">{rel.name}</span>
+                                    <span className={`rel-badge ${isPast ? 'past' : 'active'}`}>{rel.relationship}</span>
+                                    {isPast && <Tag color="default" style={{ fontSize: 10, margin: 0, padding: '0 4px', lineHeight: '16px' }}>已退场/斩杀</Tag>}
+                                  </div>
+                                  <div style={{ display: 'flex', gap: 4 }}>
+                                    <Tooltip title={isPast ? "恢复为活跃人物" : "标记为过往/退场人物（AI 不再读取）"}>
+                                      <Button
+                                        size="small"
+                                        type="text"
+                                        icon={isPast ? <UserAddOutlined style={{ fontSize: 11, color: '#52c41a' }} /> : <UserDeleteOutlined style={{ fontSize: 11, color: '#fa8c16' }} />}
+                                        onClick={() => onTogglePastStatus(rel.name)}
+                                        style={{ width: 20, height: 20, padding: 0 }}
+                                      />
+                                    </Tooltip>
+                                    <Button
+                                      size="small"
+                                      type="text"
+                                      icon={<EditOutlined style={{ fontSize: 11, color: '#1890ff' }} />}
+                                      onClick={() => onStartEditRelationship(rel)}
+                                      style={{ width: 20, height: 20, padding: 0 }}
+                                    />
+                                    <Popconfirm
+                                      title={`确定要删除人物 ${rel.name} 的关系记录吗？`}
+                                      okText="确定"
+                                      cancelText="取消"
+                                      onConfirm={() => onDeleteRelationship(rel.name)}
+                                    >
+                                      <Button
+                                        size="small"
+                                        type="text"
+                                        icon={<DeleteOutlined style={{ fontSize: 11, color: '#ff4d4f' }} />}
+                                        style={{ width: 20, height: 20, padding: 0 }}
+                                      />
+                                    </Popconfirm>
+                                  </div>
+                                </div>
+                                <div style={{ fontSize: 12, color: isPast ? '#94a3b8' : '#666', lineHeight: 1.5, marginBottom: 4 }}>
+                                  {rel.description || '暂无特征/细节描述。'}
+                                </div>
+                                <div style={{ fontSize: 10, color: '#999', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <span>登场章节:</span>
+                                  {rel.appearanceChapters && rel.appearanceChapters.map((num, i) => (
+                                    <span key={i} style={{ background: isPast ? '#e2e8f0' : '#e6f7ff', color: isPast ? '#64748b' : '#1890ff', padding: '0 4px', borderRadius: 4 }}>
+                                      #{num}
+                                    </span>
+                                  ))}
+                                </div>
+                              </Card>
+                            );
+
+                            return (
+                              <>
+                                {activeList.map((rel, idx) => renderCard(rel, idx, false))}
+                                {pastList.length > 0 && (
+                                  <div style={{ margin: '8px 0 2px', fontSize: 11, fontWeight: 600, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <span>🪦 过往 / 退场人物 ({pastList.length})</span>
+                                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 'normal' }}>（置灰，AI 不再读取）</span>
+                                  </div>
+                                )}
+                                {pastList.map((rel, idx) => renderCard(rel, idx, true))}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    )
+                  },
+                  {
+                    key: 'mem',
+                    label: (
+                      <Space size={2}>
+                        <span>🧠 记忆库</span>
+                        {vectorMemories.length > 0 && <Badge count={vectorMemories.length} overflowCount={99} style={{ backgroundColor: '#722ed1', fontSize: 10, height: 16, lineHeight: '16px' }} />}
+                      </Space>
+                    ),
+                    children: (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: '#722ed1' }}>🧠 跨卷深层向量记忆库</span>
                           <Button
                             size="small"
-                            icon={relSortAsc ? <SortAscendingOutlined /> : <SortDescendingOutlined />}
-                            onClick={() => setRelSortAsc(v => !v)}
-                          />
-                        </Tooltip>
-                        <Button
-                          size="small"
-                          icon={isAnalyzingRel ? <LoadingOutlined /> : <RocketOutlined />}
-                          onClick={onAnalyzeRelationships}
-                          loading={isAnalyzingRel}
-                        >
-                          分析本章
-                        </Button>
-                        <Button
-                          size="small"
-                          type="primary"
-                          ghost
-                          icon={<CheckCircleFilled />}
-                          onClick={() => onOpenBatchAnalyzeModal('rel')}
-                        >
-                          勾选多章分析
-                        </Button>
-                      </Space>
-                    </div>
-
-                    <div className="relationships-scroll-list" style={{ maxHeight: 340, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, paddingRight: 4 }}>
-                      {(!selectedOutline?.characterRelationships || selectedOutline.characterRelationships.length === 0) ? (
-                        <div style={{ textAlign: 'center', padding: '30px 10px', color: '#ccc', fontSize: 12 }}>
-                          暂无人物关系记录，可在正文生成后自动提取，或点击上方按钮手动录入。
-                        </div>
-                      ) : (() => {
-                        const sortedAll = [...(selectedOutline.characterRelationships)].sort((a, b) => {
-                          const aMax = Math.max(...(a.appearanceChapters || [0]));
-                          const bMax = Math.max(...(b.appearanceChapters || [0]));
-                          return relSortAsc ? aMax - bMax : bMax - aMax;
-                        });
-                        const activeList = sortedAll.filter(r => !isPastCharacter(r));
-                        const pastList = sortedAll.filter(r => isPastCharacter(r));
-
-                        const renderCard = (rel: CharacterRelationship, idx: number, isPast: boolean) => (
-                          <Card
-                            key={`${rel.name}-${idx}`}
-                            size="small"
-                            className="relationship-card"
-                            style={{
-                              background: isPast ? '#f8fafc' : '#fafafa',
-                              border: isPast ? '1px dashed #cbd5e1' : '1px solid #f0f0f0',
-                              borderRadius: 6,
-                              opacity: isPast ? 0.75 : 1
-                            }}
-                            bodyStyle={{ padding: 10 }}
+                            icon={<RedoOutlined />}
+                            onClick={fetchVectorMemories}
+                            loading={loadingMemories}
                           >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                <span style={{ fontWeight: 600, color: isPast ? '#64748b' : '#333', fontSize: 13, textDecoration: isPast ? 'line-through' : 'none' }}>{rel.name}</span>
-                                <Badge
-                                  count={rel.relationship}
-                                  style={{
-                                    backgroundColor: isPast ? '#f1f5f9' : '#fffbe6',
-                                    color: isPast ? '#64748b' : '#d4b106',
-                                    border: isPast ? '1px solid #cbd5e1' : '1px solid #ffe58f',
-                                    borderRadius: 4, height: 18, lineHeight: '16px', fontSize: 10
-                                  }}
-                                />
-                                {isPast && <Tag color="default" style={{ fontSize: 10, margin: 0, padding: '0 4px', lineHeight: '16px' }}>已退场/斩杀</Tag>}
-                              </div>
-                              <div style={{ display: 'flex', gap: 4 }}>
-                                <Tooltip title={isPast ? "恢复为活跃人物" : "标记为过往/退场人物（AI 不再读取）"}>
-                                  <Button
-                                    size="small"
-                                    type="text"
-                                    icon={isPast ? <UserAddOutlined style={{ fontSize: 11, color: '#52c41a' }} /> : <UserDeleteOutlined style={{ fontSize: 11, color: '#fa8c16' }} />}
-                                    onClick={() => onTogglePastStatus(rel.name)}
-                                    style={{ width: 20, height: 20, padding: 0 }}
-                                  />
-                                </Tooltip>
-                                <Button
-                                  size="small"
-                                  type="text"
-                                  icon={<EditOutlined style={{ fontSize: 11, color: '#1890ff' }} />}
-                                  onClick={() => onStartEditRelationship(rel)}
-                                  style={{ width: 20, height: 20, padding: 0 }}
-                                />
-                                <Popconfirm
-                                  title={`确定要删除人物 ${rel.name} 的关系记录吗？`}
-                                  okText="确定"
-                                  cancelText="取消"
-                                  onConfirm={() => onDeleteRelationship(rel.name)}
-                                >
-                                  <Button
-                                    size="small"
-                                    type="text"
-                                    icon={<DeleteOutlined style={{ fontSize: 11, color: '#ff4d4f' }} />}
-                                    style={{ width: 20, height: 20, padding: 0 }}
-                                  />
-                                </Popconfirm>
-                              </div>
-                            </div>
-                            <div style={{ fontSize: 12, color: isPast ? '#94a3b8' : '#666', lineHeight: 1.5, marginBottom: 4 }}>
-                              {rel.description || '暂无特征/细节描述。'}
-                            </div>
-                            <div style={{ fontSize: 10, color: '#999', display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <span>登场章节:</span>
-                              {rel.appearanceChapters && rel.appearanceChapters.map((num, i) => (
-                                <span key={i} style={{ background: isPast ? '#e2e8f0' : '#e6f7ff', color: isPast ? '#64748b' : '#1890ff', padding: '0 4px', borderRadius: 4 }}>
-                                  #{num}
-                                </span>
-                              ))}
-                            </div>
-                          </Card>
-                        );
+                            刷新
+                          </Button>
+                        </div>
 
-                        return (
-                          <>
-                            {activeList.map((rel, idx) => renderCard(rel, idx, false))}
-                            {pastList.length > 0 && (
-                              <div style={{ margin: '8px 0 2px', fontSize: 11, fontWeight: 600, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <span>🪦 过往 / 退场人物 ({pastList.length})</span>
-                                <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 'normal' }}>（置灰，AI 不再读取）</span>
-                              </div>
-                            )}
-                            {pastList.map((rel, idx) => renderCard(rel, idx, true))}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </TabPane>
-              </Tabs>
+                        {/* 搜索与分类 */}
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <Input.Search
+                            size="small"
+                            placeholder="语义搜索前尘伏笔/宗门秘史..."
+                            value={memorySearchText}
+                            onChange={e => setMemorySearchText(e.target.value)}
+                            onSearch={fetchVectorMemories}
+                            allowClear
+                          />
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                          {[
+                            { key: 'all', label: '全部' },
+                            { key: 'lore', label: '🔮 设定' },
+                            { key: 'item', label: '🎒 法宝' },
+                            { key: 'clue', label: '🔍 伏笔' },
+                            { key: 'event', label: '🏛️ 纪事' }
+                          ].map(t => (
+                            <Tag.CheckableTag
+                              key={t.key}
+                              checked={selectedMemoryType === t.key}
+                              onChange={() => setSelectedMemoryType(t.key)}
+                              style={{ fontSize: 11, padding: '0 6px', margin: 0 }}
+                            >
+                              {t.label}
+                            </Tag.CheckableTag>
+                          ))}
+                        </div>
+
+                        {/* 记忆列表 */}
+                        <div style={{ maxHeight: 330, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {loadingMemories ? (
+                            <div style={{ textAlign: 'center', padding: '30px 0' }}><Spin size="small" tip="正在检索记忆库..." /></div>
+                          ) : vectorMemories.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '40px 10px', color: '#ccc', fontSize: 12 }}>
+                              暂无已沉淀的长程记忆切片。<br />章节正文生成后后台会自动提炼入库。
+                            </div>
+                          ) : (
+                            vectorMemories.map(mem => (
+                              <Card
+                                key={mem.id}
+                                size="small"
+                                className="vector-memory-card"
+                                bodyStyle={{ padding: 8 }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <Tag color="purple" style={{ fontSize: 10, margin: 0, padding: '0 4px', lineHeight: '16px' }}>
+                                      {mem.memoryType === 'lore' ? '🔮 设定' : mem.memoryType === 'item' ? '🎒 奇物' : mem.memoryType === 'clue' ? '🔍 伏笔' : '🏛️ 纪事'}
+                                    </Tag>
+                                    <span className="mem-title">{mem.title}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    {mem.chapterNumber ? (
+                                      <span className="mem-chapter-badge">
+                                        第 {mem.chapterNumber} 章
+                                      </span>
+                                    ) : null}
+                                    <Popconfirm
+                                      title="确定要从记忆库中删除该切片吗？"
+                                      okText="删除"
+                                      cancelText="取消"
+                                      onConfirm={() => handleDeleteMemoryItem(mem.id)}
+                                    >
+                                      <Button
+                                        size="small"
+                                        type="text"
+                                        icon={<DeleteOutlined style={{ fontSize: 10, color: '#ff4d4f' }} />}
+                                        style={{ width: 18, height: 18, padding: 0 }}
+                                      />
+                                    </Popconfirm>
+                                  </div>
+                                </div>
+                                <div className="mem-content">
+                                  {mem.content}
+                                </div>
+                                {mem.entities && mem.entities.length > 0 && (
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                                    {mem.entities.map((ent, idx) => (
+                                      <Tag key={idx} className="mem-entity-tag">
+                                        #{ent}
+                                      </Tag>
+                                    ))}
+                                  </div>
+                                )}
+                              </Card>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )
+                  }
+                ]}
+              />
             </Card>
           </div>
         </div>
@@ -1221,3 +1625,5 @@ export const EditorView: React.FC<EditorViewProps> = ({
     </div>
   );
 };
+
+export default EditorView;

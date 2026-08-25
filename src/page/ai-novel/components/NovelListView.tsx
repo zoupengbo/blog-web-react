@@ -1,5 +1,5 @@
 import React from 'react';
-import { Space, Button, Card, Spin, Tooltip, Badge } from 'antd';
+import { Space, Button, Card, Spin, Tooltip, Badge, Popconfirm } from 'antd';
 import { BookOutlined, PlusOutlined, SettingOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { Novel } from '../types';
 
@@ -79,8 +79,30 @@ export const NovelListView: React.FC<NovelListViewProps> = ({
                 className="novel-card"
                 hoverable
                 actions={[
-                  <Tooltip title="进入沉浸式协作编辑器"><EditOutlined key="edit" onClick={() => onLoadNovelToEditor(novel.id)} /></Tooltip>,
-                  <Tooltip title="一键删除"><DeleteOutlined key="delete" style={{color: '#ff4d4f'}} onClick={() => onDeleteNovel(novel.id, novel.title)} /></Tooltip>
+                  <Tooltip key="edit" title="进入沉浸式协作编辑器">
+                    <div style={{ width: '100%', height: '100%' }} onClick={() => onLoadNovelToEditor(novel.id)}>
+                      <EditOutlined />
+                    </div>
+                  </Tooltip>,
+                  <Popconfirm
+                    key="delete"
+                    title={`确定要销毁《${novel.title}》吗？`}
+                    description="将彻底清除该作品的全部世界观大纲设定和已创作正文！"
+                    okText="确认销毁"
+                    okType="danger"
+                    cancelText="取消"
+                    onConfirm={(e) => {
+                      e?.stopPropagation();
+                      onDeleteNovel(novel.id, novel.title);
+                    }}
+                    onCancel={(e) => e?.stopPropagation()}
+                  >
+                    <Tooltip title="一键删除">
+                      <div style={{ width: '100%', height: '100%' }} onClick={(e) => e.stopPropagation()}>
+                        <DeleteOutlined style={{ color: '#ff4d4f' }} />
+                      </div>
+                    </Tooltip>
+                  </Popconfirm>
                 ]}
               >
                 <div className="novel-card-body" onClick={() => onLoadNovelToEditor(novel.id)}>

@@ -1,4 +1,4 @@
-// 强制浅色主题的侧边栏
+// 侧边栏基础样式
 .page-left {
   width: 260px;
   height: 100%;
@@ -14,29 +14,136 @@
   }
 }
 
-// 高优先级样式，确保覆盖任何暗色主题
-.page-left.page-left {
-  background: #ffffff !important;
+// 🌑 深色暗黑模式下的侧边栏 (Dark Theme Sidebar)
+.dark-theme .page-left,
+[data-theme="dark"] .page-left {
+  background: #16161a !important;
+  border-right-color: #27272e !important;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.4) !important;
 
   .sidebar-header {
-    background: #ffffff !important;
-    color: #333 !important;
+    background: #16161a !important;
+    border-bottom-color: #27272e !important;
+    color: #e4e4e7 !important;
+
+    .collapse-btn {
+      color: #a1a1aa !important;
+      &:hover {
+        background: #272730 !important;
+        color: #ffd666 !important;
+      }
+    }
+
+    .sidebar-title span {
+      color: #f4f4f5 !important;
+    }
   }
 
   .sidebar-footer {
-    background: #ffffff !important;
-    color: #333 !important;
+    background: #16161a !important;
+    border-top-color: #27272e !important;
+    color: #71717a !important;
+
+    .footer-info {
+      color: #71717a !important;
+    }
   }
 
-  .ant-menu {
-    background: #ffffff !important;
+  .sidebar-menu {
+    &::-webkit-scrollbar-thumb {
+      background: #2e2e38;
+    }
 
-    .ant-menu-item,
-    .ant-menu-submenu-title {
-      color: #333 !important;
+    .ant-menu {
+      background: #16161a !important;
 
-      &:not(.ant-menu-item-selected):not(:hover) {
+      .ant-menu-item {
+        color: #a1a1aa !important;
+
+        .anticon {
+          color: #a1a1aa !important;
+        }
+
+        &:hover {
+          background: #272730 !important;
+          color: #f4f4f5 !important;
+          .anticon { color: #ffd666 !important; }
+        }
+
+        &.ant-menu-item-selected {
+          background: linear-gradient(135deg, #d4b106, #b29100) !important;
+          color: #ffffff !important;
+          font-weight: 600;
+
+          .anticon {
+            color: #ffffff !important;
+          }
+        }
+      }
+
+      .ant-menu-submenu {
         background: transparent !important;
+
+        .ant-menu-submenu-title {
+          color: #a1a1aa !important;
+          background: transparent !important;
+
+          .anticon {
+            color: #a1a1aa !important;
+          }
+
+          .ant-menu-submenu-arrow {
+            color: #a1a1aa !important;
+          }
+
+          &:hover {
+            background: #272730 !important;
+            color: #f4f4f5 !important;
+            .anticon, .ant-menu-submenu-arrow { color: #ffd666 !important; }
+          }
+        }
+
+        &.ant-menu-submenu-open {
+          background: transparent !important;
+          & > .ant-menu-submenu-title {
+            background: #222228 !important; // 深色黑曜石底色，彻底消除白色！
+            color: #ffd666 !important;
+            .anticon, .ant-menu-submenu-arrow { color: #ffd666 !important; }
+          }
+        }
+
+        &.ant-menu-submenu-selected > .ant-menu-submenu-title {
+          color: #ffd666 !important;
+          .anticon { color: #ffd666 !important; }
+        }
+      }
+
+      .ant-menu-sub {
+        background: #121215 !important;
+
+        .ant-menu-item {
+          color: #a1a1aa !important;
+
+          &::before {
+            background: #52525b !important;
+          }
+
+          &:hover {
+            background: #272730 !important;
+            color: #ffd666 !important;
+            &::before {
+              background: #ffd666 !important;
+            }
+          }
+
+          &.ant-menu-item-selected {
+            background: linear-gradient(135deg, #d4b106, #b29100) !important;
+            color: #ffffff !important;
+            &::before {
+              background: #ffffff !important;
+            }
+          }
+        }
       }
     }
   }

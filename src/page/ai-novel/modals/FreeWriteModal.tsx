@@ -153,10 +153,14 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
             try {
               const data = JSON.parse(trimmed.slice(6));
               if (currentEvent === 'chunk' && data.text) {
-                // 过滤微小多余完结标签
-                const cleanText = data.text.replace(/\[完结\]|【完结】/g, '');
+                // 过滤完结与元标签
+                const cleanText = data.text.replace(/\[完结\]|【完结】|\[完\]|【完】|\[End\]|【End】|\[全剧终\]|【全剧终】/gi, '');
                 if (cleanText) setFreeText(prev => prev + cleanText);
               } else if (currentEvent === 'done') {
+                if (data.fullText) {
+                  const cleanFull = data.fullText.replace(/\[完结\]|【完结】|\[完\]|【完】|\[End\]|【End】|\[全剧终\]|【全剧终】/gi, '').trim();
+                  setFreeText(cleanFull);
+                }
                 setIsGeneratingDraft(false);
               } else if (currentEvent === 'error') {
                 import('antd').then(({ message }) => message.error('AI 生成长稿失败：' + data.message));
@@ -332,14 +336,14 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
         size="small"
         style={{ background: '#fcf8ff', border: '1px solid #e9d5ff', borderRadius: 8, marginBottom: 14 }}
       >
-        <div style={{ fontWeight: 700, color: '#6b21a8', fontSize: 13, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span>🪄 选项 A：一句话让 AI 自动写完故事/案件长稿（推荐）</span>
+        <div style={{ fontWeight: 700, color: '#6b21a8', fontSize: 13, marginBottom: 8 }}>
+          🪄 选项 A：一句话让 AI 自动写完本段剧情长稿（推荐）
         </div>
         <Space.Compact style={{ width: '100%' }}>
           <Input
             value={aiStoryInstruction}
             onChange={e => setAiStoryInstruction(e.target.value)}
-            placeholder="例如：把这个案件写完，警方通过手机恢复发现证据，并在废弃工厂抓获嫌疑人"
+            placeholder="例如：介绍下作者是怎么穿越的，并在异界首次触发金手指完成反转打脸"
             disabled={isGeneratingDraft}
             onPressEnter={handleGenerateAiDraft}
             style={{ borderRadius: '6px 0 0 6px' }}
@@ -349,7 +353,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
             loading={isGeneratingDraft}
             onClick={handleGenerateAiDraft}
             disabled={!aiStoryInstruction.trim()}
-            style={{ backgroundColor: '#7c3aed', borderColor: '#7c3aed', fontWeight: 600 }}
+            style={{ backgroundColor: '#1677ff', borderColor: '#1677ff', fontWeight: 600 }}
           >
             🤖 召唤 AI 自动写剧情长稿
           </Button>
@@ -364,10 +368,10 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
       <TextArea
         value={freeText}
         onChange={e => setFreeText(e.target.value)}
-        placeholder={`在此自由书写或贴入您的剧情白稿/案件长稿...
+        placeholder={`在此自由书写或贴入您的剧情白稿/草稿...
 
 支持以下两种方式：
-  1. 上方输入一句话，点击【🤖 召唤 AI 自动写剧情长稿】，看 AI 实时写完整个案件；
+  1. 上方输入一句话，点击【🤖 召唤 AI 自动写剧情长稿】，看 AI 实时写完整段剧情；
   2. 自己在此手动书写或粘贴任意长度的故事白稿。
 
 （内容不限长度，写完后点击下方【一键拆分生成正文】或【先看细纲】即可自动切割拆分成章！）`}
@@ -420,7 +424,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
       <Divider style={{ margin: '12px 0' }} />
 
       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-        <Tooltip title="AI 先拆出细纲，由您确认后再生成正文">
+        <Tooltip title="AI 先按剧情断点规划细纲，由您确认后再拆分成章">
           <Button
             icon={<EyeOutlined />}
             onClick={handleSplitOutline}
@@ -428,18 +432,18 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
             disabled={!freeText.trim()}
             style={{ fontWeight: 600 }}
           >
-            先看细纲再生成
+            先看细纲规划
           </Button>
         </Tooltip>
-        <Tooltip title="直接拆分并生成章节正文，一步完成">
+        <Tooltip title="将白稿按黄金留钩点直接切割拆分为章节正文（保留原汁原味，零注水）">
           <Button
             type="primary"
             icon={<RocketOutlined />}
             onClick={startGenerate}
             disabled={!freeText.trim()}
-            style={{ fontWeight: 600, backgroundColor: '#b45309', borderColor: '#b45309' }}
+            style={{ fontWeight: 600, backgroundColor: '#0e7490', borderColor: '#0e7490' }}
           >
-            🚀 一键拆分生成正文
+            🚀 智能拆章（白稿直出正文）
           </Button>
         </Tooltip>
       </div>

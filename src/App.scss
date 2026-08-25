@@ -4,6 +4,7 @@
   display: flex;
   flex-direction: column;
   background: #f5f5f5;
+  transition: background-color 0.3s ease, color 0.3s ease;
 
   &-bottom {
     flex: 1;
@@ -16,6 +17,7 @@
     flex: 1;
     overflow-y: auto;
     background: #f5f5f5;
+    transition: background-color 0.3s ease;
 
     // 自定义滚动条
     &::-webkit-scrollbar {
@@ -34,6 +36,223 @@
         background: #a8a8a8;
       }
     }
+  }
+
+  // 🌑 全局暗黑模式适配
+  &.dark-theme,
+  [data-theme="dark"] & {
+    background: #0d0d10 !important;
+    color: #e4e4e7;
+
+    .App-content {
+      background: #0d0d10 !important;
+
+      &::-webkit-scrollbar-track {
+        background: #141417;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: #2e2e38;
+
+        &:hover {
+          background: #3f3f4e;
+        }
+      }
+    }
+  }
+}
+
+body.dark-theme {
+  background-color: #0d0d10 !important;
+  color: #e4e4e7 !important;
+}
+
+// 🌑 全站所有模块在暗黑模式下的统一深度适配 (Global Dark Mode Deep Support for All Modules)
+.dark-theme,
+[data-theme="dark"] {
+  // 1. 全局卡片、容器、面板
+  .category-management,
+  .tag-management,
+  .article-edit,
+  .article-list,
+  .article-management,
+  .dashboard-container,
+  .quant-container,
+  .ebook-reader,
+  .video-container,
+  .count-container,
+  .price-compare,
+  .price-compare-container,
+  .page-container,
+  div[class$="-management"],
+  div[class$="-container"],
+  div[class$="-module"] {
+    background: #0d0d10 !important;
+    color: #e4e4e7 !important;
+  }
+
+  // 2. 所有通用 Ant Design 卡片与头部
+  .ant-card {
+    background: #16161a !important;
+    border-color: #27272e !important;
+    color: #e4e4e7 !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+
+    .ant-card-head {
+      background: #1e1e24 !important;
+      border-bottom: 1px solid #27272e !important;
+      color: #f4f4f5 !important;
+      .ant-card-head-title {
+        color: #f4f4f5 !important;
+      }
+    }
+
+    .ant-card-body {
+      background: #16161a !important;
+      color: #e4e4e7 !important;
+    }
+  }
+
+  // 3. 通用顶部卡片/头部区域 (如 category-header, tag-header 等)
+  .category-header,
+  .tag-header,
+  .article-header,
+  .module-header,
+  .header-content {
+    background: #16161a !important;
+    border-color: #27272e !important;
+    h2, h3, h1, span, p {
+      color: #f4f4f5 !important;
+    }
+    .header-text {
+      h2 { color: #f4f4f5 !important; }
+      p { color: #a1a1aa !important; }
+    }
+  }
+
+  // 4. 表格区域与通用输入框
+  .ant-table-wrapper {
+    .ant-table {
+      background: #16161a !important;
+      color: #e4e4e7 !important;
+    }
+    .ant-table-thead > tr > th {
+      background: #1e1e24 !important;
+      color: #f4f4f5 !important;
+      border-bottom: 1px solid #27272e !important;
+      &::before {
+        background-color: #27272e !important;
+      }
+    }
+    .ant-table-tbody > tr > td {
+      border-bottom: 1px solid #27272e !important;
+      color: #d4d4d8 !important;
+    }
+    .ant-table-tbody > tr.ant-table-row:hover > td,
+    .ant-table-tbody > tr > td.ant-table-cell-row-hover {
+      background: #22222a !important;
+    }
+  }
+
+  // 5. 分页组件
+  .ant-pagination {
+    color: #a1a1aa !important;
+    .ant-pagination-item {
+      background: #16161a !important;
+      border-color: #27272e !important;
+      a { color: #a1a1aa !important; }
+      &:hover {
+        border-color: #ffd666 !important;
+        a { color: #ffd666 !important; }
+      }
+    }
+    .ant-pagination-item-active {
+      background: #2a2410 !important;
+      border-color: #ffd666 !important;
+      a {
+        color: #ffd666 !important;
+        font-weight: 600;
+      }
+    }
+    .ant-pagination-prev, .ant-pagination-next {
+      .ant-pagination-item-link {
+        background: #16161a !important;
+        border-color: #27272e !important;
+        color: #a1a1aa !important;
+      }
+    }
+  }
+
+  // 6. 输入框、选择框与搜索栏
+  .ant-input, .ant-input-affix-wrapper, .ant-select-selector, textarea.ant-input {
+    background: #121215 !important;
+    border-color: #383846 !important;
+    color: #ffffff !important;
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.45) !important;
+    }
+  }
+
+  // 7. 全局弹窗 (Modal) 与抽屉 (Drawer) 高对比度暗黑适配
+  .ant-modal-content {
+    background: #18181c !important;
+    border: 1px solid #2e2e38 !important;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6) !important;
+    color: #ffffff !important;
+
+    .ant-modal-header {
+      background: #1e1e24 !important;
+      border-bottom: 1px solid #2e2e38 !important;
+      margin-bottom: 16px !important;
+      .ant-modal-title {
+        color: #ffffff !important;
+        font-weight: 700 !important;
+      }
+    }
+
+    .ant-modal-close {
+      color: #cbd5e1 !important;
+      &:hover { color: #ffd666 !important; }
+    }
+
+    .ant-modal-footer {
+      border-top: 1px solid #2e2e38 !important;
+      padding-top: 12px !important;
+    }
+  }
+
+  .ant-drawer-content {
+    background: #18181c !important;
+    color: #ffffff !important;
+
+    .ant-drawer-header {
+      background: #1e1e24 !important;
+      border-bottom: 1px solid #2e2e38 !important;
+      .ant-drawer-title {
+        color: #ffffff !important;
+        font-weight: 700 !important;
+      }
+      .ant-drawer-close {
+        color: #cbd5e1 !important;
+        &:hover { color: #ffd666 !important; }
+      }
+    }
+    .ant-drawer-body {
+      background: #18181c !important;
+      color: #ffffff !important;
+    }
+  }
+
+  // 8. 表单 Label 与提示文字
+  .ant-form-item-label > label {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+  }
+  .ant-form-item-extra {
+    color: #a1a1aa !important;
+  }
+  .ant-form-item-explain-error {
+    color: #ff7875 !important;
   }
 }
 

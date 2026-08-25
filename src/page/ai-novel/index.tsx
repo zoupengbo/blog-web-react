@@ -3,8 +3,11 @@ import { Spin, message, Modal } from 'antd';
 import httpService from '../../common/request';
 import './styles.scss';
 
+import { useTheme } from '../../context/themeContext';
 // 导入类型与工具
-import { Idea, CharacterRelationship, NovelOutline } from './types';
+import {
+  Novel, NovelOutline, Idea, PaperTheme
+} from './types';
 
 // 导入 View 视图组件
 import { NovelListView } from './components/NovelListView';
@@ -53,8 +56,14 @@ const AiNovelDashboard: React.FC = () => {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [editingIdeaIndex, setEditingIdeaIndex] = useState<number | null>(null);
 
+  const { isDark } = useTheme();
+
   // 辅助样式 / 排序 / 布局状态
-  const [paperTheme, setPaperTheme] = useState<'light' | 'paper' | 'mint'>('light');
+  const [paperTheme, setPaperTheme] = useState<PaperTheme>(() => (isDark ? 'dark' : 'light'));
+
+  useEffect(() => {
+    setPaperTheme(isDark ? 'dark' : 'light');
+  }, [isDark]);
   const [fontSize, setFontSize] = useState<number>(16);
   const [leftCollapsed, setLeftCollapsed] = useState<boolean>(false);
   const [rightCollapsed, setRightCollapsed] = useState<boolean>(false);
@@ -83,6 +92,7 @@ const AiNovelDashboard: React.FC = () => {
     setChosenIdea,
     fetchNovels,
     loadChapterContent,
+    saveChapterContentData,
     loadNovelToEditor,
     handleDeleteNovel,
     handleExportTxt,
@@ -223,55 +233,140 @@ const AiNovelDashboard: React.FC = () => {
         return;
       }
 
-      const rawOutline = resOutline.data;
-      const worldSettingStr = (() => {
-        const w = rawOutline.worldSetting;
+      let rawOutline = resOutline.data;
+      if (typeof rawOutline === 'string') {
+        try {
+          rawOutline = JSON.parse(rawOutline);
+        } catch (e) {
+          // If plain text string, wrap as object
+          rawOutline = { worldSetting: rawOutline };
+        }
+      }
+      if (!rawOutline || typeof rawOutline !== 'object') {
+        rawOutline = {};
+      }
+
+      // 1. 提取与转义 世界观
+      let worldSettingStr = (() => {
+        const w = rawOutline.worldSetting || rawOutline.world_setting || rawOutline.world || rawOutline.worldView || rawOutline.background;
         if (!w) return '';
         if (typeof w === 'string') return w;
-        const labelMap: Record<string, string> = { background: '世界背景', realmSystem: '境界体系', coreRules: '核心规则' };
-        return Object.entries(w)
-          .map(([k, v]) => `【${labelMap[k] || k}】${v}`)
-          .join('\n\n');
+        if (typeof w === 'object') {
+          const labelMap: Record<string, string> = { background: '世界背景', realmSystem: '境界体系', coreRules: '核心规则' };
+          return Object.entries(w)
+            .map(([k, v]) => {
+              const label = labelMap[k] || k;
+              const valStr = typeof v === 'object' ? (Array.isArray(v) ? v.join(' -> ') : JSON.stringify(v, null, 2)) : String(v);
+              return `【${label}】\n${valStr}`;
+            })
+            .join('\n\n');
+        }
+        return String(w);
       })();
 
-      const characterSettingStr = (() => {
-        const c = rawOutline.characterSetting;
+      // 2. 提取与转义 角色设定
+      let characterSettingStr = (() => {
+        const c = rawOutline.characterSetting || rawOutline.character_setting || rawOutline.characters || rawOutline.roles || rawOutline.character;
         if (!c) return '';
         if (typeof c === 'string') return c;
-        const lines: string[] = [];
-        if (c.protagonist) {
-          const p = c.protagonist;
-          lines.push(`【主角】${p.name || ''}`);
-          if (p.identity) lines.push(`身份：${p.identity}`);
-          if (p.personality) lines.push(`性格：${p.personality}`);
-          if (p.goldenFinger) lines.push(`金手指：${p.goldenFinger}`);
+        if (Array.isArray(c)) {
+          return c.map((item: any) => typeof item === 'string' ? item : `${item.name || '角色'}（${item.roleType || item.identity || ''}）：${item.description || item.personality || ''}`).join('\n');
         }
-        if (Array.isArray(c.keySupporting) && c.keySupporting.length > 0) {
-          lines.push('');
-          lines.push('【重要配角/反派】');
-          c.keySupporting.forEach((s: any) => {
-            lines.push(`${s.name || ''}（${s.roleType || s.identity || ''}）：${s.description || ''}`);
-          });
+        if (typeof c === 'object') {
+          const lines: string[] = [];
+          if (c.protagonist) {
+            const p = c.protagonist;
+            if (typeof p === 'string') {
+              lines.push(`【主角设定】\n${p}`);
+            } else {
+              lines.push(`【主角】${p.name || '核心主角'}`);
+              if (p.identity) lines.push(`身份：${p.identity}`);
+              if (p.personality) lines.push(`性格：${p.personality}`);
+              if (p.goldenFinger) lines.push(`金手指：${p.goldenFinger}`);
+            }
+          }
+          if (Array.isArray(c.keySupporting) && c.keySupporting.length > 0) {
+            if (lines.length > 0) lines.push('');
+            lines.push('【重要配角/反派】');
+            c.keySupporting.forEach((s: any) => {
+              if (typeof s === 'string') {
+                lines.push(`- ${s}`);
+              } else {
+                lines.push(`${s.name || '配角'}（${s.roleType || s.identity || ''}）：${s.description || ''}`);
+              }
+            });
+          }
+          return lines.join('\n');
         }
-        return lines.join('\n');
+        return String(c);
       })();
 
-      const mainLineStr = (() => {
-        const m = rawOutline.mainPlot || rawOutline.mainLine;
+      // 3. 提取与转义 主线大纲
+      let mainLineStr = (() => {
+        const m = rawOutline.mainPlot || rawOutline.main_plot || rawOutline.mainLine || rawOutline.main_line || rawOutline.plot || rawOutline.storyline;
         if (!m) return '';
         if (typeof m === 'string') return m;
-        const labelMap: Record<string, string> = { openingHook: '开局爆点', mainConflict: '核心矛盾', climaxEvents: '高潮大事件' };
-        return Object.entries(m)
-          .map(([k, v]) => `【${labelMap[k] || k}】${Array.isArray(v) ? '\n' + (v as string[]).map((e, i) => `${i + 1}. ${e}`).join('\n') : v}`)
-          .join('\n\n');
+        if (Array.isArray(m)) {
+          return m.map((item, idx) => `${idx + 1}. ${typeof item === 'object' ? JSON.stringify(item) : item}`).join('\n');
+        }
+        if (typeof m === 'object') {
+          const labelMap: Record<string, string> = { openingHook: '开局爆点', mainConflict: '核心矛盾', climaxEvents: '高潮大事件' };
+          return Object.entries(m)
+            .map(([k, v]) => {
+              const label = labelMap[k] || k;
+              const valStr = Array.isArray(v)
+                ? '\n' + (v as string[]).map((e, i) => `${i + 1}. ${e}`).join('\n')
+                : (typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v));
+              return `【${label}】\n${valStr}`;
+            })
+            .join('\n\n');
+        }
+        return String(m);
       })();
 
+      // 4. 强力智能兜底补全，防止页面全空
+      if (!worldSettingStr.trim()) {
+        worldSettingStr = `【世界背景】
+故事发生在一个融合了《${idea.title}》奇幻色彩的世界中。题材归属于【${activeCategory}】，核心立意为：${idea.concept}。
+
+【境界与力量体系】
+1. 初始阶段：觉醒异能/获得基础功法，熟悉【${idea.goldLine || '专属金手指'}】基本规则。
+2. 爆发阶段：突破常规瓶颈，以绝对优势碾压同阶对手。
+3. 终极阶段：掌领规则，逆天改命，登顶世界之巅。
+
+【核心规则】
+遵守金手指【${idea.goldLine || '专属机制'}】的底层运转逻辑，主角每次化解危机均可获得法则级反馈与爽点提升。`;
+      }
+
+      if (!characterSettingStr.trim()) {
+        characterSettingStr = `【主角】
+身份：故事领衔主角，开局即觉醒【${idea.goldLine || '专属特殊挂钩'}】。
+性格：行事果断、冷静克制、智商在线，绝不拖泥带水。
+金手指：${idea.goldLine || '核心能力系统/特殊规则'}。
+
+【重要配角/反派】
+1. 傲慢宿敌（反派）：开局推波助澜，为主角提供打脸题材与升级阶梯。
+2. 忠诚盟友（配角）：在关键时刻协助主角获取情报与资源。`;
+      }
+
+      if (!mainLineStr.trim()) {
+        mainLineStr = `【开局爆点】
+主角开局陷入危机，顺势激活【${idea.goldLine || '金手指'}】，当场反转打脸，树立爽感第一印象。
+
+【核心矛盾】
+围绕【${idea.concept}】展开的主线角逐，在不断破解阴谋的过程中实现战力与地位的双重飞跃。
+
+【高潮大事件】
+1. 首次绝地反击，轰动势力范围，引起高层关注。
+2. 揭开世界底层秘密，直面终极反派，建立全新秩序。`;
+      }
+
       const fullOutline: NovelOutline = {
-        theme: rawOutline.theme || '',
+        theme: rawOutline.theme || idea.concept || '',
         worldSetting: worldSettingStr,
         characterSetting: characterSettingStr,
         mainLine: mainLineStr,
-        chaptersOutline: []
+        chaptersOutline: Array.isArray(rawOutline.chaptersOutline) ? rawOutline.chaptersOutline : []
       };
       setDraftOutline(fullOutline);
       setView('outline');
@@ -330,6 +425,12 @@ const AiNovelDashboard: React.FC = () => {
       message.warning('大模型正在书写中，请勿切换章节！');
       return;
     }
+
+    if (selectedNovel && streamHook.activeChapterNum && streamHook.activeChapterNum !== chNum) {
+      // 切换章节前自动保存当前章节内容
+      await saveChapterContentData(selectedNovel.id, streamHook.activeChapterNum, streamHook.chapterContent, false);
+    }
+
     streamHook.setActiveChapterNum(chNum);
     localStorage.setItem('last_active_chapter_num', String(chNum));
 
@@ -353,7 +454,7 @@ const AiNovelDashboard: React.FC = () => {
       okType: 'danger',
       cancelText: '取消',
       onOk: async () => {
-        setLoading(true);
+        const hideLoadingMsg = message.loading(`正在删除第 ${chapterNum} 章并重新整理目录...`, 0);
         try {
           const filtered = selectedOutline.chaptersOutline.filter(c => c.chapterNumber !== chapterNum);
           const reIndexed = filtered.map((c, idx) => {
@@ -394,7 +495,7 @@ const AiNovelDashboard: React.FC = () => {
         } catch (err: any) {
           message.error('删除章节失败，请重试');
         } finally {
-          setLoading(false);
+          hideLoadingMsg();
         }
       }
     });
@@ -584,6 +685,7 @@ const AiNovelDashboard: React.FC = () => {
             onToggleSyncStatus={(num, isSynced) => fanqieHook.handleToggleSyncStatus(num, isSynced, setLoading)}
             onDeleteChapter={handleDeleteChapter}
             onAiRenameChapter={streamHook.handleAiRenameChapter}
+            onManualRenameChapter={streamHook.handleManualRenameChapter}
             renamingChapter={streamHook.renamingChapter}
             chapterContent={streamHook.chapterContent}
             setChapterContent={streamHook.setChapterContent}
@@ -603,6 +705,7 @@ const AiNovelDashboard: React.FC = () => {
             onReplacePolishedText={modalsHook.handleApplyModifySetting}
             textRef={modalsHook.textRef as any}
             saveManualEdits={(content) => modalsHook.handleSaveManualEdit()}
+            onSaveChapterContent={(showToast = true) => selectedNovel && saveChapterContentData(selectedNovel.id, streamHook.activeChapterNum, streamHook.chapterContent, showToast)}
             wordCountLimit={streamHook.wordCountLimit}
             setWordCountLimit={streamHook.setWordCountLimit}
             onContinueWriting={() => streamHook.handleContinueWriting(setLoading)}
@@ -634,6 +737,8 @@ const AiNovelDashboard: React.FC = () => {
             activeRelNode={modalsHook.activeRelNode}
             setActiveRelNode={modalsHook.setActiveRelNode}
             onTogglePastStatus={modalsHook.handleTogglePastStatus}
+            isDeslopping={streamHook.isDeslopping}
+            onDeslopContent={streamHook.handleDeslopContent}
             onStartEditRelationship={modalsHook.handleStartEditRelationship}
             onDeleteRelationship={modalsHook.handleDeleteRelationship}
           />
@@ -646,7 +751,11 @@ const AiNovelDashboard: React.FC = () => {
         onClose={() => modalsHook.setConfigDrawerOpen(false)}
         apiConfig={modalsHook.apiConfig}
         setApiConfig={modalsHook.setApiConfig}
-        onSave={() => modalsHook.handleSaveConfig(setLoading)}
+        configPresets={modalsHook.configPresets}
+        activePresetId={modalsHook.activePresetId}
+        onSwitchPreset={modalsHook.handleSwitchPreset}
+        onDeletePreset={modalsHook.handleDeletePreset}
+        onSave={(isNew, newName) => modalsHook.handleSaveConfig(setLoading, isNew, newName)}
         onTest={modalsHook.handleTestConfig}
         loading={loading}
         testingConfig={modalsHook.testingConfig}

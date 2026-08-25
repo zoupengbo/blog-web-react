@@ -10,6 +10,10 @@ export interface ChapterOutline {
   chapterNumber: number;
   title: string;
   outline: string;
+  suspenseLevel?: string;
+  foreshadowing?: string;
+  hookType?: string;
+  keyItems?: string;
   status: 'pending' | 'completed';
   wordCount: number;
   crawlStatus?: string;
@@ -25,12 +29,19 @@ export interface CharacterRelationship {
   status?: string;
 }
 
+export interface ForeshadowingNote {
+  clue: string;
+  status: string;
+  plantedChapter?: number;
+}
+
 export interface SystemAndCultivationState {
   realmSystem?: string[];
   protagonistCultivation?: {
     currentRealm?: string;
     lastBreakthroughChapter?: number;
     karmaPoints?: string;
+    inventory?: string[];
   };
   systemFeatures?: Array<{
     featureName: string;
@@ -38,6 +49,7 @@ export interface SystemAndCultivationState {
     unlockedChapter?: number;
     description?: string;
   }>;
+  foreshadowingNotes?: ForeshadowingNote[];
 }
 
 export interface NovelOutline {
@@ -71,3 +83,20 @@ export interface Volume {
   content: string;
   startChapter: number;
 }
+
+export interface VectorMemoryItem {
+  id: number;
+  novelId: number;
+  chapterNumber?: number;
+  memoryType: 'lore' | 'item' | 'clue' | 'character' | 'event' | string;
+  title: string;
+  content: string;
+  entities?: string[];
+  importance?: number;
+  isArchived?: boolean;
+  createdAt?: string;
+}
+
+export type ViewMode = 'list' | 'create' | 'editor';
+
+export type PaperTheme = 'light' | 'paper' | 'mint' | 'dark';

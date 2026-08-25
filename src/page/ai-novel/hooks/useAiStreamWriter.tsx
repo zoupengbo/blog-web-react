@@ -271,6 +271,16 @@ export const useAiStreamWriter = (
         setSelectedNovel(resDetail.data.novel);
         await loadChapterContent(selectedNovel.id, activeChapterNum);
       }
+
+      // 🚀 自动静默同步：3.5秒后自动获取后台 4 大 AI 分析（金手指看板、关系网、角色状态）的最新计算结果
+      setTimeout(async () => {
+        try {
+          const latestDetail: any = await httpService.get(`/ai-novel/detail/${selectedNovel.id}?_t=${Date.now()}`);
+          if (latestDetail.code === 200 && latestDetail.data?.outline) {
+            setSelectedOutline(latestDetail.data.outline);
+          }
+        } catch (e) {}
+      }, 3500);
     } catch (err: any) {
       message.error({
         content: err.message || '正文生成中断',
@@ -322,6 +332,37 @@ export const useAiStreamWriter = (
     }
   };
 
+  const handleManualRenameChapter = async (targetChapterNum: number, newTitle: string) => {
+    if (!selectedNovel || !selectedOutline || !newTitle.trim()) return;
+    try {
+      const res: any = await httpService.post('/ai-novel/rename-chapter', {
+        novelId: selectedNovel.id,
+        chapterNumber: targetChapterNum,
+        newTitle: newTitle.trim()
+      });
+      if (res && res.code === 200 && res.data) {
+        const normalizedTitle = res.data;
+        const updatedChapters = selectedOutline.chaptersOutline.map(c => {
+          if (c.chapterNumber === targetChapterNum) {
+            return { ...c, title: normalizedTitle };
+          }
+          return c;
+        });
+
+        setSelectedOutline({
+          ...selectedOutline,
+          chaptersOutline: updatedChapters
+        });
+        message.success(`章节名称已更新：${normalizedTitle}`);
+      } else {
+        throw new Error(res?.msg || '修改标题失败');
+      }
+    } catch (err: any) {
+      console.error(err);
+      message.error(err.message || '修改章节标题失败，请重试');
+    }
+  };
+
   const handlePauseGeneration = async () => {
     if (streamReaderRef.current && selectedNovel) {
       try {
@@ -359,19 +400,62 @@ export const useAiStreamWriter = (
     }
   };
 
+  const [isDeslopping, setIsDeslopping] = useState(false);
+
+  const handleDeslopContent = async (customInstruction?: string) => {
+    if (!selectedNovel || !chapterContent.trim() || isDeslopping || isGenerating) return;
+    setIsDeslopping(true);
+    const hideLoading = message.loading('✨ 正在运用 7 Gate 准则深度去 AI 味（消除假深刻、画外音与禁用词）...', 0);
+    try {
+      const currentChapter = selectedOutline?.chaptersOutline.find(c => c.chapterNumber === activeChapterNum);
+      const res: any = await httpService.post('/ai-novel/deslop', {
+        novelId: selectedNovel.id,
+        content: chapterContent,
+        chapterNumber: activeChapterNum,
+        chapterOutline: currentChapter?.outline || '',
+        customInstruction: customInstruction || ''
+      });
+      hideLoading();
+      if (res && res.code === 200 && res.data) {
+        setChapterContent(res.data);
+        // 自动保存去 AI 味后的正文
+        await httpService.post('/ai-novel/save-chapter-content', {
+          novelId: selectedNovel.id,
+          chapterNumber: activeChapterNum,
+          content: res.data
+        });
+        message.success('🎉 深度去 AI 味成功！正文已精修并自动保存。');
+      } else {
+        throw new Error(res?.msg || '去 AI 味失败');
+      }
+    } catch (e: any) {
+      hideLoading();
+      console.error(e);
+      message.error('去 AI 味精修失败：' + (e.message || e));
+    } finally {
+      setIsDeslopping(false);
+    }
+  };
+
   const handleContinueWriting = async (setLoading: (l: boolean) => void) => {
     if (!selectedNovel || isGenerating) return;
     setLoading(true);
     try {
       const res: any = await httpService.post('/ai-novel/continue-writing', {
         novelId: selectedNovel.id,
+        chapterNumber: activeChapterNum,
+        currentContent: chapterContent,
         currentText: chapterContent
       });
-      if (res.code === 200 && res.data) {
-        setChapterContent(prev => prev + '\n' + res.data);
+      const appendText = typeof res?.data === 'string'
+        ? res.data
+        : (res?.data?.continuedText || res?.continuedText || '');
+
+      if (res?.code === 200 && appendText) {
+        setChapterContent(prev => (prev ? prev.trimEnd() + '\n\n' + appendText.trim() : appendText.trim()));
         message.success('AI 灵感续写拼接成功！');
       } else {
-        message.error('AI 续写失败');
+        message.error('AI 续写失败：未返回有效文本');
       }
     } catch (e: any) {
       message.error(e.message || '续写连接失败');
@@ -389,6 +473,7 @@ export const useAiStreamWriter = (
     setIntervention,
     isGenerating,
     setIsGenerating,
+    isDeslopping,
     writingSpeed,
     wordCountLimit,
     setWordCountLimit,
@@ -398,8 +483,10 @@ export const useAiStreamWriter = (
     streamReaderRef,
     handleWriteChapterStream,
     handleAiRenameChapter,
+    handleManualRenameChapter,
     handlePauseGeneration,
     handleStopGeneration,
     handleContinueWriting,
+    handleDeslopContent,
   };
 };

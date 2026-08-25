@@ -118,25 +118,27 @@ export const useAiNovelData = (
     }
   };
 
-  const handleDeleteNovel = (id: number, title: string) => {
-    Modal.confirm({
-      title: '您确定要销毁这本小说吗？',
-      content: `这将会永久清除《${title}》的全部世界观大纲设定和全部已创作的正文，此操作无法撤销！`,
-      okText: '确认销毁',
-      okType: 'danger',
-      cancelText: '取消',
-      onOk: async () => {
-        try {
-          const res: any = await httpService.delete(`/ai-novel/${id}`);
-          if (res.code === 200) {
-            message.success('小说已成功从工坊中清理。');
-            fetchNovels();
-          }
-        } catch (e) {
-          message.error('清理失败');
+  const handleDeleteNovel = async (id: number, title: string) => {
+    try {
+      setLoading(true);
+      const res: any = await httpService.delete(`/ai-novel/${id}`);
+      if (res.code === 200) {
+        message.success(`《${title || '该小说'}》已从工坊中彻底删除！`);
+        if (selectedNovel?.id === id) {
+          setSelectedNovel(null);
+          setSelectedOutline(null);
+          setViewMode('list');
         }
+        await fetchNovels();
+      } else {
+        message.error(res.msg || '删除失败');
       }
-    });
+    } catch (e: any) {
+      console.error('删除小说异常:', e);
+      message.error(e?.message || '网络异常，删除失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleExportTxt = () => {
@@ -174,6 +176,50 @@ export const useAiNovelData = (
     });
   };
 
+  const saveChapterContentData = async (
+    novelId: number,
+    chNum: number,
+    content: string,
+    showToast = false
+  ) => {
+    try {
+      const currentCh = selectedOutline?.chaptersOutline?.find((c: any) => parseInt(c.chapterNumber, 10) === parseInt(chNum as any, 10));
+      const title = currentCh?.title || `第 ${chNum} 章`;
+
+      const res: any = await httpService.post('/ai-novel/save-chapter-content', {
+        novelId,
+        chapterNumber: chNum,
+        content: content || '',
+        title
+      });
+      if (res && res.code === 200) {
+        const wordCount = (content || '').trim().length;
+        const newStatus = wordCount > 0 ? 'completed' : 'pending';
+        setSelectedOutline((prev: any) => {
+          if (!prev || !prev.chaptersOutline) return prev;
+          return {
+            ...prev,
+            chaptersOutline: prev.chaptersOutline.map((c: any) =>
+              parseInt(c.chapterNumber, 10) === parseInt(chNum as any, 10)
+                ? { ...c, status: newStatus, wordCount }
+                : c
+            )
+          };
+        });
+        if (showToast) {
+          message.success('💾 正文保存成功！');
+        }
+        return true;
+      }
+    } catch (e) {
+      console.error('保存章节正文失败:', e);
+      if (showToast) {
+        message.error('保存章节正文失败，请重试');
+      }
+    }
+    return false;
+  };
+
   return {
     loading,
     setLoading,
@@ -189,6 +235,7 @@ export const useAiNovelData = (
     setChosenIdea,
     fetchNovels,
     loadChapterContent,
+    saveChapterContentData,
     loadNovelToEditor,
     handleDeleteNovel,
     handleExportTxt,

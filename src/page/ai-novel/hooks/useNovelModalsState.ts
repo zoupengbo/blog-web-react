@@ -90,21 +90,63 @@ export const useNovelModalsState = (
   const [showPolishPop, setShowPolishPop] = useState<boolean>(false);
   const textRef = useRef<HTMLTextAreaElement>(null);
 
+  // ⚙️ 大模型多预设管理状态
+  const [configPresets, setConfigPresets] = useState<any[]>([]);
+  const [activePresetId, setActivePresetId] = useState<number | null>(null);
+
   const fetchConfig = async () => {
     try {
       const res: any = await httpService.get('/ai-novel/config');
-      if (res.code === 200 && res.data) {
-        setApiConfig(res.data);
+      if (res.code === 200) {
+        if (res.data) setApiConfig(res.data);
+        if (res.presets) setConfigPresets(res.presets);
+        if (res.activeId) setActivePresetId(res.activeId);
       }
     } catch (e) {}
   };
 
-  const handleSaveConfig = async (setLoading: (l: boolean) => void) => {
+  const handleSwitchPreset = async (presetId: number) => {
+    try {
+      const res: any = await httpService.post('/ai-novel/config/switch-preset', { id: presetId });
+      if (res.code === 200) {
+        message.success(`已切换至【${res.data?.name || '新预设'}】`);
+        setApiConfig(res.data);
+        if (res.presets) setConfigPresets(res.presets);
+        if (res.activeId) setActivePresetId(res.activeId);
+      }
+    } catch (e: any) {
+      message.error(e?.message || '切换预设失败');
+    }
+  };
+
+  const handleDeletePreset = async (presetId: number) => {
+    try {
+      const res: any = await httpService.delete(`/ai-novel/config/preset/${presetId}`);
+      if (res.code === 200) {
+        message.success('预设已删除');
+        if (res.data) setApiConfig(res.data);
+        if (res.presets) setConfigPresets(res.presets);
+        if (res.activeId) setActivePresetId(res.activeId);
+      }
+    } catch (e: any) {
+      message.error(e?.message || '删除预设失败');
+    }
+  };
+
+  const handleSaveConfig = async (setLoading: (l: boolean) => void, isNewPreset = false, newPresetName = '') => {
     setLoading(true);
     try {
-      const res: any = await httpService.post('/ai-novel/config', apiConfig);
+      const payload = {
+        ...apiConfig,
+        isNew: isNewPreset,
+        name: isNewPreset ? (newPresetName || `预设 #${Date.now().toString().slice(-4)}`) : apiConfig.name
+      };
+      const res: any = await httpService.post('/ai-novel/config', payload);
       if (res.code === 200) {
-        message.success('API 配置全局保存成功！');
+        message.success(isNewPreset ? '已成功另存为新预设！' : 'API 配置保存成功！');
+        if (res.data) setApiConfig(res.data);
+        if (res.presets) setConfigPresets(res.presets);
+        if (res.activeId) setActivePresetId(res.activeId);
         setConfigDrawerOpen(false);
       }
     } catch (e: any) {
@@ -705,10 +747,12 @@ export const useNovelModalsState = (
     setPolishInstruction,
     polishedResult,
     setPolishedResult,
-    selectedRange,
-    setSelectedRange,
     polishing,
     showPolishPop,
     setShowPolishPop,
+    configPresets,
+    activePresetId,
+    handleSwitchPreset,
+    handleDeletePreset,
   };
 };

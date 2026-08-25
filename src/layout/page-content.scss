@@ -5,11 +5,13 @@
   display: flex;
   flex-direction: column;
   position: relative;
+  transition: background-color 0.3s ease;
   
   .page-content-body {
     flex: 1;
     overflow-y: auto;
     padding: 16px;
+    transition: background-color 0.3s ease;
 
     // 自定义滚动条
     &::-webkit-scrollbar {
@@ -33,6 +35,27 @@
   // 页面内容动画
   & > * {
     animation: fadeInUp 0.3s ease-out;
+  }
+}
+
+// 🌑 深色暗黑模式下的内容容器
+.dark-theme .page-content,
+[data-theme="dark"] .page-content {
+  background: #0d0d10 !important;
+
+  .page-content-body {
+    background: #0d0d10 !important;
+
+    &::-webkit-scrollbar-track {
+      background: #141417;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #2e2e38;
+      &:hover {
+        background: #3f3f4e;
+      }
+    }
   }
 }
 

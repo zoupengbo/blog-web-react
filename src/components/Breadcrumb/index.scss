@@ -2,6 +2,7 @@
   padding: 12px 24px;
   background: #fff;
   border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
   
   .page-breadcrumb {
     .ant-breadcrumb-link {
@@ -43,6 +44,28 @@
         &.current {
           color: #333;
           font-weight: 500;
+        }
+      }
+    }
+  }
+}
+
+// 🌑 深色暗黑模式下的面包屑
+.dark-theme .page-breadcrumb-wrapper,
+[data-theme="dark"] .page-breadcrumb-wrapper {
+  background: #16161a !important;
+  border-bottom-color: #27272e !important;
+
+  .page-breadcrumb {
+    .breadcrumb-item {
+      .breadcrumb-link {
+        color: #ffd666 !important;
+        &:hover { color: #ffe58f !important; }
+      }
+      .breadcrumb-text {
+        color: #a1a1aa !important;
+        &.current {
+          color: #f4f4f5 !important;
         }
       }
     }

@@ -8,7 +8,6 @@ import {
 import { NovelOutline, Novel, CharacterRelationship } from '../types';
 import { isPastCharacter } from '../utils/volumeParser';
 
-const { TabPane } = Tabs;
 const { TextArea } = Input;
 
 interface BackgroundSettingsModalProps {
@@ -81,89 +80,96 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
       <div style={{ marginBottom: 15, padding: '10px 12px', background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 6, color: '#666', fontSize: 13 }}>
         💡 <strong>使用提示：</strong> 在大窗口中可以更宽敞地编辑世界观与人物设定。文本框编辑后在失去焦点(Blur)时会<b>自动保存到数据库</b>。关系网修改也会自动同步。
       </div>
-      <Tabs defaultActiveKey="w" type="card">
-        <TabPane
-          tab={
-            <Space>
-              <span>🌌 世界观设定</span>
-              <Button
-                size="small"
-                type="text"
-                style={{ fontSize: 11, color: '#d4b106', padding: '0 4px', height: 'auto' }}
-                icon={<RocketOutlined />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setModifyField('worldSetting');
-                  setIsModifyModalOpen(true);
+      <Tabs
+        defaultActiveKey="w"
+        type="card"
+        items={[
+          {
+            key: 'w',
+            label: (
+              <Space>
+                <span>🌌 世界观设定</span>
+                <Button
+                  size="small"
+                  type="text"
+                  style={{ fontSize: 11, color: '#d4b106', padding: '0 4px', height: 'auto' }}
+                  icon={<RocketOutlined />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setModifyField('worldSetting');
+                    setIsModifyModalOpen(true);
+                  }}
+                >
+                  AI修改
+                </Button>
+              </Space>
+            ),
+            children: (
+              <TextArea
+                value={selectedOutline?.worldSetting}
+                onChange={e => {
+                  if (selectedOutline) {
+                    setSelectedOutline({ ...selectedOutline, worldSetting: e.target.value });
+                  }
                 }}
-              >
-                AI修改
-              </Button>
-            </Space>
-          }
-          key="w"
-        >
-          <TextArea
-            value={selectedOutline?.worldSetting}
-            onChange={e => {
-              if (selectedOutline) {
-                setSelectedOutline({ ...selectedOutline, worldSetting: e.target.value });
-              }
-            }}
-            onBlur={async e => {
-              if (!selectedNovel) return;
-              await httpService.post('/ai-novel/save-outline', {
-                novelId: selectedNovel.id,
-                worldSetting: e.target.value
-              });
-              message.success({ content: '世界观背景设定已自动保存！', duration: 1.5 });
-            }}
-            placeholder="在此输入并修改小说世界观及规则设定..."
-            style={{ fontSize: 14, lineHeight: 1.6, padding: 12, background: '#fafafa', height: 'calc(100vh - 280px)', minHeight: 480, resize: 'none' }}
-          />
-        </TabPane>
-        <TabPane
-          tab={
-            <Space>
-              <span>👥 主角团人设</span>
-              <Button
-                size="small"
-                type="text"
-                style={{ fontSize: 11, color: '#d4b106', padding: '0 4px', height: 'auto' }}
-                icon={<RocketOutlined />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setModifyField('characterSetting');
-                  setIsModifyModalOpen(true);
+                onBlur={async e => {
+                  if (!selectedNovel) return;
+                  await httpService.post('/ai-novel/save-outline', {
+                    novelId: selectedNovel.id,
+                    worldSetting: e.target.value
+                  });
+                  message.success({ content: '世界观背景设定已自动保存！', duration: 1.5 });
                 }}
-              >
-                AI修改
-              </Button>
-            </Space>
-          }
-          key="c"
-        >
-          <TextArea
-            value={selectedOutline?.characterSetting}
-            onChange={e => {
-              if (selectedOutline) {
-                setSelectedOutline({ ...selectedOutline, characterSetting: e.target.value });
-              }
-            }}
-            onBlur={async e => {
-              if (!selectedNovel) return;
-              await httpService.post('/ai-novel/save-outline', {
-                novelId: selectedNovel.id,
-                characterSetting: e.target.value
-              });
-              message.success({ content: '主角团人设已自动保存！', duration: 1.5 });
-            }}
-            placeholder="在此输入并修改主要人物及角色设定..."
-            style={{ fontSize: 14, lineHeight: 1.6, padding: 12, background: '#fafafa', height: 'calc(100vh - 280px)', minHeight: 480, resize: 'none' }}
-          />
-        </TabPane>
-
-        <TabPane tab="⚡ 修仙境界与金手指" key="sys_big">
+                placeholder="在此输入并修改小说世界观及规则设定..."
+                style={{ fontSize: 14, lineHeight: 1.6, padding: 12, background: '#fafafa', height: 'calc(100vh - 280px)', minHeight: 480, resize: 'none' }}
+              />
+            )
+          },
+          {
+            key: 'c',
+            label: (
+              <Space>
+                <span>👥 主角团人设</span>
+                <Button
+                  size="small"
+                  type="text"
+                  style={{ fontSize: 11, color: '#d4b106', padding: '0 4px', height: 'auto' }}
+                  icon={<RocketOutlined />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setModifyField('characterSetting');
+                    setIsModifyModalOpen(true);
+                  }}
+                >
+                  AI修改
+                </Button>
+              </Space>
+            ),
+            children: (
+              <TextArea
+                value={selectedOutline?.characterSetting}
+                onChange={e => {
+                  if (selectedOutline) {
+                    setSelectedOutline({ ...selectedOutline, characterSetting: e.target.value });
+                  }
+                }}
+                onBlur={async e => {
+                  if (!selectedNovel) return;
+                  await httpService.post('/ai-novel/save-outline', {
+                    novelId: selectedNovel.id,
+                    characterSetting: e.target.value
+                  });
+                  message.success({ content: '主角团人设已自动保存！', duration: 1.5 });
+                }}
+                placeholder="在此输入并修改主要人物及角色设定..."
+                style={{ fontSize: 14, lineHeight: 1.6, padding: 12, background: '#fafafa', height: 'calc(100vh - 280px)', minHeight: 480, resize: 'none' }}
+              />
+            )
+          },
+          {
+            key: 'sys_big',
+            label: '⚡ 修仙境界与金手指',
+            children: (
           <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 10 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: 14, fontWeight: 600, color: "#1890ff" }}>⚡ 主角突破修为轨迹 & 系统已解锁能力看板</span>
@@ -242,8 +248,12 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
               </Card>
             </div>
           </div>
-        </TabPane>
-        <TabPane tab="⛓️ 人物关系网" key="r">
+        )
+      },
+      {
+        key: 'r',
+        label: '⛓️ 人物关系网',
+        children: (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Button
@@ -479,8 +489,10 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
               </div>
             )}
           </div>
-        </TabPane>
-      </Tabs>
-    </Modal>
+        )
+      }
+    ]}
+  />
+</Modal>
   );
 };

@@ -3,7 +3,6 @@ import { Button, Card, Tabs, Space, Input } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined, FullscreenOutlined, RocketOutlined } from '@ant-design/icons';
 import { NovelOutline, Idea } from '../types';
 
-const { TabPane } = Tabs;
 const { TextArea } = Input;
 
 interface OutlineViewProps {
@@ -54,128 +53,135 @@ export const OutlineView: React.FC<OutlineViewProps> = ({
       <div className="outline-layout">
         <div className="left-settings">
           <Card className="settings-card">
-            <Tabs defaultActiveKey="world" type="card">
-              <TabPane
-                tab={
-                  <Space>
-                    <span>🌌 世界观规则与设定</span>
-                    <Button
-                      size="small"
-                      type="text"
-                      icon={<FullscreenOutlined style={{color: '#d4b106'}} />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenManualEdit('worldSetting', '世界观设定', draftOutline.worldSetting);
-                      }}
-                      style={{ padding: '0 4px', height: 'auto', fontSize: 12 }}
-                    >
-                      放大
-                    </Button>
-                    <Button
-                      size="small"
-                      type="text"
-                      icon={<RocketOutlined style={{color: '#d4b106'}} />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setModifyField('worldSetting');
-                        setIsModifyModalOpen(true);
-                      }}
-                      style={{ padding: '0 4px', height: 'auto', fontSize: 12 }}
-                    >
-                      AI修改
-                    </Button>
-                  </Space>
+            <Tabs
+              defaultActiveKey="world"
+              type="card"
+              items={[
+                {
+                  key: 'world',
+                  label: (
+                    <Space>
+                      <span>🌌 世界观规则与设定</span>
+                      <Button
+                        size="small"
+                        type="text"
+                        icon={<FullscreenOutlined style={{color: '#d4b106'}} />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenManualEdit('worldSetting', '世界观设定', draftOutline.worldSetting);
+                        }}
+                        style={{ padding: '0 4px', height: 'auto', fontSize: 12 }}
+                      >
+                        放大
+                      </Button>
+                      <Button
+                        size="small"
+                        type="text"
+                        icon={<RocketOutlined style={{color: '#d4b106'}} />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModifyField('worldSetting');
+                          setIsModifyModalOpen(true);
+                        }}
+                        style={{ padding: '0 4px', height: 'auto', fontSize: 12 }}
+                      >
+                        AI修改
+                      </Button>
+                    </Space>
+                  ),
+                  children: (
+                    <TextArea
+                      value={draftOutline.worldSetting}
+                      onChange={e => setDraftOutline({...draftOutline, worldSetting: e.target.value})}
+                      rows={18}
+                      className="outline-textarea"
+                    />
+                  )
+                },
+                {
+                  key: 'characters',
+                  label: (
+                    <Space>
+                      <span>👥 核心人物志</span>
+                      <Button
+                        size="small"
+                        type="text"
+                        icon={<FullscreenOutlined style={{color: '#d4b106'}} />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenManualEdit('characterSetting', '核心人物志', draftOutline.characterSetting);
+                        }}
+                        style={{ padding: '0 4px', height: 'auto', fontSize: 12 }}
+                      >
+                        放大
+                      </Button>
+                      <Button
+                        size="small"
+                        type="text"
+                        icon={<RocketOutlined style={{color: '#d4b106'}} />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModifyField('characterSetting');
+                          setIsModifyModalOpen(true);
+                        }}
+                        style={{ padding: '0 4px', height: 'auto', fontSize: 12 }}
+                      >
+                        AI修改
+                      </Button>
+                    </Space>
+                  ),
+                  children: (
+                    <TextArea
+                      value={draftOutline.characterSetting}
+                      onChange={e => setDraftOutline({...draftOutline, characterSetting: e.target.value})}
+                      rows={18}
+                      className="outline-textarea"
+                    />
+                  )
+                },
+                {
+                  key: 'mainline',
+                  label: (
+                    <Space>
+                      <span>⛓️ 命运起承转合主线</span>
+                      <Button
+                        size="small"
+                        type="text"
+                        icon={<FullscreenOutlined style={{color: '#d4b106'}} />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenManualEdit('mainLine', '命运起承转合主线', draftOutline.mainLine);
+                        }}
+                        style={{ padding: '0 4px', height: 'auto', fontSize: 12 }}
+                      >
+                        放大
+                      </Button>
+                      <Button
+                        size="small"
+                        type="text"
+                        icon={<RocketOutlined style={{color: '#d4b106'}} />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModifyField('mainLine');
+                          setIsModifyModalOpen(true);
+                        }}
+                        style={{ padding: '0 4px', height: 'auto', fontSize: 12 }}
+                      >
+                        AI修改
+                      </Button>
+                    </Space>
+                  ),
+                  children: (
+                    <TextArea
+                      value={draftOutline.mainLine}
+                      onChange={e => setDraftOutline({...draftOutline, mainLine: e.target.value})}
+                      rows={18}
+                      className="outline-textarea"
+                    />
+                  )
                 }
-                key="world"
-              >
-                <TextArea
-                  value={draftOutline.worldSetting}
-                  onChange={e => setDraftOutline({...draftOutline, worldSetting: e.target.value})}
-                  rows={18}
-                  className="outline-textarea"
-                />
-              </TabPane>
-              <TabPane
-                tab={
-                  <Space>
-                    <span>👥 核心人物志</span>
-                    <Button
-                      size="small"
-                      type="text"
-                      icon={<FullscreenOutlined style={{color: '#d4b106'}} />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenManualEdit('characterSetting', '核心人物志', draftOutline.characterSetting);
-                      }}
-                      style={{ padding: '0 4px', height: 'auto', fontSize: 12 }}
-                    >
-                      放大
-                    </Button>
-                    <Button
-                      size="small"
-                      type="text"
-                      icon={<RocketOutlined style={{color: '#d4b106'}} />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setModifyField('characterSetting');
-                        setIsModifyModalOpen(true);
-                      }}
-                      style={{ padding: '0 4px', height: 'auto', fontSize: 12 }}
-                    >
-                      AI修改
-                    </Button>
-                  </Space>
-                }
-                key="characters"
-              >
-                <TextArea
-                  value={draftOutline.characterSetting}
-                  onChange={e => setDraftOutline({...draftOutline, characterSetting: e.target.value})}
-                  rows={18}
-                  className="outline-textarea"
-                />
-              </TabPane>
-              <TabPane
-                tab={
-                  <Space>
-                    <span>⛓️ 命运起承转合主线</span>
-                    <Button
-                      size="small"
-                      type="text"
-                      icon={<FullscreenOutlined style={{color: '#d4b106'}} />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenManualEdit('mainLine', '命运起承转合主线', draftOutline.mainLine);
-                      }}
-                      style={{ padding: '0 4px', height: 'auto', fontSize: 12 }}
-                    >
-                      放大
-                    </Button>
-                    <Button
-                      size="small"
-                      type="text"
-                      icon={<RocketOutlined style={{color: '#d4b106'}} />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setModifyField('mainLine');
-                        setIsModifyModalOpen(true);
-                      }}
-                      style={{ padding: '0 4px', height: 'auto', fontSize: 12 }}
-                    >
-                      AI修改
-                    </Button>
-                  </Space>
-                }
-                key="mainline"
-              >
-                <TextArea
-                  value={draftOutline.mainLine}
-                  onChange={e => setDraftOutline({...draftOutline, mainLine: e.target.value})}
-                  rows={18}
-                  className="outline-textarea"
-                />
-              </TabPane>
-            </Tabs>
+              ]}
+            />
           </Card>
         </div>
 

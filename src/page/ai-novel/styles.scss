@@ -606,7 +606,8 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
 
       // 左侧章节树
       .left-chapters-tree {
-        width: 260px;
+        width: 290px;
+        min-width: 270px;
         background: #ffffff;
         border-right: 1px solid rgba(0, 0, 0, 0.08);
         display: flex;
@@ -646,6 +647,12 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
             transition: all 0.2s ease;
             margin-bottom: 4px;
             color: #475569;
+            gap: 6px;
+
+            .chap-hover-actions {
+              opacity: 0;
+              transition: opacity 0.2s ease;
+            }
 
             .chap-delete-btn {
               opacity: 0;
@@ -662,6 +669,7 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
               background: rgba(0, 0, 0, 0.03);
               color: #0f172a;
 
+              .chap-hover-actions,
               .chap-delete-btn {
                 opacity: 1;
               }
@@ -672,25 +680,35 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
               color: $color-gold;
               font-weight: 700;
               border: 1px solid rgba(180, 83, 9, 0.2);
+
+              .chap-name {
+                color: $color-gold !important;
+                font-weight: 700;
+              }
             }
 
             .chap-num {
-              width: 32px;
+              width: 28px;
+              flex-shrink: 0;
               font-size: 11px;
               color: $color-slate-grey;
+              font-weight: 700;
             }
 
             .chap-name {
               flex: 1;
+              min-width: 0;
               white-space: nowrap;
               overflow: hidden;
               text-overflow: ellipsis;
               font-size: 13px;
-              margin-right: 8px;
+              font-weight: 600;
+              color: #1e293b;
             }
 
             .chap-state-badge {
               font-size: 11px;
+              flex-shrink: 0;
             }
           }
         }
@@ -998,40 +1016,360 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
         }
       }
     }
-  }
 
-  // AI 智能气泡弹窗局部润色配置
-  .polish-gas-content {
-    padding: 4px;
-    background: #ffffff;
-    color: #0f172a;
-    border-radius: 8px;
-    
-    .polished-result-box {
-      border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
-      
-      p {
-        background: #f8fafc !important;
-        color: #1e293b !important;
-        border: 1px solid rgba(0, 0, 0, 0.05);
+    // 🌑 暗夜黑 / 极夜护眼暗黑模式
+    &.paper-theme-dark {
+      background: #0d0d10 !important;
+      color: #e4e4e7 !important;
+
+      .editor-top-bar {
+        background: #16161a !important;
+        border-bottom-color: #27272e !important;
+        .novel-main-title {
+          color: #f4f4f5 !important;
+          .title-text { color: #f4f4f5 !important; }
+          .category-tag {
+            background: #272730 !important;
+            color: #d4b106 !important;
+            border-color: #3f3f4e !important;
+          }
+        }
+        .back-btn-editor {
+          color: #a1a1aa !important;
+          &:hover { color: #d4b106 !important; }
+        }
+      }
+
+      .editor-main-body {
+        background: #0d0d10 !important;
+
+        // 左侧章节树
+        .left-chapters-tree {
+          background: #16161a !important;
+          border-right: 1px solid #27272e !important;
+
+          .tree-header {
+            background: #16161a !important;
+            border-bottom: 1px solid #27272e !important;
+            color: #f4f4f5 !important;
+            span { color: #f4f4f5 !important; }
+          }
+
+          .tree-scroll {
+            background: #16161a !important;
+
+            .volume-block {
+              .volume-header {
+                background: #202026 !important;
+                color: #e4e4e7 !important;
+                border: 1px solid #2e2e38 !important;
+              }
+            }
+
+            .tree-item {
+              color: #a1a1aa !important;
+              background: transparent;
+              border: 1px solid transparent;
+
+              .chap-name {
+                color: #f4f4f5 !important;
+                font-weight: 600;
+              }
+              .chap-words {
+                color: #71717a !important;
+              }
+
+              &:hover {
+                background: #22222a !important;
+                color: #ffffff !important;
+                .chap-name { color: #ffffff !important; }
+              }
+
+              &.active {
+                background: #2a2410 !important;
+                border-color: #785a06 !important;
+                color: #ffd666 !important;
+                .chap-name {
+                  color: #ffd666 !important;
+                  font-weight: 700;
+                }
+              }
+
+              .chap-edit-btn, .chap-insert-btn {
+                color: #a1a1aa !important;
+                &:hover { color: #ffd666 !important; }
+              }
+            }
+          }
+        }
+
+        // 右侧大纲参考面板
+        .right-reference-desk {
+          background: #141418 !important;
+          border-left: 1px solid #27272e !important;
+
+          .tab-pane-scroll {
+            background: #141418 !important;
+          }
+
+          .ant-tabs-nav {
+            color: #d4d4d8 !important;
+            .ant-tabs-tab {
+              color: #a1a1aa !important;
+              font-weight: 500;
+              &:hover { color: #ffd666 !important; }
+            }
+            .ant-tabs-tab-active .ant-tabs-tab-btn {
+              color: #ffd666 !important;
+              font-weight: 700;
+            }
+            .ant-tabs-ink-bar {
+              background: #ffd666 !important;
+            }
+          }
+
+          .ant-card {
+            background: #1e1e26 !important;
+            border-color: #2e2e3a !important;
+            color: #ffffff !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+
+            .ant-card-head {
+              background: #252530 !important;
+              border-bottom-color: #2e2e3a !important;
+              color: #ffffff !important;
+              .ant-card-head-title {
+                color: #ffffff !important;
+                font-weight: 700;
+              }
+            }
+
+            .ant-card-body {
+              background: #1e1e26 !important;
+              color: #ffffff !important;
+            }
+          }
+
+          textarea.ant-input, input.ant-input, textarea, input {
+            background: #121215 !important;
+            color: #ffffff !important;
+            border-color: #383846 !important;
+            font-size: 13px !important;
+            &::placeholder {
+              color: rgba(255, 255, 255, 0.45) !important;
+            }
+            &:focus {
+              border-color: #ffd666 !important;
+              box-shadow: 0 0 8px rgba(255, 214, 102, 0.2) !important;
+            }
+          }
+
+          .brief-scroll {
+            color: #e2e8f0 !important;
+          }
+
+          // 修仙与金手指看板
+          .section-sub-title {
+            color: #cbd5e1 !important;
+            font-weight: 600;
+          }
+          .empty-sub-tip {
+            color: #71717a !important;
+          }
+          .cultivation-feat-card {
+            background: #1a1a22 !important;
+            border: 1px solid #2e2e3c !important;
+            padding: 8px;
+            border-radius: 6px;
+            .feat-header {
+              display: flex;
+              justify-content: space-between;
+              font-size: 12px;
+              font-weight: 600;
+              .feat-name { color: #ffffff !important; }
+              .feat-status-tag {
+                font-size: 10px;
+                color: #73d13d !important;
+                background: rgba(82, 196, 26, 0.15) !important;
+                padding: 0 4px;
+                border: 1px solid rgba(82, 196, 26, 0.3) !important;
+                border-radius: 4px;
+              }
+            }
+            .feat-desc {
+              font-size: 11px;
+              color: #cbd5e1 !important;
+              margin-top: 4px;
+            }
+          }
+
+          // 活跃伏笔便签
+          .section-foreshadow-title {
+            color: #d8b4fe !important;
+            font-weight: 700;
+            font-size: 12px;
+          }
+          .foreshadow-note-card {
+            background: #1e1b2e !important;
+            border: 1px solid #432b68 !important;
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            box-shadow: 0 2px 8px rgba(114, 46, 209, 0.15);
+            .foreshadow-header {
+              display: flex;
+              justify-content: space-between;
+              font-weight: 600;
+              .foreshadow-clue { color: #f5f3ff !important; }
+            }
+            .foreshadow-chapter {
+              font-size: 10px;
+              color: #c084fc !important;
+              margin-top: 2px;
+            }
+          }
+
+          // 人物关系网卡片
+          .relationship-card {
+            background: #1a1a22 !important;
+            border: 1px solid #2e2e3c !important;
+            border-radius: 6px;
+            &.is-past-character {
+              opacity: 0.65;
+              border-style: dashed;
+              .rel-name { color: #71717a !important; text-decoration: line-through; }
+            }
+            &.is-active-character {
+              .rel-name { color: #ffffff !important; font-weight: 700; }
+            }
+            .rel-badge {
+              border-radius: 4px;
+              padding: 0 6px;
+              font-size: 10px;
+              line-height: 16px;
+              display: inline-block;
+              &.active {
+                background: #2e260e !important;
+                color: #ffd666 !important;
+                border: 1px solid #785a06 !important;
+              }
+              &.past {
+                background: #1c1c21 !important;
+                color: #71717a !important;
+                border: 1px solid #2e2e38 !important;
+              }
+            }
+          }
+
+          // 🧠 向量记忆库卡片
+          .vector-memory-card {
+            background: #1a1829 !important;
+            border: 1px solid #3b285b !important;
+            border-radius: 6px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3) !important;
+            .mem-title {
+              color: #ffffff !important;
+              font-weight: 700;
+              font-size: 12px;
+            }
+            .mem-chapter-badge {
+              font-size: 10px;
+              color: #c084fc !important;
+              background: #2e1065 !important;
+              border: 1px solid #4c1d95 !important;
+              padding: 0 4px;
+              border-radius: 4px;
+            }
+            .mem-content {
+              font-size: 11px;
+              color: #e2e8f0 !important;
+              line-height: 1.6;
+              margin-bottom: 4px;
+            }
+            .mem-entity-tag {
+              background: #14121f !important;
+              color: #d8b4fe !important;
+              border-color: #4c1d95 !important;
+            }
+          }
+        }
+
+        // 中间沉浸式写作信纸
+        .center-writing-desk {
+          background: #0d0d10 !important; // 深邃极夜暗黑底色
+          color: #ffffff !important;
+
+          .paper-container {
+            background: #18181c !important;
+            border-color: #292933 !important;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6) !important;
+          }
+
+          .paper-header-info {
+            border-bottom-color: #292933 !important;
+            h2 { color: #ffffff !important; font-weight: 800; }
+            .words-stats { color: #cbd5e1 !important; }
+          }
+
+          // 🎯 本章高级蓝图指示栏高对比度暗黑适配
+          .chapter-blueprint-bar {
+            margin: 0 24px 8px 24px;
+            padding: 8px 14px;
+            background: #181820 !important;
+            border: 1px solid #333344 !important;
+            border-radius: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            font-size: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+
+            .blueprint-label {
+              font-weight: 700;
+              color: #ffd666 !important;
+            }
+          }
+
+          .inkwell-textarea {
+            color: #ffffff !important;
+            background: transparent !important;
+            font-weight: 500;
+            line-height: 1.8;
+            &::placeholder {
+              color: rgba(255, 255, 255, 0.45) !important;
+            }
+          }
+
+          .paper-action-bar {
+            border-top-color: #292933 !important;
+            background: #18181c !important;
+          }
+        }
       }
     }
   }
 
-  .config-drawer {
+  // 弹窗与抽屉全局暗黑高对比度适配 (Modal & Drawer Dark Theme)
+  .config-drawer,
+  .ant-drawer {
     .ant-drawer-content {
-      background: #ffffff;
-      color: #0f172a;
+      background: #18181c !important;
+      color: #ffffff !important;
     }
     .ant-drawer-header {
-      background: #f8fafc;
-      border-bottom: 1px solid rgba(0,0,0,0.08);
-      .ant-drawer-title {
-        color: #0f172a;
-      }
+      background: #1e1e24 !important;
+      border-bottom: 1px solid #2e2e38 !important;
+      .ant-drawer-title { color: #ffffff !important; font-weight: 700; }
+      .ant-drawer-close { color: #cbd5e1 !important; &:hover { color: #ffd666 !important; } }
     }
-    .ant-form-item-label > label {
-      color: $color-slate-grey;
+    .ant-drawer-body {
+      background: #18181c !important;
+      color: #ffffff !important;
+    }
+    .ant-form-item-label label {
+      color: #ffffff !important;
+      font-weight: 600;
     }
   }
 }
@@ -1045,9 +1383,9 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
 // 字数限制 select 美化
 .word-limit-select {
   .ant-select-selector {
-    background: #ffffff !important;
+    background: #ffffff;
     border-color: rgba(0, 0, 0, 0.15) !important;
-    color: #0f172a !important;
+    color: #0f172a;
     border-radius: 8px !important;
     
     &:hover {
@@ -1056,7 +1394,8 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
   }
   
   .ant-select-selection-item {
-    color: #0f172a !important;
+    color: #0f172a;
+    font-weight: 600;
   }
   
   .ant-select-arrow {
@@ -1066,13 +1405,13 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
 
 // 字数选择框 popup 弹出层样式
 .word-limit-popup {
-  background: #ffffff !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
   border-radius: 8px !important;
   
   .ant-select-item {
-    color: #1e293b !important;
+    color: #1e293b;
     transition: all 0.2s ease;
     
     &-option-active {
@@ -1185,12 +1524,16 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
     flex: 1;
 
     .ant-select-selector {
-      background: #ffffff !important;
+      background: #ffffff;
       border: 1px solid rgba(180, 83, 9, 0.2) !important;
       border-radius: 6px !important;
       color: #0f172a !important;
       font-weight: 600;
       transition: all 0.3s ease;
+
+      .ant-select-selection-item {
+        color: #0f172a !important;
+      }
 
       &:hover {
         border-color: $color-gold !important;
@@ -1277,4 +1620,208 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
     }
   }
 }
+
+// 🛡️ 全屏模式下 DOM 隔离与防塌陷保护 (Prevent Fullscreen collapse on Spin/Blur)
+.ai-novel-studio {
+  .ant-spin-nested-loading {
+    &:has(.full-screen-writing) {
+      & > div > .ant-spin {
+        display: none !important;
+      }
+      & > div > .ant-spin-container {
+        filter: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+      }
+    }
+  }
+}
+
+// 确保全屏模式下所有确认弹窗与通知置于最顶层
+.ant-modal-root, .ant-modal-wrap, .ant-popover, .ant-popconfirm, .ant-message, .ant-notification {
+  z-index: 1000000 !important;
+}
+
+// 🌑 全局暗黑模式下的小说工坊深度适配 (Dark Theme Support for AI Novel Studio)
+.dark-theme .ai-novel-studio,
+[data-theme="dark"] .ai-novel-studio {
+  background: #0d0d10 !important;
+  color: #e4e4e7;
+
+  // 1. 列表视图
+  .novel-list-view {
+    .view-header {
+      border-bottom-color: #27272e;
+      .view-title {
+        background: linear-gradient(135deg, #ffd666 30%, #faad14 100%) !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+      }
+    }
+
+    .novel-card {
+      background: #16161a !important;
+      border-color: #27272e !important;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+
+      &:hover {
+        border-color: rgba(212, 177, 6, 0.5) !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+      }
+
+      .novel-card-body {
+        .novel-cover-placeholder {
+          background: #202026 !important;
+          border-color: #2e2e38 !important;
+          color: #ffd666 !important;
+        }
+
+        .novel-info {
+          .novel-title {
+            color: #f4f4f5 !important;
+          }
+          .novel-desc {
+            color: #a1a1aa !important;
+          }
+        }
+      }
+
+      .ant-card-actions {
+        background: #1c1c21 !important;
+        border-top-color: #27272e !important;
+        li {
+          border-right-color: #27272e !important;
+          span {
+            color: #a1a1aa !important;
+            &:hover { color: #ffd666 !important; }
+          }
+        }
+      }
+    }
+
+    .empty-card {
+      background: #16161a !important;
+      border-color: #27272e !important;
+      color: #a1a1aa !important;
+      .empty-state h3 { color: #f4f4f5 !important; }
+    }
+  }
+
+  // 2. 灵感广场与大纲沙盘
+  .idea-view,
+  .outline-view {
+    .view-header {
+      border-bottom-color: #27272e;
+      .view-title {
+        color: #f4f4f5 !important;
+      }
+    }
+
+    .ant-card {
+      background: #16161a !important;
+      border-color: #27272e !important;
+      color: #e4e4e7 !important;
+
+      .ant-card-head {
+        background: #202026 !important;
+        border-bottom-color: #27272e !important;
+        color: #f4f4f5 !important;
+        .ant-card-head-title { color: #f4f4f5 !important; }
+      }
+
+      .ant-card-body {
+        background: #16161a !important;
+      }
+    }
+
+    textarea.ant-input, input.ant-input {
+      background: #141417 !important;
+      border-color: #2e2e38 !important;
+      color: #f4f4f5 !important;
+      &::placeholder {
+        color: rgba(255, 255, 255, 0.35) !important;
+      }
+    }
+  }
+
+  // 3. 分卷选择器暗黑适配
+  .volume-selector-container {
+    background: #18181c !important;
+    border-bottom: 1px solid #27272e !important;
+
+    span {
+      color: #ffd666 !important;
+    }
+
+    .volume-select-dropdown {
+      .ant-select-selector {
+        background: #25252b !important;
+        border: 1px solid #3f3f46 !important;
+        color: #ffffff !important;
+
+        .ant-select-selection-item {
+          color: #ffffff !important;
+          font-weight: 600 !important;
+        }
+
+        &:hover {
+          border-color: #ffd666 !important;
+        }
+      }
+
+      .ant-select-arrow {
+        color: #ffd666 !important;
+      }
+    }
+  }
+
+  // 4. 底部字数限制选择器暗黑适配
+  .word-limit-select {
+    .ant-select-selector {
+      background: #25252b !important;
+      border: 1px solid #3f3f46 !important;
+      color: #ffffff !important;
+
+      &:hover {
+        border-color: #ffd666 !important;
+      }
+    }
+
+    .ant-select-selection-item {
+      color: #ffd666 !important;
+      font-weight: 700 !important;
+    }
+
+    .ant-select-arrow {
+      color: #ffd666 !important;
+    }
+  }
+}
+
+// 5. 全局弹出层暗黑适配
+.dark-theme,
+[data-theme="dark"] {
+  .word-limit-popup,
+  .ant-select-dropdown {
+    background: #1e1e24 !important;
+    border: 1px solid #2e2e38 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+
+    .ant-select-item {
+      color: #d4d4d8 !important;
+
+      &-option-active {
+        background: #2a2a34 !important;
+        color: #ffffff !important;
+      }
+
+      &-option-selected {
+        background: #3e341a !important;
+        color: #ffd666 !important;
+        font-weight: 700 !important;
+      }
+    }
+  }
+}
+
 
