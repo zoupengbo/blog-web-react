@@ -130,7 +130,8 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
       },
       body: JSON.stringify({
         novelId,
-        userPrompt: aiStoryInstruction.trim()
+        userPrompt: aiStoryInstruction.trim(),
+        startChapterNum: startChapterNum || 1
       })
     }).then(response => {
       if (!response.body) throw new Error('服务器响应异常');
