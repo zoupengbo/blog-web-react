@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, Spin, Form, Radio, Button, Select, InputNumber, Input } from 'antd';
 import { RocketOutlined } from '@ant-design/icons';
-import { NovelOutline } from '../types';
+import { NovelOutline, PaperTheme } from '../types';
 
 interface FanqiePublishModalProps {
   open: boolean;
@@ -23,6 +23,7 @@ interface FanqiePublishModalProps {
   onSelectAllUnsynced: () => void;
   onPublishToFanqie: () => void;
   getSyncSummary: () => React.ReactNode;
+  paperTheme?: PaperTheme;
 }
 
 export const FanqiePublishModal: React.FC<FanqiePublishModalProps> = ({
@@ -45,11 +46,12 @@ export const FanqiePublishModal: React.FC<FanqiePublishModalProps> = ({
   onSelectAllUnsynced,
   onPublishToFanqie,
   getSyncSummary,
+  paperTheme = 'dark',
 }) => {
   return (
     <Modal
       title={
-        <span style={{ fontSize: 16, fontWeight: 800, color: '#b45309', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 16, fontWeight: 800, color: '#ffd666', display: 'flex', alignItems: 'center', gap: 6 }}>
           <RocketOutlined style={{ color: '#d4b106' }} />
           自动同步章节至番茄草稿箱
         </span>
@@ -59,12 +61,13 @@ export const FanqiePublishModal: React.FC<FanqiePublishModalProps> = ({
       footer={null}
       width={500}
       className="fanqie-publish-modal"
+      wrapClassName={`novel-themed-modal paper-theme-${paperTheme}`}
       centered
       maskClosable={false}
     >
       <Spin spinning={isPublishingToFanqie} tip="番茄草稿同步中，请在开启的 Chromium 窗口中操作/观察...">
         <div style={{ marginTop: 15 }}>
-          <div style={{ marginBottom: 15, padding: '10px 12px', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 6, color: '#92400e', fontSize: 13 }}>
+          <div className="modal-tip-banner" style={{ marginBottom: 15, padding: '10px 14px', borderRadius: 6, fontSize: 13 }}>
             📌 <strong>使用说明：</strong>
             <ul style={{ margin: '5px 0 0 15px', padding: 0 }}>
               <li>首次同步时需要您在打开的浏览器中<strong>手机扫码登录</strong>番茄作家后台。</li>

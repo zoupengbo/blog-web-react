@@ -509,67 +509,58 @@ const AiNovelDashboard: React.FC = () => {
     );
   };
 
-  const handleConfirmBatchDelete = () => {
-    if (checkedChapters.length === 0 || !selectedNovel || !selectedOutline) return;
+  const handleConfirmBatchDelete = async () => {
+    if (checkedChapters.length === 0 || !selectedNovel || !selectedOutline) {
+      message.warning('请先勾选需要删除的章节');
+      return;
+    }
 
-    Modal.confirm({
-      title: '确认批量删除章节',
-      content: `您确定要批量删除已选中的这 ${checkedChapters.length} 个章节吗？`,
-      okText: '确认批量删除',
-      okType: 'danger',
-      cancelText: '取消',
-      onOk: async () => {
-        setLoading(true);
-        try {
-          const filtered = selectedOutline.chaptersOutline.filter(c => !checkedChapters.includes(c.chapterNumber));
-          const reIndexed = filtered.map((c, idx) => {
-            const nextNum = idx + 1;
-            let newTitle = c.title;
-            const regex = /^第\s*(\d+)\s*章/;
-            if (regex.test(newTitle)) {
-              newTitle = newTitle.replace(regex, `第 ${nextNum} 章`);
-            }
-            return { ...c, chapterNumber: nextNum, title: newTitle };
-          });
-
-          setSelectedOutline({ ...selectedOutline, chaptersOutline: reIndexed });
-
-          let nextActiveNum = streamHook.activeChapterNum;
-          const wasActiveChapterDeleted = checkedChapters.includes(streamHook.activeChapterNum);
-          if (wasActiveChapterDeleted) {
-            nextActiveNum = reIndexed.length > 0 ? reIndexed[0].chapterNumber : 1;
-            streamHook.setActiveChapterNum(nextActiveNum);
-            if (reIndexed.length > 0) {
-              await loadChapterContent(selectedNovel.id, nextActiveNum);
-            } else {
-              streamHook.setChapterContent('');
-            }
-          } else {
-            const remainingBeforeActive = selectedOutline.chaptersOutline.filter(
-              c => c.chapterNumber < streamHook.activeChapterNum && !checkedChapters.includes(c.chapterNumber)
-            ).length;
-            nextActiveNum = remainingBeforeActive + 1;
-            streamHook.setActiveChapterNum(nextActiveNum);
-          }
-
-          const newActiveChapter = reIndexed.find(c => c.chapterNumber === nextActiveNum);
-          streamHook.setIntervention(newActiveChapter?.interventionPrompt || '');
-
-          await httpService.post('/ai-novel/save-outline', {
-            novelId: selectedNovel.id,
-            chaptersOutline: reIndexed
-          });
-
-          setIsDeleteMode(false);
-          setCheckedChapters([]);
-          message.success(`已成功批量删除 ${checkedChapters.length} 个章节，目录已自动重排！`);
-        } catch (err: any) {
-          message.error('批量删除失败，请重试');
-        } finally {
-          setLoading(false);
+    const count = checkedChapters.length;
+    const hideLoadingMsg = message.loading(`正在删除已选中的 ${count} 个章节...`, 0);
+    try {
+      const checkedSet = new Set(checkedChapters.map(n => Number(n)));
+      const filtered = selectedOutline.chaptersOutline.filter(c => !checkedSet.has(Number(c.chapterNumber)));
+      
+      const reIndexed = filtered.map((c, idx) => {
+        const nextNum = idx + 1;
+        let newTitle = c.title;
+        const regex = /^第\s*(\d+)\s*章/;
+        if (regex.test(newTitle)) {
+          newTitle = newTitle.replace(regex, `第 ${nextNum} 章`);
         }
+        return { ...c, chapterNumber: nextNum, title: newTitle };
+      });
+
+      setSelectedOutline({ ...selectedOutline, chaptersOutline: reIndexed });
+
+      let nextActiveNum = 1;
+      if (reIndexed.length > 0) {
+        nextActiveNum = reIndexed[0].chapterNumber;
+        streamHook.setActiveChapterNum(nextActiveNum);
+        await loadChapterContent(selectedNovel.id, nextActiveNum);
+      } else {
+        streamHook.setActiveChapterNum(1);
+        streamHook.setChapterContent('');
       }
-    });
+
+      const newActiveChapter = reIndexed.find(c => c.chapterNumber === nextActiveNum);
+      streamHook.setIntervention(newActiveChapter?.interventionPrompt || '');
+
+      await httpService.post('/ai-novel/save-outline', {
+        novelId: selectedNovel.id,
+        chaptersOutline: reIndexed,
+        allowClear: true
+      });
+
+      setIsDeleteMode(false);
+      setCheckedChapters([]);
+      message.success(`已成功批量删除 ${count} 个章节！`);
+    } catch (err: any) {
+      console.error('批量删除失败:', err);
+      message.error('批量删除失败，请重试');
+    } finally {
+      hideLoadingMsg();
+    }
   };
 
   const toggleFullScreen = () => {
@@ -672,9 +663,12 @@ const AiNovelDashboard: React.FC = () => {
             setIsDeleteMode={setIsDeleteMode}
             checkedChapters={checkedChapters}
             setCheckedChapters={setCheckedChapters}
-            onConfirmBatchDelete={handleConfirmBatchDelete}
-            onOpenBatchModal={() => modalsHook.setBatchModalOpen(true)}
-            onOpenInsertModal={modalsHook.handleOpenInsertModal}
+            onOpenBatchModal={() => {
+              const chs = selectedOutline?.chaptersOutline || [];
+              const hasCompleted = chs.some(c => c.status === 'completed' && (c.wordCount || 0) > 50);
+              modalsHook.setBatchGenerateMode(hasCompleted ? 'append' : 'overwrite');
+              modalsHook.setBatchModalOpen(true);
+            }}
             onOpenFreeWrite={() => setIsFreeWriteOpen(true)}
             chapterSortAsc={chapterSortAsc}
             setChapterSortAsc={setChapterSortAsc}
@@ -759,6 +753,7 @@ const AiNovelDashboard: React.FC = () => {
         onTest={modalsHook.handleTestConfig}
         loading={loading}
         testingConfig={modalsHook.testingConfig}
+        paperTheme={paperTheme}
       />
 
       <BatchChaptersModal
@@ -774,6 +769,7 @@ const AiNovelDashboard: React.FC = () => {
         onFetchPlotSuggestion={modalsHook.handleFetchPlotSuggestion}
         isBatchGenerating={modalsHook.isBatchGenerating}
         onBatchGenerateChapters={() => modalsHook.handleBatchGenerateChapters(setSelectedNovel)}
+        paperTheme={paperTheme}
       />
 
       <SuggestPlotModal
@@ -790,6 +786,7 @@ const AiNovelDashboard: React.FC = () => {
           modalsHook.setRefineInstruction('');
           message.success('已成功采纳 AI 剧情建议并填入规划说明框！');
         }}
+        paperTheme={paperTheme}
       />
 
       <FanqiePublishModal
@@ -812,6 +809,7 @@ const AiNovelDashboard: React.FC = () => {
         onSelectAllUnsynced={fanqieHook.handleSelectAllUnsynced}
         onPublishToFanqie={fanqieHook.handlePublishToFanqie}
         getSyncSummary={fanqieHook.getSyncSummary}
+        paperTheme={paperTheme}
       />
 
       <AiModifyModal
@@ -832,6 +830,7 @@ const AiNovelDashboard: React.FC = () => {
         view={view}
         draftOutline={draftOutline}
         selectedOutline={selectedOutline}
+        paperTheme={paperTheme}
       />
 
       <RelationshipModal
@@ -849,6 +848,7 @@ const AiNovelDashboard: React.FC = () => {
         newRelIsPast={modalsHook.newRelIsPast}
         setNewRelIsPast={modalsHook.setNewRelIsPast}
         onSubmit={modalsHook.handleAddOrEditRelationshipSubmit}
+        paperTheme={paperTheme}
       />
 
       <ManualEditModal
@@ -858,6 +858,7 @@ const AiNovelDashboard: React.FC = () => {
         value={modalsHook.manualEditValue}
         setValue={modalsHook.setManualEditValue}
         onSave={modalsHook.handleSaveManualEdit}
+        paperTheme={paperTheme}
       />
 
       <BackgroundSettingsModal
@@ -884,6 +885,7 @@ const AiNovelDashboard: React.FC = () => {
         onTogglePastStatus={modalsHook.handleTogglePastStatus}
         onStartEditRelationship={modalsHook.handleStartEditRelationship}
         onDeleteRelationship={modalsHook.handleDeleteRelationship}
+        paperTheme={paperTheme}
       />
 
       <BatchAnalyzeModal
@@ -896,6 +898,7 @@ const AiNovelDashboard: React.FC = () => {
         batchAnalyzeTypes={modalsHook.batchAnalyzeTypes}
         setBatchAnalyzeTypes={modalsHook.setBatchAnalyzeTypes}
         selectedOutline={selectedOutline}
+        paperTheme={paperTheme}
       />
 
       <InsertChapterModal
@@ -908,6 +911,7 @@ const AiNovelDashboard: React.FC = () => {
         insertUserInstruction={modalsHook.insertUserInstruction}
         setInsertUserInstruction={modalsHook.setInsertUserInstruction}
         selectedOutline={selectedOutline}
+        paperTheme={paperTheme}
       />
 
       {/* 先写后拆：自由创作 → 智能拆章 */}
@@ -924,6 +928,7 @@ const AiNovelDashboard: React.FC = () => {
           setIsFreeWriteOpen(false);
           if (selectedNovel) loadNovelToEditor(selectedNovel.id);
         }}
+        paperTheme={paperTheme}
       />
     </div>
   );

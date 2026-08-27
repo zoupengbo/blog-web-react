@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, Form, Input, Checkbox } from 'antd';
-import { CharacterRelationship } from '../types';
+import { CharacterRelationship, PaperTheme } from '../types';
 
 const { TextArea } = Input;
 
@@ -19,6 +19,7 @@ interface RelationshipModalProps {
   newRelIsPast: boolean;
   setNewRelIsPast: (val: boolean) => void;
   onSubmit: () => void;
+  paperTheme?: PaperTheme;
 }
 
 export const RelationshipModal: React.FC<RelationshipModalProps> = ({
@@ -36,6 +37,7 @@ export const RelationshipModal: React.FC<RelationshipModalProps> = ({
   newRelIsPast,
   setNewRelIsPast,
   onSubmit,
+  paperTheme = 'dark',
 }) => {
   return (
     <Modal
@@ -45,7 +47,7 @@ export const RelationshipModal: React.FC<RelationshipModalProps> = ({
       onOk={onSubmit}
       okText="确定保存"
       cancelText="取消"
-      okButtonProps={{ style: { background: '#d4b106', borderColor: '#d4b106' } }}
+      wrapClassName={`novel-themed-modal paper-theme-${paperTheme}`}
     >
       <Form layout="vertical" style={{ marginTop: 12 }}>
         <Form.Item label="人物姓名" required>

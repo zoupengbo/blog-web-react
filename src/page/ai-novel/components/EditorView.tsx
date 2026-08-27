@@ -267,7 +267,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   if (!selectedNovel) return null;
 
   const safeOutline = selectedOutline || { chaptersOutline: [], characterRelationships: [], systemAndCultivationState: {}, theme: '', worldSetting: '', characterSetting: '', mainLine: '' };
-  const currentChapter = (safeOutline.chaptersOutline || []).find((c: any) => c.chapterNumber === activeChapterNum);
+  const currentChapter = (safeOutline.chaptersOutline || []).find((c: any) => parseInt(c.chapterNumber, 10) === parseInt(activeChapterNum as any, 10));
 
   const handleTextSelect = () => {
     if (textRef.current) {
@@ -507,7 +507,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                       return (
                         <div
                           key={chap.chapterNumber}
-                          className={`tree-item ${chap.chapterNumber === activeChapterNum ? 'active' : ''}`}
+                          className={`tree-item ${Number(chap.chapterNumber) === Number(activeChapterNum) ? 'active' : ''}`}
                           onClick={() => {
                             if (isDeleteMode) {
                               toggleCheckChapter(chap.chapterNumber);
@@ -1045,7 +1045,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                 onChange={async e => {
                   if (!selectedOutline) return;
                   const list = [...selectedOutline.chaptersOutline];
-                  const current = list.find(c => c.chapterNumber === activeChapterNum);
+                  const current = list.find(c => Number(c.chapterNumber) === Number(activeChapterNum));
                   if (current) {
                     current.outline = e.target.value;
                     setSelectedOutline({ ...selectedOutline, chaptersOutline: list });
@@ -1084,7 +1084,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   setIntervention(newVal);
                   if (selectedOutline && selectedNovel) {
                     const list = [...selectedOutline.chaptersOutline];
-                    const current = list.find(c => c.chapterNumber === activeChapterNum);
+                    const current = list.find(c => Number(c.chapterNumber) === Number(activeChapterNum));
                     if (current) {
                       current.interventionPrompt = newVal;
                       setSelectedOutline({ ...selectedOutline, chaptersOutline: list });

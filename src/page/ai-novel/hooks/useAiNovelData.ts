@@ -52,14 +52,31 @@ export const useAiNovelData = (
         setChapterContent(text);
         if (text && text.trim()) {
           setSelectedOutline((prev: any) => {
-            if (!prev || !prev.chaptersOutline) return prev;
-            return {
-              ...prev,
-              chaptersOutline: prev.chaptersOutline.map((c: any) =>
+            if (!prev) return prev;
+            const currentList = Array.isArray(prev.chaptersOutline) ? prev.chaptersOutline : [];
+            const exists = currentList.some((c: any) => parseInt(c.chapterNumber, 10) === parseInt(chNum as any, 10));
+            let newChapters;
+            if (!exists) {
+              newChapters = [
+                ...currentList,
+                {
+                  chapterNumber: chNum,
+                  title: resContent.data.title || `第 ${chNum} 章`,
+                  outline: '',
+                  status: 'completed',
+                  wordCount: text.length
+                }
+              ].sort((a: any, b: any) => (parseInt(a.chapterNumber, 10) || 0) - (parseInt(b.chapterNumber, 10) || 0));
+            } else {
+              newChapters = currentList.map((c: any) =>
                 parseInt(c.chapterNumber, 10) === parseInt(chNum as any, 10)
                   ? { ...c, status: 'completed', wordCount: text.length }
                   : c
-              )
+              );
+            }
+            return {
+              ...prev,
+              chaptersOutline: newChapters
             };
           });
         }
@@ -126,8 +143,8 @@ export const useAiNovelData = (
         message.success(`《${title || '该小说'}》已从工坊中彻底删除！`);
         if (selectedNovel?.id === id) {
           setSelectedNovel(null);
-          setSelectedOutline(null);
-          setViewMode('list');
+          setSelectedOutline(EMPTY_OUTLINE);
+          setView('list');
         }
         await fetchNovels();
       } else {

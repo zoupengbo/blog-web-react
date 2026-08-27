@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Form, InputNumber, Space, Button, Radio, Input } from 'antd';
 import { RocketOutlined } from '@ant-design/icons';
+import { PaperTheme } from '../types';
 
 const { TextArea } = Input;
 
@@ -17,6 +18,7 @@ interface BatchChaptersModalProps {
   onFetchPlotSuggestion: () => void;
   isBatchGenerating: boolean;
   onBatchGenerateChapters: () => void;
+  paperTheme?: PaperTheme;
 }
 
 export const BatchChaptersModal: React.FC<BatchChaptersModalProps> = ({
@@ -32,11 +34,12 @@ export const BatchChaptersModal: React.FC<BatchChaptersModalProps> = ({
   onFetchPlotSuggestion,
   isBatchGenerating,
   onBatchGenerateChapters,
+  paperTheme = 'dark',
 }) => {
   return (
     <Modal
       title={
-        <span style={{ fontSize: 16, fontWeight: 800, color: '#b45309', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 16, fontWeight: 800, color: '#ffd666', display: 'flex', alignItems: 'center', gap: 6 }}>
           <RocketOutlined style={{ color: '#d4b106' }} />
           智能剧情批量大纲规划案
         </span>
@@ -46,6 +49,7 @@ export const BatchChaptersModal: React.FC<BatchChaptersModalProps> = ({
       footer={null}
       width={540}
       className="batch-chapters-modal"
+      wrapClassName={`novel-themed-modal paper-theme-${paperTheme}`}
       centered
     >
       <Form layout="vertical" style={{ marginTop: 15 }}>
@@ -83,6 +87,9 @@ export const BatchChaptersModal: React.FC<BatchChaptersModalProps> = ({
             <Radio.Button value="append">➕ 接着往后写 (不影响前面)</Radio.Button>
             <Radio.Button value="overwrite">🔄 重写未写大纲 (联动最新剧情修改)</Radio.Button>
           </Radio.Group>
+          <div style={{ marginTop: 6, fontSize: 12, color: '#8c8c8c' }}>
+            {batchGenerateMode === 'overwrite' ? '💡 系统将保留所有已写完正文的章节，从首个待写章节（若全为待写则从第 1 章）从头重新规划细纲。' : '💡 系统将在现有章节之后顺延追加新的章节大纲。'}
+          </div>
         </Form.Item>
         <Form.Item
           label={

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, Button, Input } from 'antd';
-import { NovelOutline, Novel } from '../types';
+import { NovelOutline, Novel, PaperTheme } from '../types';
 
 const { TextArea } = Input;
 
@@ -18,6 +18,7 @@ interface AiModifyModalProps {
   view: 'list' | 'idea' | 'outline' | 'editor';
   draftOutline: NovelOutline | null;
   selectedOutline: NovelOutline | null;
+  paperTheme?: PaperTheme;
 }
 
 export const AiModifyModal: React.FC<AiModifyModalProps> = ({
@@ -34,6 +35,7 @@ export const AiModifyModal: React.FC<AiModifyModalProps> = ({
   view,
   draftOutline,
   selectedOutline,
+  paperTheme = 'dark',
 }) => {
   return (
     <Modal
@@ -65,18 +67,18 @@ export const AiModifyModal: React.FC<AiModifyModalProps> = ({
           type="primary"
           loading={modifyLoading}
           onClick={onAiModifySetting}
-          style={modifyResult ? { background: '#f5f5f5', color: '#666', borderColor: '#d9d9d9' } : { background: '#d4b106', borderColor: '#d4b106', color: '#fff' }}
         >
           {modifyResult ? '重新修改' : '开始 AI 修改'}
         </Button>
       ]}
       width={800}
       className="ai-modify-modal"
+      wrapClassName={`novel-themed-modal paper-theme-${paperTheme}`}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
           <span style={{ fontWeight: 600, display: 'block', marginBottom: 6 }}>原设定内容预览：</span>
-          <div style={{ maxHeight: 150, overflowY: 'auto', background: '#fafafa', padding: 12, borderRadius: 6, fontSize: 13, border: '1px solid #f0f0f0', whiteSpace: 'pre-wrap' }}>
+          <div className="modal-preview-box" style={{ maxHeight: 150, overflowY: 'auto', padding: 12, borderRadius: 6, fontSize: 13, whiteSpace: 'pre-wrap' }}>
             {view === 'outline'
               ? (draftOutline ? draftOutline[modifyField] : '（当前为空）')
               : (selectedOutline ? selectedOutline[modifyField] : '（当前为空）')}
@@ -84,7 +86,7 @@ export const AiModifyModal: React.FC<AiModifyModalProps> = ({
         </div>
 
         <div>
-          <span style={{ fontWeight: 600, display: 'block', marginBottom: 6, color: '#d4b106' }}>请输入您的修改与优化期望：</span>
+          <span style={{ fontWeight: 600, display: 'block', marginBottom: 6, color: '#ffd666' }}>请输入您的修改与优化期望：</span>
           <TextArea
             placeholder="例如：'请在背景设定中增加一些赛博朋克与机械飞升的力量体系'，或者'请让第三卷的主线大纲发生反转，主角被背叛后开始反击'..."
             rows={4}
@@ -100,7 +102,7 @@ export const AiModifyModal: React.FC<AiModifyModalProps> = ({
               value={modifyResult}
               onChange={e => setModifyResult(e.target.value)}
               rows={10}
-              style={{ background: '#f6ffed', border: '1px solid #b7eb8f', fontSize: 13 }}
+              style={{ fontSize: 13 }}
             />
           </div>
         )}

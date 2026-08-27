@@ -7,6 +7,7 @@ import {
   PlusOutlined, DeleteOutlined, CheckCircleFilled, ThunderboltOutlined,
   ApiOutlined, SettingOutlined, SwapOutlined
 } from '@ant-design/icons';
+import { PaperTheme } from '../types';
 
 // 常用服务商快速填入模板
 const PROVIDER_TEMPLATES = [
@@ -79,6 +80,7 @@ interface ConfigDrawerProps {
   onTest: () => void;
   loading: boolean;
   testingConfig: boolean;
+  paperTheme?: PaperTheme;
 }
 
 export const ConfigDrawer: React.FC<ConfigDrawerProps> = ({
@@ -94,6 +96,7 @@ export const ConfigDrawer: React.FC<ConfigDrawerProps> = ({
   onTest,
   loading,
   testingConfig,
+  paperTheme = 'dark',
 }) => {
   const [isNewPresetModalOpen, setIsNewPresetModalOpen] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
@@ -121,7 +124,7 @@ export const ConfigDrawer: React.FC<ConfigDrawerProps> = ({
     <Drawer
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <SettingOutlined style={{ color: '#d4b106' }} />
+          <SettingOutlined style={{ color: '#ffd666' }} />
           <span>大模型配置管理（支持多 Key / 多预设一键切换）</span>
         </div>
       }
@@ -130,28 +133,27 @@ export const ConfigDrawer: React.FC<ConfigDrawerProps> = ({
       open={open}
       width={460}
       className="config-drawer"
+      rootClassName={`novel-themed-drawer paper-theme-${paperTheme}`}
     >
       {/* 1. 顶部预设选择与快速切换 */}
       <Card
         size="small"
         style={{
-          background: '#fcfcfc',
-          borderColor: '#e8e8e8',
           borderRadius: 8,
           marginBottom: 16
         }}
         bodyStyle={{ padding: 12 }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#333', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <ApiOutlined style={{ color: '#1890ff' }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#ffd666', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <ApiOutlined style={{ color: '#ffd666' }} />
             <span>已保存的模型预设：</span>
           </span>
           <Button
             size="small"
             type="primary"
             icon={<PlusOutlined />}
-            style={{ background: '#d4b106', borderColor: '#d4b106', fontSize: 11 }}
+            style={{ fontSize: 11 }}
             onClick={() => {
               setNewPresetName('');
               setIsNewPresetModalOpen(true);
@@ -168,6 +170,7 @@ export const ConfigDrawer: React.FC<ConfigDrawerProps> = ({
               return (
                 <div
                   key={preset.id}
+                  className={`preset-card-item ${isActive ? 'active' : ''}`}
                   onClick={() => onSwitchPreset && onSwitchPreset(preset.id)}
                   style={{
                     display: 'flex',
@@ -176,18 +179,16 @@ export const ConfigDrawer: React.FC<ConfigDrawerProps> = ({
                     padding: '8px 10px',
                     borderRadius: 6,
                     cursor: 'pointer',
-                    background: isActive ? '#e6f7ff' : '#fff',
-                    border: isActive ? '1px solid #91d5ff' : '1px solid #f0f0f0',
                     transition: 'all 0.2s ease'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {isActive ? (
-                      <CheckCircleFilled style={{ color: '#1890ff', fontSize: 14 }} />
+                      <CheckCircleFilled style={{ color: '#ffd666', fontSize: 14 }} />
                     ) : (
-                      <span style={{ width: 14, height: 14, borderRadius: '50%', border: '1px solid #d9d9d9', display: 'inline-block' }} />
+                      <span style={{ width: 14, height: 14, borderRadius: '50%', border: '1px solid #71717a', display: 'inline-block' }} />
                     )}
-                    <span style={{ fontSize: 13, fontWeight: isActive ? 600 : 500, color: isActive ? '#096dd9' : '#333' }}>
+                    <span style={{ fontSize: 13, fontWeight: isActive ? 600 : 500, color: isActive ? '#ffd666' : 'inherit' }}>
                       {preset.name || `预设 #${preset.id}`}
                     </span>
                     <Tag style={{ margin: 0, fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>
@@ -197,7 +198,7 @@ export const ConfigDrawer: React.FC<ConfigDrawerProps> = ({
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     {isActive && (
-                      <Tag color="blue" style={{ margin: 0, fontSize: 10 }}>当前生效</Tag>
+                      <Tag color="gold" style={{ margin: 0, fontSize: 10 }}>当前生效</Tag>
                     )}
                     {configPresets.length > 1 && (
                       <Popconfirm
@@ -224,7 +225,7 @@ export const ConfigDrawer: React.FC<ConfigDrawerProps> = ({
             })}
           </div>
         ) : (
-          <div style={{ fontSize: 12, color: '#999', textAlign: 'center', padding: '10px 0' }}>
+          <div style={{ fontSize: 12, color: '#71717a', textAlign: 'center', padding: '10px 0' }}>
             暂无多预设配置，保存后将自动沉淀。
           </div>
         )}

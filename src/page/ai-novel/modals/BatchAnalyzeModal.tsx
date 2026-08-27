@@ -1,7 +1,7 @@
 import React from 'react';
-import { Modal, Card, Checkbox, Space, Button, Tag } from 'antd';
+import { Modal, Checkbox, Space, Button, Tag } from 'antd';
 import { CheckCircleFilled } from '@ant-design/icons';
-import { NovelOutline, ChapterOutline } from '../types';
+import { NovelOutline, ChapterOutline, PaperTheme } from '../types';
 
 interface BatchAnalyzeModalProps {
   open: boolean;
@@ -13,6 +13,7 @@ interface BatchAnalyzeModalProps {
   batchAnalyzeTypes: string[];
   setBatchAnalyzeTypes: (types: string[]) => void;
   selectedOutline: NovelOutline | null;
+  paperTheme?: PaperTheme;
 }
 
 export const BatchAnalyzeModal: React.FC<BatchAnalyzeModalProps> = ({
@@ -25,6 +26,7 @@ export const BatchAnalyzeModal: React.FC<BatchAnalyzeModalProps> = ({
   batchAnalyzeTypes,
   setBatchAnalyzeTypes,
   selectedOutline,
+  paperTheme = 'dark',
 }) => {
   const getChaptersList = (): ChapterOutline[] => {
     if (!selectedOutline?.chaptersOutline) return [];
@@ -42,7 +44,7 @@ export const BatchAnalyzeModal: React.FC<BatchAnalyzeModalProps> = ({
     <Modal
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <CheckCircleFilled style={{ color: '#1890ff', fontSize: 18 }} />
+          <CheckCircleFilled style={{ color: '#ffd666', fontSize: 18 }} />
           <span>批量勾选章节 AI 深度分析</span>
         </div>
       }
@@ -54,16 +56,17 @@ export const BatchAnalyzeModal: React.FC<BatchAnalyzeModalProps> = ({
       cancelText="取消"
       width={640}
       destroyOnClose
+      wrapClassName={`novel-themed-modal paper-theme-${paperTheme}`}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '4px 0' }}>
-        <Card size="small" style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6 }}>
-          <div style={{ fontSize: 12, color: '#389e0d' }}>
+        <div className="modal-tip-banner" style={{ padding: '10px 14px', borderRadius: 6 }}>
+          <div style={{ fontSize: 12 }}>
             💡 <b>功能说明</b>：勾选你需要分析的章节，AI 将按顺序读取这些章节的正文内容，自动识别并提取主角修为突破、系统金手指解锁以及人物关系演进，并自动存库更新！
           </div>
-        </Card>
+        </div>
 
         <div>
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>1. 选择分析维度：</div>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: '#ffd666' }}>1. 选择分析维度：</div>
           <Checkbox.Group
             value={batchAnalyzeTypes}
             onChange={(checkedValues) => setBatchAnalyzeTypes(checkedValues as string[])}
@@ -77,7 +80,7 @@ export const BatchAnalyzeModal: React.FC<BatchAnalyzeModalProps> = ({
 
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>
+            <div style={{ fontWeight: 600, fontSize: 13, color: '#ffd666' }}>
               2. 勾选要分析的章节 ({batchAnalyzeSelectedChapters.length} / {chs.length} 章)：
             </div>
             <Space size="small">
@@ -104,19 +107,17 @@ export const BatchAnalyzeModal: React.FC<BatchAnalyzeModalProps> = ({
             </Space>
           </div>
 
-          <div style={{
+          <div className="modal-preview-box" style={{
             maxHeight: 260,
             overflowY: 'auto',
-            border: '1px solid #f0f0f0',
             padding: 12,
             borderRadius: 6,
-            background: '#fafafa',
             display: 'grid',
             gridTemplateColumns: 'repeat(2, 1fr)',
             gap: '8px 12px'
           }}>
             {chs.length === 0 ? (
-              <div style={{ color: '#ccc', gridColumn: '1 / -1', textAlign: 'center', padding: 20 }}>暂无章节数据</div>
+              <div style={{ color: '#71717a', gridColumn: '1 / -1', textAlign: 'center', padding: 20 }}>暂无章节数据</div>
             ) : (
               chs.map(chap => {
                 const isChecked = batchAnalyzeSelectedChapters.includes(chap.chapterNumber);
@@ -128,18 +129,15 @@ export const BatchAnalyzeModal: React.FC<BatchAnalyzeModalProps> = ({
                       display: 'flex',
                       alignItems: 'center',
                       gap: 6,
-                      padding: '6px 10px',
-                      borderRadius: 6,
-                      background: isChecked ? '#e6f7ff' : '#fff',
-                      border: isChecked ? '1px solid #91d5ff' : '1px solid #e8e8e8',
+                      padding: '4px 8px',
+                      borderRadius: 4,
                       cursor: 'pointer',
-                      transition: 'all 0.2s'
                     }}
                     onClick={() => {
                       if (isChecked) {
-                        setBatchAnalyzeSelectedChapters(batchAnalyzeSelectedChapters.filter(n => n !== chap.chapterNumber));
+                        setBatchAnalyzeSelectedChapters(prev => prev.filter(n => n !== chap.chapterNumber));
                       } else {
-                        setBatchAnalyzeSelectedChapters([...batchAnalyzeSelectedChapters, chap.chapterNumber]);
+                        setBatchAnalyzeSelectedChapters(prev => [...prev, chap.chapterNumber]);
                       }
                     }}
                   >
@@ -148,18 +146,20 @@ export const BatchAnalyzeModal: React.FC<BatchAnalyzeModalProps> = ({
                       onChange={(e) => {
                         e.stopPropagation();
                         if (e.target.checked) {
-                          setBatchAnalyzeSelectedChapters([...batchAnalyzeSelectedChapters, chap.chapterNumber]);
+                          setBatchAnalyzeSelectedChapters(prev => [...prev, chap.chapterNumber]);
                         } else {
-                          setBatchAnalyzeSelectedChapters(batchAnalyzeSelectedChapters.filter(n => n !== chap.chapterNumber));
+                          setBatchAnalyzeSelectedChapters(prev => prev.filter(n => n !== chap.chapterNumber));
                         }
                       }}
                     />
-                    <span style={{ fontSize: 12, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: isChecked ? 600 : 400 }}>
-                      第 {chap.chapterNumber} 章 {chap.title}
+                    <span style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                      {chap.title || `第 ${chap.chapterNumber} 章`}
                     </span>
-                    <Tag color={isCompleted ? "success" : "default"} style={{ fontSize: 10, margin: 0, padding: '0 4px' }}>
-                      {isCompleted ? "正文" : "大纲"}
-                    </Tag>
+                    {isCompleted ? (
+                      <Tag color="success" style={{ fontSize: 10, margin: 0, padding: '0 4px' }}>已写完</Tag>
+                    ) : (
+                      <Tag style={{ fontSize: 10, margin: 0, padding: '0 4px' }}>待写</Tag>
+                    )}
                   </div>
                 );
               })

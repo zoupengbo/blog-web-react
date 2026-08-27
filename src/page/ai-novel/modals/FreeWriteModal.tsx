@@ -9,6 +9,8 @@ import {
   RocketOutlined, EyeOutlined
 } from '@ant-design/icons';
 
+import { NovelOutline, PaperTheme } from '../types';
+
 const { TextArea } = Input;
 
 interface FreeWriteSegment {
@@ -31,6 +33,7 @@ interface FreeWriteModalProps {
   novelId: number | null;
   lastChapterNum: number; // 当前已有的最大章节号
   onChaptersGenerated: () => void; // 生成完毕后刷新章节列表
+  paperTheme?: PaperTheme;
 }
 
 type WorkflowStep = 'write' | 'preview' | 'generating';
@@ -41,6 +44,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
   novelId,
   lastChapterNum,
   onChaptersGenerated,
+  paperTheme = 'dark',
 }) => {
   // Step state
   const [step, setStep] = useState<WorkflowStep>('write');
@@ -464,7 +468,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
           <Card
             key={item.chapterNumber}
             size="small"
-            style={{ borderRadius: 8, border: '1px solid #e8d5a3', background: '#fffdf5' }}
+            style={{ borderRadius: 8 }}
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Tag color="orange" style={{ fontWeight: 700, fontSize: 12 }}>第 {item.chapterNumber} 章</Tag>
@@ -488,7 +492,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
                 setOutlinePreviews(updated);
               }}
               autoSize={{ minRows: 2, maxRows: 5 }}
-              style={{ fontSize: 12, color: '#555', border: 'none', background: 'transparent', resize: 'none', padding: 0 }}
+              style={{ fontSize: 12, border: 'none', background: 'transparent', resize: 'none', padding: 0 }}
             />
           </Card>
         ))}
@@ -502,7 +506,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
           type="primary"
           icon={<RocketOutlined />}
           onClick={startGenerate}
-          style={{ fontWeight: 600, backgroundColor: '#b45309', borderColor: '#b45309' }}
+          style={{ fontWeight: 600 }}
         >
           ✅ 确认细纲，开始生成正文
         </Button>
@@ -515,14 +519,14 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
       {/* 进度条 */}
       {totalCount > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13, color: '#666' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13, color: '#a1a1aa' }}>
             <span>章节生成进度</span>
             <span>{doneCount} / {totalCount} 章</span>
           </div>
           <Progress
             percent={totalCount > 0 ? Math.round(doneCount / totalCount * 100) : 0}
             status={generatingDone && failedChapters.length > 0 ? 'exception' : (generatingDone ? 'success' : 'active')}
-            strokeColor={generatingDone && failedChapters.length === 0 ? '#52c41a' : '#d97706'}
+            strokeColor={generatingDone && failedChapters.length === 0 ? '#52c41a' : '#ffd666'}
           />
           {/* 章节状态小格 */}
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8 }}>
@@ -530,8 +534,8 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
               <Tooltip key={num} title={`第 ${num} 章`}>
                 <div style={{
                   width: 24, height: 24, borderRadius: 4, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: status === 'done' ? '#52c41a' : status === 'generating' ? '#d97706' : status === 'error' ? '#ff4d4f' : '#e0e0e0',
-                  color: status === 'pending' ? '#999' : '#fff',
+                  background: status === 'done' ? '#52c41a' : status === 'generating' ? '#ffd666' : status === 'error' ? '#ff4d4f' : '#272730',
+                  color: status === 'pending' ? '#71717a' : (status === 'generating' ? '#000' : '#fff'),
                   fontWeight: 700
                 }}>
                   {status === 'done' ? '✓' : status === 'error' ? '✕' : status === 'generating' ? '⋯' : num}
@@ -544,9 +548,10 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
 
       {/* 状态日志 */}
       <div style={{
-        background: '#1a1a2e', color: '#e0e0e0', borderRadius: 8,
+        background: '#141418', color: '#e0e0e0', borderRadius: 8,
         padding: '10px 14px', maxHeight: 280, overflowY: 'auto',
-        fontFamily: 'monospace', fontSize: 12, lineHeight: 1.7
+        fontFamily: 'monospace', fontSize: 12, lineHeight: 1.7,
+        border: '1px solid #2e2e38'
       }}>
         {statusMessages.map((msg, idx) => (
           <div key={idx} style={{
@@ -575,8 +580,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
             />
           )}
           <Button onClick={handleClose}>关闭</Button>
-          <Button type="primary" icon={<CheckCircleFilled />} onClick={handleClose}
-            style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}>
+          <Button type="primary" icon={<CheckCircleFilled />} onClick={handleClose}>
             完成，去查看章节
           </Button>
         </div>
@@ -588,8 +592,8 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
     <Modal
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <EditOutlined style={{ color: '#d97706', fontSize: 18 }} />
-          <span style={{ fontSize: 16, fontWeight: 800, color: '#1a1a2e' }}>📝 自由创作 → 智能拆章</span>
+          <EditOutlined style={{ color: '#ffd666', fontSize: 18 }} />
+          <span style={{ fontSize: 16, fontWeight: 800 }}>📝 自由创作 → 智能拆章</span>
           {step === 'preview' && (
             <Tag color="blue" style={{ fontWeight: 600, fontSize: 12 }}>预览细纲</Tag>
           )}
@@ -608,6 +612,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
       width={740}
       centered
       destroyOnClose
+      wrapClassName={`novel-themed-modal paper-theme-${paperTheme}`}
       styles={{ body: { padding: '16px 24px 20px' } }}
     >
       {/* 步骤指示器 */}

@@ -743,6 +743,8 @@ export const useNovelModalsState = (
     handleRunInsertChapter,
     selectedText,
     setSelectedText,
+    selectedRange,
+    setSelectedRange,
     polishInstruction,
     setPolishInstruction,
     polishedResult,

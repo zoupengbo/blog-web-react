@@ -1800,28 +1800,266 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
 
 // 5. 全局弹出层暗黑适配
 .dark-theme,
-[data-theme="dark"] {
+[data-theme="dark"],
+.novel-themed-modal.paper-theme-dark,
+.novel-dark-modal {
   .word-limit-popup,
   .ant-select-dropdown {
-    background: #1e1e24 !important;
+    background: #18181c !important;
     border: 1px solid #2e2e38 !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7) !important;
 
     .ant-select-item {
       color: #d4d4d8 !important;
 
       &-option-active {
-        background: #2a2a34 !important;
+        background: #272730 !important;
         color: #ffffff !important;
       }
 
       &-option-selected {
-        background: #3e341a !important;
+        background: #3a2e10 !important;
         color: #ffd666 !important;
         font-weight: 700 !important;
       }
     }
   }
 }
+
+// 🌟 全局小说弹窗与抽屉主题系统 (极简纯黑高对比)
+.novel-themed-modal.paper-theme-dark,
+.novel-dark-modal {
+  .ant-modal-content {
+    background: #0d0d10 !important;
+    color: #f4f4f5 !important;
+    border: 1px solid #2e2e38 !important;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8) !important;
+  }
+
+  .ant-modal-header {
+    background: #141418 !important;
+    border-bottom: 1px solid #27272e !important;
+    padding: 14px 20px !important;
+
+    .ant-modal-title {
+      color: #ffd666 !important;
+      font-weight: 700 !important;
+    }
+  }
+
+  .ant-modal-close {
+    color: #a1a1aa !important;
+    &:hover {
+      color: #ffffff !important;
+      background: rgba(255, 255, 255, 0.1) !important;
+    }
+  }
+
+  .ant-modal-body {
+    background: #0d0d10 !important;
+    color: #e4e4e7 !important;
+  }
+
+  .ant-modal-footer {
+    background: #141418 !important;
+    border-top: 1px solid #27272e !important;
+    padding: 12px 20px !important;
+  }
+
+  // 提示信息条 (替换原浅黄色/浅蓝色大白条)
+  .modal-tip-banner,
+  .ant-alert,
+  .ant-alert-info,
+  .ant-alert-warning {
+    background: #181820 !important;
+    border: 1px solid #333344 !important;
+    color: #cbd5e1 !important;
+    border-radius: 6px;
+
+    .ant-alert-message {
+      color: #f4f4f5 !important;
+    }
+    .ant-alert-description {
+      color: #a1a1aa !important;
+    }
+    .ant-alert-icon {
+      color: #ffd666 !important;
+    }
+  }
+
+  // 只读预览区域 (彻底消除白底白字)
+  .modal-preview-box,
+  .setting-preview-box {
+    background: #141418 !important;
+    border: 1px solid #2e2e38 !important;
+    color: #ffffff !important;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  // 输入框与多行文本
+  textarea.ant-input,
+  input.ant-input,
+  .ant-input-affix-wrapper,
+  .ant-input {
+    background: #141418 !important;
+    color: #ffffff !important;
+    border: 1px solid #2e2e38 !important;
+    border-radius: 6px !important;
+
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.4) !important;
+    }
+
+    &:hover {
+      border-color: #ffd666 !important;
+    }
+
+    &:focus,
+    &.ant-input-focused {
+      border-color: #ffd666 !important;
+      box-shadow: 0 0 0 2px rgba(255, 214, 102, 0.2) !important;
+    }
+
+    &[disabled],
+    &:disabled {
+      background: #181820 !important;
+      color: #a1a1aa !important;
+      border-color: #27272e !important;
+    }
+  }
+
+  // 卡片容器
+  .ant-card {
+    background: #141418 !important;
+    border: 1px solid #27272e !important;
+    color: #f4f4f5 !important;
+
+    .ant-card-head {
+      background: #181820 !important;
+      border-bottom: 1px solid #27272e !important;
+      color: #ffd666 !important;
+
+      .ant-card-head-title {
+        color: #ffd666 !important;
+        font-weight: 600;
+      }
+    }
+
+    .ant-card-body {
+      background: #141418 !important;
+      color: #e4e4e7 !important;
+    }
+  }
+
+  // Tabs 标签页
+  .ant-tabs {
+    color: #d4d4d8 !important;
+
+    .ant-tabs-nav {
+      background: transparent !important;
+      border-bottom: 1px solid #27272e !important;
+
+      .ant-tabs-tab {
+        background: #141418 !important;
+        border: 1px solid #27272e !important;
+        color: #a1a1aa !important;
+        margin-right: 4px !important;
+        border-radius: 6px 6px 0 0 !important;
+
+        &:hover {
+          color: #ffd666 !important;
+        }
+
+        &-active {
+          background: #22222a !important;
+          border-bottom-color: #22222a !important;
+          .ant-tabs-tab-btn {
+            color: #ffd666 !important;
+            font-weight: 700 !important;
+          }
+        }
+      }
+    }
+  }
+
+  // 按钮规范
+  .ant-btn-default {
+    background: #1e1e26 !important;
+    border-color: #383846 !important;
+    color: #e4e4e7 !important;
+
+    &:hover {
+      background: #282834 !important;
+      border-color: #ffd666 !important;
+      color: #ffd666 !important;
+    }
+  }
+
+  .ant-btn-primary {
+    background: linear-gradient(135deg, #d4b106 0%, #b29100 100%) !important;
+    border: none !important;
+    color: #ffffff !important;
+    font-weight: 600;
+
+    &:hover {
+      filter: brightness(1.1);
+    }
+  }
+
+  // 关系网拓扑图/容器
+  .relationship-graph-panel,
+  .relationship-side-form {
+    background: #141418 !important;
+    border: 1px solid #27272e !important;
+    color: #f4f4f5 !important;
+  }
+}
+
+// 全局抽屉暗黑适配 (ConfigDrawer)
+.novel-themed-drawer.paper-theme-dark,
+.novel-dark-drawer {
+  .ant-drawer-content {
+    background: #0d0d10 !important;
+    color: #f4f4f5 !important;
+  }
+
+  .ant-drawer-header {
+    background: #141418 !important;
+    border-bottom: 1px solid #27272e !important;
+    .ant-drawer-title {
+      color: #ffd666 !important;
+      font-weight: 700 !important;
+    }
+    .ant-drawer-close {
+      color: #a1a1aa !important;
+      &:hover { color: #ffffff !important; }
+    }
+  }
+
+  .ant-drawer-body {
+    background: #0d0d10 !important;
+    color: #e4e4e7 !important;
+  }
+
+  .ant-drawer-footer {
+    background: #141418 !important;
+    border-top: 1px solid #27272e !important;
+  }
+
+  .preset-card-item {
+    background: #141418 !important;
+    border: 1px solid #27272e !important;
+    color: #f4f4f5 !important;
+
+    &.active {
+      background: #2a2410 !important;
+      border-color: #785a06 !important;
+      color: #ffd666 !important;
+    }
+  }
+}
+
 
 

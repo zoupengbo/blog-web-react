@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, Input } from 'antd';
+import { PaperTheme } from '../types';
 
 const { TextArea } = Input;
 
@@ -10,6 +11,7 @@ interface ManualEditModalProps {
   value: string;
   setValue: (val: string) => void;
   onSave: () => void;
+  paperTheme?: PaperTheme;
 }
 
 export const ManualEditModal: React.FC<ManualEditModalProps> = ({
@@ -19,6 +21,7 @@ export const ManualEditModal: React.FC<ManualEditModalProps> = ({
   value,
   setValue,
   onSave,
+  paperTheme = 'dark',
 }) => {
   return (
     <Modal
@@ -30,11 +33,11 @@ export const ManualEditModal: React.FC<ManualEditModalProps> = ({
       centered
       okText="保存内容"
       cancelText="取消"
-      okButtonProps={{ style: { background: '#d4b106', borderColor: '#d4b106' } }}
+      wrapClassName={`novel-themed-modal paper-theme-${paperTheme}`}
       styles={{ body: { paddingTop: 16 } }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <span style={{ fontSize: 13, color: '#666' }}>您可以在这个宽敞的弹窗内流畅地编辑、梳理和优化小说大纲与设定。编辑完毕后点击“保存内容”即可。</span>
+        <span style={{ fontSize: 13, color: '#a1a1aa' }}>您可以在这个宽敞的弹窗内流畅地编辑、梳理和优化小说大纲与设定。编辑完毕后点击“保存内容”即可。</span>
         <TextArea
           value={value}
           onChange={e => setValue(e.target.value)}

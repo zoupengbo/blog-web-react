@@ -342,8 +342,8 @@ export const useAiStreamWriter = (
       });
       if (res && res.code === 200 && res.data) {
         const normalizedTitle = res.data;
-        const updatedChapters = selectedOutline.chaptersOutline.map(c => {
-          if (c.chapterNumber === targetChapterNum) {
+        const updatedChapters = (selectedOutline.chaptersOutline || []).map(c => {
+          if (Number(c.chapterNumber) === Number(targetChapterNum)) {
             return { ...c, title: normalizedTitle };
           }
           return c;
