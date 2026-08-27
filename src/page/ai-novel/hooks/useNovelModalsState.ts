@@ -752,6 +752,53 @@ export const useNovelModalsState = (
     polishing,
     showPolishPop,
     setShowPolishPop,
+    handlePolishText: async (chapterContent: string, activeChapterNum: number) => {
+      if (!selectedText || !selectedText.trim()) {
+        message.warning('请先划选需要重写修复的正文段落');
+        return;
+      }
+      if (!polishInstruction.trim()) {
+        message.warning('请输入您的修改期望（如：换一种说法，去掉现代词汇）');
+        return;
+      }
+
+      setPolishing(true);
+      try {
+        const [start, end] = selectedRange;
+        const beforeText = (chapterContent || '').slice(Math.max(0, start - 1500), start);
+        const afterText = (chapterContent || '').slice(end, end + 1500);
+
+        const res: any = await httpService.post('/ai-novel/polish-content', {
+          novelId: selectedNovel?.id,
+          selectedText: selectedText.trim(),
+          instruction: polishInstruction.trim(),
+          beforeText,
+          afterText
+        });
+
+        if (res.code === 200 && res.data?.polishedContent) {
+          setPolishedResult(res.data.polishedContent);
+          message.success('段落重构完成，请预览并确认替换！');
+        } else {
+          message.error(res.msg || '段落重构失败');
+        }
+      } catch (e: any) {
+        message.error(e.message || '重构请求失败');
+      } finally {
+        setPolishing(false);
+      }
+    },
+    handleReplacePolishedText: (chapterContent: string, setChapterContent: (text: string) => void) => {
+      if (!polishedResult || !selectedText) return;
+      const [start, end] = selectedRange;
+      const newContent = (chapterContent || '').slice(0, start) + polishedResult + (chapterContent || '').slice(end);
+      setChapterContent(newContent);
+      setSelectedText('');
+      setPolishedResult('');
+      setPolishInstruction('');
+      setShowPolishPop(false);
+      message.success('已替换选中段落！');
+    },
     configPresets,
     activePresetId,
     handleSwitchPreset,

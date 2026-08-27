@@ -694,9 +694,9 @@ const AiNovelDashboard: React.FC = () => {
             polishInstruction={modalsHook.polishInstruction}
             setPolishInstruction={modalsHook.setPolishInstruction}
             polishing={modalsHook.polishing}
-            onPolishText={modalsHook.handleAiModifySetting}
+            onPolishText={() => modalsHook.handlePolishText(streamHook.chapterContent, streamHook.activeChapterNum)}
             polishedResult={modalsHook.polishedResult}
-            onReplacePolishedText={modalsHook.handleApplyModifySetting}
+            onReplacePolishedText={() => modalsHook.handleReplacePolishedText(streamHook.chapterContent, streamHook.setChapterContent)}
             textRef={modalsHook.textRef as any}
             saveManualEdits={(content) => modalsHook.handleSaveManualEdit()}
             onSaveChapterContent={(showToast = true) => selectedNovel && saveChapterContentData(selectedNovel.id, streamHook.activeChapterNum, streamHook.chapterContent, showToast)}
