@@ -560,7 +560,10 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
               : msg.startsWith('❌') ? '#ff6b6b'
               : msg.startsWith('⚠️') ? '#ffa940'
               : msg.startsWith('🎉') ? '#95de64'
-              : '#e0e0e0'
+              : msg.includes('🛡️') || msg.includes('审核') ? '#40a9ff'
+              : msg.includes('✨') ? '#faad14'
+              : '#e0e0e0',
+            fontWeight: (msg.includes('🛡️') || msg.includes('✨')) ? 600 : 400
           }}>{msg}</div>
         ))}
         {!generatingDone && (
