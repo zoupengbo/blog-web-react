@@ -137,13 +137,28 @@ export const useFanqiePublisher = (
       }
 
       const taskId = startRes.data?.taskId || `${selectedNovel.id}_${chapterNumbersToSync.join('_')}`;
+      let pollCount = 0;
 
       publishPollRef.current = setInterval(async () => {
+        pollCount++;
+        // 超时保护（最大 60 次，约 90 秒）
+        if (pollCount > 60) {
+          if (publishPollRef.current) {
+            clearInterval(publishPollRef.current);
+            publishPollRef.current = null;
+          }
+          message.warning({ content: '同步任务执行时间较长，已自动为您刷新小说章节状态！', key: 'fanqie_pub', duration: 4 });
+          setFanqieModalOpen(false);
+          setIsPublishingToFanqie(false);
+          loadNovelToEditor(selectedNovel.id);
+          return;
+        }
+
         try {
           const statusRes: any = await httpService.get(`/ai-novel/publish-status?taskId=${taskId}`);
           if (statusRes.code === 200 && statusRes.data) {
             const task = statusRes.data;
-            if (task.status === 'success') {
+            if (task.status === 'success' || task.status === 'completed') {
               if (publishPollRef.current) {
                 clearInterval(publishPollRef.current);
                 publishPollRef.current = null;
@@ -160,7 +175,7 @@ export const useFanqiePublisher = (
               message.error({ content: task.msg || '同步至草稿箱失败！', key: 'fanqie_pub', duration: 5 });
               setIsPublishingToFanqie(false);
             } else {
-              message.loading({ content: task.msg || '番茄草稿同步程序运行中...', key: 'fanqie_pub', duration: 0 });
+              message.loading({ content: task.msg || `番茄草稿同步中 (${task.progress || 10}%)...`, key: 'fanqie_pub', duration: 0 });
             }
           }
         } catch (pollErr: any) {
