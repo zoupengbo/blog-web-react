@@ -212,6 +212,81 @@ export const useFanqiePublisher = (
     }
   };
 
+  const getEffectiveSelectedChapterNumbers = (): number[] => {
+    if (!selectedOutline) return [];
+    if (syncSelectMode === 'manual') {
+      return selectedPublishChapters;
+    } else {
+      if (syncRangeStart === null || syncRangeEnd === null) return [];
+      const start = Math.min(syncRangeStart, syncRangeEnd);
+      const end = Math.max(syncRangeStart, syncRangeEnd);
+      return selectedOutline.chaptersOutline
+        .filter(c => c.chapterNumber >= start && c.chapterNumber <= end && c.status === 'completed')
+        .map(c => c.chapterNumber);
+    }
+  };
+
+  const handleBatchMarkSynced = async (targetStatus: 'published' | 'completed') => {
+    if (!selectedNovel) return;
+    const nums = getEffectiveSelectedChapterNumbers();
+    if (nums.length === 0) {
+      message.warning('请先选择要操作的章节！');
+      return;
+    }
+
+    try {
+      message.loading({ content: `正在批量更新 ${nums.length} 个章节状态...`, key: 'batch_status', duration: 0 });
+      for (const num of nums) {
+        await httpService.post('/ai-novel/update-chapter-status', {
+          novelId: selectedNovel.id,
+          chapterNumber: num,
+          crawlStatus: targetStatus
+        });
+      }
+      message.success({ content: `已成功将 ${nums.length} 个章节标记为【${targetStatus === 'published' ? '已同步' : '未同步'}】！`, key: 'batch_status', duration: 3 });
+      loadNovelToEditor(selectedNovel.id);
+    } catch (e: any) {
+      message.error({ content: e.message || '批量更新状态失败', key: 'batch_status', duration: 3 });
+    }
+  };
+
+  const handleExportChaptersTxt = async () => {
+    if (!selectedNovel || !selectedOutline) return;
+    const nums = getEffectiveSelectedChapterNumbers();
+    if (nums.length === 0) {
+      message.warning('请先选择要导出的章节！');
+      return;
+    }
+
+    try {
+      message.loading({ content: `正在读取并整理 ${nums.length} 个章节正文...`, key: 'export_txt', duration: 0 });
+      let combinedContent = `《${selectedNovel.title}》\n作者：${selectedNovel.author || 'AI 创作者'}\n导出章节：共 ${nums.length} 章\n导出时间：${new Date().toLocaleString()}\n\n====================================\n\n`;
+
+      for (const num of nums) {
+        const res: any = await httpService.get(`/ai-novel/chapter-detail?novelId=${selectedNovel.id}&chapterNumber=${num}`);
+        if (res.code === 200 && res.data) {
+          const ch = res.data;
+          const cleanTitle = (ch.title || `第${num}章`).replace(/^第\s*\d+\s*章\s*/, '').trim();
+          combinedContent += `第${num}章 ${cleanTitle}\n\n${(ch.content || '').trim()}\n\n\n------------------------------------\n\n`;
+        }
+      }
+
+      const blob = new Blob([combinedContent], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${selectedNovel.title}_第${Math.min(...nums)}-${Math.max(...nums)}章_番茄草稿.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      message.success({ content: `🎉 已成功导出 ${nums.length} 个章节的番茄标准草稿 TXT 文件！`, key: 'export_txt', duration: 4 });
+    } catch (e: any) {
+      message.error({ content: e.message || '导出章节失败', key: 'export_txt', duration: 3 });
+    }
+  };
+
   return {
     fanqieModalOpen,
     setFanqieModalOpen,
@@ -234,5 +309,7 @@ export const useFanqiePublisher = (
     getSyncSummary,
     handlePublishToFanqie,
     handleToggleSyncStatus,
+    handleBatchMarkSynced,
+    handleExportChaptersTxt
   };
 };

@@ -808,6 +808,8 @@ const AiNovelDashboard: React.FC = () => {
         setFanqieBookId={fanqieHook.setFanqieBookId}
         onSelectAllUnsynced={fanqieHook.handleSelectAllUnsynced}
         onPublishToFanqie={fanqieHook.handlePublishToFanqie}
+        onBatchMarkSynced={fanqieHook.handleBatchMarkSynced}
+        onExportChaptersTxt={fanqieHook.handleExportChaptersTxt}
         getSyncSummary={fanqieHook.getSyncSummary}
         paperTheme={paperTheme}
       />

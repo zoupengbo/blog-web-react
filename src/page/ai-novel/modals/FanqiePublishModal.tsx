@@ -1,6 +1,6 @@
 import React from 'react';
-import { Modal, Spin, Form, Radio, Button, Select, InputNumber, Input } from 'antd';
-import { RocketOutlined } from '@ant-design/icons';
+import { Modal, Spin, Form, Radio, Button, Select, InputNumber, Input, Space, Divider } from 'antd';
+import { RocketOutlined, DownloadOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { NovelOutline, PaperTheme } from '../types';
 
 interface FanqiePublishModalProps {
@@ -22,6 +22,8 @@ interface FanqiePublishModalProps {
   setFanqieBookId: (val: string) => void;
   onSelectAllUnsynced: () => void;
   onPublishToFanqie: () => void;
+  onBatchMarkSynced?: (targetStatus: 'published' | 'completed') => void;
+  onExportChaptersTxt?: () => void;
   getSyncSummary: () => React.ReactNode;
   paperTheme?: PaperTheme;
 }
@@ -45,6 +47,8 @@ export const FanqiePublishModal: React.FC<FanqiePublishModalProps> = ({
   setFanqieBookId,
   onSelectAllUnsynced,
   onPublishToFanqie,
+  onBatchMarkSynced,
+  onExportChaptersTxt,
   getSyncSummary,
   paperTheme = 'dark',
 }) => {
@@ -190,21 +194,46 @@ export const FanqiePublishModal: React.FC<FanqiePublishModalProps> = ({
               />
             </Form.Item>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 28 }}>
-              <Button
-                onClick={onCancel}
-                disabled={isPublishingToFanqie}
-              >
-                取消
-              </Button>
-              <Button
-                type="primary"
-                loading={isPublishingToFanqie}
-                onClick={onPublishToFanqie}
-                style={{ background: 'linear-gradient(135deg, #d4b106 0%, #b29100 100%)', border: 'none', color: '#fff', fontWeight: 700 }}
-              >
-                开始同步到草稿箱
-              </Button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 28, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 16 }}>
+              <Space>
+                {onExportChaptersTxt && (
+                  <Button
+                    icon={<DownloadOutlined />}
+                    onClick={onExportChaptersTxt}
+                    disabled={isPublishingToFanqie}
+                    title="将所选章节导出为标准番茄草稿TXT文本文件"
+                  >
+                    导出TXT
+                  </Button>
+                )}
+                {onBatchMarkSynced && (
+                  <Button
+                    icon={<CheckCircleOutlined />}
+                    onClick={() => onBatchMarkSynced('published')}
+                    disabled={isPublishingToFanqie}
+                    title="直接将所选章节在本地标记为已同步"
+                  >
+                    标记已同步
+                  </Button>
+                )}
+              </Space>
+
+              <Space>
+                <Button
+                  onClick={onCancel}
+                  disabled={isPublishingToFanqie}
+                >
+                  取消
+                </Button>
+                <Button
+                  type="primary"
+                  loading={isPublishingToFanqie}
+                  onClick={onPublishToFanqie}
+                  style={{ background: 'linear-gradient(135deg, #d4b106 0%, #b29100 100%)', border: 'none', color: '#fff', fontWeight: 700 }}
+                >
+                  启动浏览器自动同步
+                </Button>
+              </Space>
             </div>
           </Form>
         </div>
