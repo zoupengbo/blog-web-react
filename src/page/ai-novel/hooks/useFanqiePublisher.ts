@@ -141,8 +141,8 @@ export const useFanqiePublisher = (
 
       publishPollRef.current = setInterval(async () => {
         pollCount++;
-        // 超时保护（最大 60 次，约 90 秒）
-        if (pollCount > 60) {
+        // 超时保护（最大 150 次，每 2 秒一次，约 5 分钟，需覆盖首次扫码登录等待）
+        if (pollCount > 150) {
           if (publishPollRef.current) {
             clearInterval(publishPollRef.current);
             publishPollRef.current = null;
@@ -181,7 +181,7 @@ export const useFanqiePublisher = (
         } catch (pollErr: any) {
           console.error('Polling status error:', pollErr);
         }
-      }, 1500);
+      }, 2000);
 
     } catch (e: any) {
       message.error({ content: e.message || '网络或接口异常，同步草稿箱失败', key: 'fanqie_pub', duration: 4 });
