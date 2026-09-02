@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/authContext";
 import { useTheme } from "../context/themeContext";
-import { UserOutlined, LogoutOutlined, SettingOutlined } from "@ant-design/icons";
+import { useAiConfig } from "../context/aiConfigContext";
+import { UserOutlined, LogoutOutlined, SettingOutlined, ApiOutlined } from "@ant-design/icons";
 import { Tooltip } from "antd";
 import "./page-top.scss";
 
 const PageTop: React.FC = () => {
   const { logout } = useAuth();
   const { themeMode, toggleTheme, isDark } = useTheme();
+  const { openConfigDrawer } = useAiConfig();
   const [showMenu, setShowMenu] = useState(false);
   const [currentTime, setCurrentTime] = useState('');
   const userName = JSON.parse(localStorage.getItem("userInfo") || "{}").name || "管理员";
@@ -90,9 +92,15 @@ const PageTop: React.FC = () => {
             </div>
           </Tooltip>
 
-          <div className="action-item settings">
-            <SettingOutlined />
-          </div>
+          <Tooltip title="大模型配置 (AI API & Key)">
+            <div
+              className="action-item settings"
+              onClick={openConfigDrawer}
+              style={{ cursor: 'pointer' }}
+            >
+              <SettingOutlined />
+            </div>
+          </Tooltip>
 
           <div
             className="user-info"
@@ -108,6 +116,10 @@ const PageTop: React.FC = () => {
             </div>
 
             <div className={`user-menu ${showMenu ? 'show' : ''}`}>
+              <div className="user-menu-item" onClick={openConfigDrawer}>
+                <ApiOutlined />
+                <span>大模型配置</span>
+              </div>
               <div className="user-menu-item">
                 <UserOutlined />
                 <span>个人中心</span>

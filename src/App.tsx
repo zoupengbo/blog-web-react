@@ -8,6 +8,7 @@ import LoginPage from "@pages/login";
 import { AuthProvider, useAuth } from "@context/authContext.tsx";
 import { NavigationProvider } from "@context/NavigationContext";
 import { ThemeProvider, useTheme } from "./context/themeContext";
+import { AiConfigProvider } from "./context/aiConfigContext";
 // 引入富文本编辑器的样式文件
 import "react-quill/dist/quill.bubble.css";
 import "quill/dist/quill.snow.css";
@@ -26,12 +27,14 @@ const ThemedApp: React.FC = () => {
         },
       }}
     >
-      <div className={`App ${isDark ? 'dark-theme' : 'light-theme'}`}>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/*" element={<ProtectedRoutes />} />
-        </Routes>
-      </div>
+      <AiConfigProvider>
+        <div className={`App ${isDark ? 'dark-theme' : 'light-theme'}`}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/*" element={<ProtectedRoutes />} />
+          </Routes>
+        </div>
+      </AiConfigProvider>
     </ConfigProvider>
   );
 };

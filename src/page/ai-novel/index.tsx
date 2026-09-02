@@ -4,6 +4,7 @@ import httpService from '../../common/request';
 import './styles.scss';
 
 import { useTheme } from '../../context/themeContext';
+import { useAiConfig } from '../../context/aiConfigContext';
 // 导入类型与工具
 import {
   Novel, NovelOutline, Idea, PaperTheme
@@ -16,7 +17,6 @@ import { OutlineView } from './components/OutlineView';
 import { EditorView } from './components/EditorView';
 
 // 导入 Modal / Drawer 弹窗组件
-import { ConfigDrawer } from './modals/ConfigDrawer';
 import { BatchChaptersModal } from './modals/BatchChaptersModal';
 import { SuggestPlotModal } from './modals/SuggestPlotModal';
 import { FanqiePublishModal } from './modals/FanqiePublishModal';
@@ -57,6 +57,7 @@ const AiNovelDashboard: React.FC = () => {
   const [editingIdeaIndex, setEditingIdeaIndex] = useState<number | null>(null);
 
   const { isDark } = useTheme();
+  const { openConfigDrawer } = useAiConfig();
 
   // 辅助样式 / 排序 / 布局状态
   const [paperTheme, setPaperTheme] = useState<PaperTheme>(() => (isDark ? 'dark' : 'light'));
@@ -602,7 +603,7 @@ const AiNovelDashboard: React.FC = () => {
             loading={loading}
             novels={novels}
             onOpenCreate={() => setView('idea')}
-            onOpenConfig={() => modalsHook.setConfigDrawerOpen(true)}
+            onOpenConfig={openConfigDrawer}
             onLoadNovelToEditor={loadNovelToEditor}
             onDeleteNovel={handleDeleteNovel}
           />
@@ -740,22 +741,6 @@ const AiNovelDashboard: React.FC = () => {
       </Spin>
 
       {/* 弹窗抽屉统一声明 */}
-      <ConfigDrawer
-        open={modalsHook.configDrawerOpen}
-        onClose={() => modalsHook.setConfigDrawerOpen(false)}
-        apiConfig={modalsHook.apiConfig}
-        setApiConfig={modalsHook.setApiConfig}
-        configPresets={modalsHook.configPresets}
-        activePresetId={modalsHook.activePresetId}
-        onSwitchPreset={modalsHook.handleSwitchPreset}
-        onDeletePreset={modalsHook.handleDeletePreset}
-        onSave={(isNew, newName) => modalsHook.handleSaveConfig(setLoading, isNew, newName)}
-        onTest={modalsHook.handleTestConfig}
-        loading={loading}
-        testingConfig={modalsHook.testingConfig}
-        paperTheme={paperTheme}
-      />
-
       <BatchChaptersModal
         open={modalsHook.batchModalOpen}
         onCancel={() => modalsHook.setBatchModalOpen(false)}
