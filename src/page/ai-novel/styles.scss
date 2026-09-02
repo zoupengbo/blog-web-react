@@ -2061,5 +2061,88 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
   }
 }
 
+// 🌟 灵感广场 (IdeaView) 暗黑模式极高对比度清晰适配
+.dark-theme,
+[data-theme="dark"] {
+  .novel-idea-view {
+    .view-header {
+      .header-title {
+        h2 {
+          color: #ffd666 !important;
+        }
+        p {
+          color: #a1a1aa !important;
+        }
+      }
+    }
+
+    .inspiration-layout {
+      .form-card {
+        background: #141418 !important;
+        border: 1px solid #2e2e38 !important;
+        color: #f4f4f5 !important;
+
+        .ant-form-item-label > label {
+          color: #f1f5f9 !important;
+          font-weight: 700 !important;
+        }
+      }
+
+      .ideas-container {
+        .title-ideas {
+          color: #ffd666 !important;
+        }
+
+        .idea-card {
+          background: #141418 !important;
+          border: 1px solid #2e2e38 !important;
+          color: #f4f4f5 !important;
+
+          &:hover {
+            border-color: #ffd666 !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7) !important;
+          }
+
+          &.editing-active {
+            border-color: #ffd666 !important;
+            background: #181820 !important;
+            box-shadow: 0 0 20px rgba(255, 214, 102, 0.2) !important;
+          }
+
+          .card-top {
+            border-bottom: 1px solid #27272e !important;
+
+            .badge-index {
+              background: #2a2410 !important;
+              border: 1px solid #785a06 !important;
+              color: #ffd666 !important;
+              font-weight: 700 !important;
+            }
+
+            .idea-title {
+              color: #ffffff !important;
+              font-weight: 800 !important;
+              letter-spacing: 0.5px;
+            }
+          }
+
+          .field-group {
+            .field-label {
+              color: #94a3b8 !important;
+              font-weight: 700 !important;
+            }
+
+            .field-val {
+              color: #f8fafc !important;
+              line-height: 1.7 !important;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
 
 
