@@ -188,7 +188,7 @@ const AiNovelDashboard: React.FC = () => {
         const mapped = (res.data || []).map((item: any) => ({
           title: item.title || '',
           concept: item.logline || item.concept || '',
-          protagonist: item.protagonist || '',
+          protagonist: item.protagonist || item.character || '杀伐果断、智商在线的逆袭主角',
           goldLine: item.coreGoldenFinger || item.goldLine || '',
           summary: Array.isArray(item.mainSellingPoints)
             ? item.mainSellingPoints.join('；')
