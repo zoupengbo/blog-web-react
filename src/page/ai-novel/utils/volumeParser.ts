@@ -102,3 +102,73 @@ export function isPastCharacter(rel: CharacterRelationship): boolean {
   const text = (rel.relationship || '') + ' ' + (rel.description || '');
   return /(已?被?斩杀|已?被?彻底废除|已?被?废除|已死|死亡|已?被?击杀|已故|退场|发配|除名|已?被?废去)/i.test(text);
 }
+
+/**
+ * 智能格式化设定文本：如果检测到是 JSON 字符串/对象，自动优雅转换为结构化 Markdown
+ */
+export function formatSettingToMarkdown(rawContent: any, type: 'world' | 'character'): string {
+  if (!rawContent) return '';
+  if (typeof rawContent !== 'string') {
+    return formatJsonToMarkdown(rawContent, type);
+  }
+
+  const trimmed = rawContent.trim();
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      return formatJsonToMarkdown(parsed, type);
+    } catch (e) {
+      return rawContent;
+    }
+  }
+  return rawContent;
+}
+
+function formatJsonToMarkdown(data: any, type: 'world' | 'character'): string {
+  if (!data || typeof data !== 'object') return String(data || '');
+
+  if (type === 'character') {
+    const lines: string[] = [];
+    if (data.protagonist) {
+      const p = data.protagonist;
+      lines.push(`【主角：${p.name || '主角'}】`);
+      if (p.identity) lines.push(`- **身份**：${p.identity}`);
+      if (p.personality) lines.push(`- **性格特质**：${p.personality}`);
+      if (p.goldenFinger) lines.push(`- **金手指设定**：${p.goldenFinger}`);
+    }
+
+    if (Array.isArray(data.keySupporting) && data.keySupporting.length > 0) {
+      lines.push('\n【主要配角与人际网】');
+      data.keySupporting.forEach((sup: any, idx: number) => {
+        const name = sup.name || `配角 ${idx + 1}`;
+        const identity = sup.identity ? `（${sup.identity}）` : '';
+        const role = sup.roleType ? `【${sup.roleType}】` : '';
+        const desc = sup.description ? `：${sup.description}` : '';
+        lines.push(`${idx + 1}. **${name}**${identity} ${role}${desc}`);
+      });
+    }
+
+    return lines.length > 0 ? lines.join('\n') : JSON.stringify(data, null, 2);
+  } else {
+    // worldSetting
+    const lines: string[] = [];
+    if (data.background) {
+      lines.push('【世界背景】');
+      lines.push(data.background);
+    }
+    if (data.realmSystem) {
+      lines.push('\n【境界体系】');
+      if (Array.isArray(data.realmSystem)) {
+        data.realmSystem.forEach((r: string) => lines.push(`- ${r}`));
+      } else {
+        lines.push(String(data.realmSystem));
+      }
+    }
+    if (data.coreRules) {
+      lines.push('\n【核心运行规则】');
+      lines.push(data.coreRules);
+    }
+    return lines.length > 0 ? lines.join('\n') : JSON.stringify(data, null, 2);
+  }
+}
+

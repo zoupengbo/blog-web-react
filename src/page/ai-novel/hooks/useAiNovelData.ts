@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { message, Modal } from 'antd';
 import httpService from '../../../common/request';
 import { Novel, NovelOutline, Idea } from '../types';
+import { formatSettingToMarkdown } from '../utils/volumeParser';
 
 export const useAiNovelData = (
   EMPTY_OUTLINE: NovelOutline,
@@ -94,7 +95,13 @@ export const useAiNovelData = (
       const res: any = await httpService.get(`/ai-novel/detail/${novelId}?_t=${Date.now()}`);
       if (res.code === 200 && res.data && res.data.novel) {
         setSelectedNovel(res.data.novel);
-        setSelectedOutline(res.data.outline || EMPTY_OUTLINE);
+        const rawOutline = res.data.outline || EMPTY_OUTLINE;
+        const formattedOutline = {
+          ...rawOutline,
+          worldSetting: formatSettingToMarkdown(rawOutline.worldSetting, 'world'),
+          characterSetting: formatSettingToMarkdown(rawOutline.characterSetting, 'character'),
+        };
+        setSelectedOutline(formattedOutline);
         localStorage.setItem('last_selected_novel_id', String(novelId));
 
         const chOutline = res.data.outline?.chaptersOutline || [];
