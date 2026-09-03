@@ -219,8 +219,10 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
   };
 
   // ───────── 直接生成 / 或 从预览确认后生成（SSE） ─────────
-  const startGenerate = (autoExpandShort = false) => {
+  const startGenerate = (autoExpandShort: boolean | any = false) => {
     if (!freeText.trim() || !novelId) return;
+
+    const isAutoExpand = autoExpandShort === true;
 
     setStep('generating');
     setStatusMessages(['🚀 连接服务器，准备开始生成...']);
@@ -243,7 +245,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
         targetWords,
         startChapterNum,
         enableAuditor,
-        autoExpandShortSegments: autoExpandShort
+        autoExpandShortSegments: isAutoExpand
       })
     }).then(response => {
       if (!response.body) throw new Error('服务器响应异常');
@@ -447,7 +449,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
           <Button
             type="primary"
             icon={<RocketOutlined />}
-            onClick={startGenerate}
+            onClick={() => startGenerate(false)}
             disabled={!freeText.trim()}
             style={{ fontWeight: 600, backgroundColor: '#0e7490', borderColor: '#0e7490' }}
           >
