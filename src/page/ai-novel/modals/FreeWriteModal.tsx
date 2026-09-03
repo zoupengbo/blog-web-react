@@ -24,6 +24,8 @@ interface OutlinePreviewItem {
   title: string;
   outline: string;
   segmentText: string;
+  segmentLength?: number;
+  isShort?: boolean;
   status: string;
 }
 
@@ -217,7 +219,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
   };
 
   // ───────── 直接生成 / 或 从预览确认后生成（SSE） ─────────
-  const startGenerate = () => {
+  const startGenerate = (autoExpandShort = false) => {
     if (!freeText.trim() || !novelId) return;
 
     setStep('generating');
@@ -240,7 +242,8 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
         freeText: freeText.trim(),
         targetWords,
         startChapterNum,
-        enableAuditor
+        enableAuditor,
+        autoExpandShortSegments: autoExpandShort
       })
     }).then(response => {
       if (!response.body) throw new Error('服务器响应异常');
@@ -455,65 +458,95 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
     </div>
   );
 
-  const renderPreviewStep = () => (
-    <div>
-      <Alert
-        type="success"
-        showIcon
-        message={`AI 已规划出 ${outlinePreviews.length} 个章节，请确认章节细纲后再生成正文`}
-        style={{ marginBottom: 16 }}
-      />
+  const renderPreviewStep = () => {
+    const hasShortChapter = outlinePreviews.some(
+      item => (item.segmentLength || (item.segmentText ? item.segmentText.length : 0)) < 1800
+    );
 
-      <div style={{ maxHeight: 420, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, paddingRight: 4 }}>
-        {outlinePreviews.map((item, idx) => (
-          <Card
-            key={item.chapterNumber}
-            size="small"
-            style={{ borderRadius: 8 }}
-            title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Tag color="orange" style={{ fontWeight: 700, fontSize: 12 }}>第 {item.chapterNumber} 章</Tag>
-                <Input
-                  value={item.title}
+    return (
+      <div>
+        <Alert
+          type={hasShortChapter ? 'warning' : 'success'}
+          showIcon
+          message={
+            hasShortChapter
+              ? `AI 已规划出 ${outlinePreviews.length} 个章节。检测到部分章节字数偏短（<1800字），建议点击【🚀 智能扩写补齐入库】由 AI 顺承剧情微推进充实至标准篇幅！`
+              : `AI 已规划出 ${outlinePreviews.length} 个章节，章节字数均衡，请确认细纲后开始生成正文。`
+          }
+          style={{ marginBottom: 16 }}
+        />
+
+        <div style={{ maxHeight: 420, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, paddingRight: 4 }}>
+          {outlinePreviews.map((item, idx) => {
+            const segLen = item.segmentLength || (item.segmentText ? item.segmentText.length : 0);
+            const isShort = segLen < 1800;
+            return (
+              <Card
+                key={item.chapterNumber}
+                size="small"
+                style={{ borderRadius: 8, borderColor: isShort ? '#f59e0b' : undefined }}
+                title={
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                      <Tag color="orange" style={{ fontWeight: 700, fontSize: 12 }}>第 {item.chapterNumber} 章</Tag>
+                      <Input
+                        value={item.title}
+                        onChange={e => {
+                          const updated = [...outlinePreviews];
+                          updated[idx] = { ...updated[idx], title: e.target.value };
+                          setOutlinePreviews(updated);
+                        }}
+                        style={{ fontWeight: 600, border: 'none', background: 'transparent', padding: 0, fontSize: 13 }}
+                      />
+                    </div>
+                    {segLen > 0 && (
+                      <Tag color={isShort ? 'warning' : 'success'} style={{ fontSize: 11, fontWeight: 600 }}>
+                        {isShort ? `⚠️ ${segLen} 字 (偏短)` : `✅ ${segLen} 字`}
+                      </Tag>
+                    )}
+                  </div>
+                }
+              >
+                <TextArea
+                  value={item.outline}
                   onChange={e => {
                     const updated = [...outlinePreviews];
-                    updated[idx] = { ...updated[idx], title: e.target.value };
+                    updated[idx] = { ...updated[idx], outline: e.target.value };
                     setOutlinePreviews(updated);
                   }}
-                  style={{ fontWeight: 600, border: 'none', background: 'transparent', padding: 0, fontSize: 13 }}
+                  autoSize={{ minRows: 2, maxRows: 5 }}
+                  style={{ fontSize: 12, border: 'none', background: 'transparent', resize: 'none', padding: 0 }}
                 />
-              </div>
-            }
-          >
-            <TextArea
-              value={item.outline}
-              onChange={e => {
-                const updated = [...outlinePreviews];
-                updated[idx] = { ...updated[idx], outline: e.target.value };
-                setOutlinePreviews(updated);
-              }}
-              autoSize={{ minRows: 2, maxRows: 5 }}
-              style={{ fontSize: 12, border: 'none', background: 'transparent', resize: 'none', padding: 0 }}
-            />
-          </Card>
-        ))}
-      </div>
+              </Card>
+            );
+          })}
+        </div>
 
-      <Divider style={{ margin: '14px 0' }} />
+        <Divider style={{ margin: '14px 0' }} />
 
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
-        <Button onClick={() => setStep('write')}>← 返回修改白稿</Button>
-        <Button
-          type="primary"
-          icon={<RocketOutlined />}
-          onClick={startGenerate}
-          style={{ fontWeight: 600 }}
-        >
-          ✅ 确认细纲，开始生成正文
-        </Button>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center' }}>
+          <Button onClick={() => setStep('write')}>← 返回修改白稿</Button>
+          <Space>
+            <Button
+              icon={<ScissorOutlined />}
+              onClick={() => startGenerate(false)}
+              style={{ fontWeight: 500 }}
+            >
+              📄 直接切片入库（保留原字数）
+            </Button>
+            <Button
+              type="primary"
+              icon={<RocketOutlined />}
+              onClick={() => startGenerate(true)}
+              style={{ fontWeight: 600, background: '#d97706', borderColor: '#d97706' }}
+            >
+              🚀 智能扩写补齐入库（推荐）
+            </Button>
+          </Space>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderGeneratingStep = () => (
     <div>
