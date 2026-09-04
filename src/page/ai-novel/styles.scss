@@ -720,6 +720,7 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
         display: flex;
         flex-direction: column;
         overflow-y: auto;
+        overflow-x: hidden;
         padding: 40px 20px;
         box-sizing: border-box;
         transition: background 0.3s ease;
@@ -783,10 +784,19 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
 
           .paper-action-bar {
             border-top: 1px solid rgba(0, 0, 0, 0.08);
-            padding-top: 25px;
+            padding-top: 20px;
             margin-top: 25px;
             display: flex;
             justify-content: center;
+            flex-wrap: wrap;
+            width: 100%;
+            max-width: 100%;
+
+            .ant-space {
+              flex-wrap: wrap !important;
+              justify-content: center !important;
+              width: 100% !important;
+            }
 
             .btn-trigger-ai {
               background: linear-gradient(135deg, $color-gold 0%, #d97706 100%);

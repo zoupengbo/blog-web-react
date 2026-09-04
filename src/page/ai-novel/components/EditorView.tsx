@@ -860,17 +860,17 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
             <div className="paper-action-bar">
               {currentChapter?.status === 'completed' ? (
-                <Space>
+                <Space wrap size={[8, 10]} style={{ width: '100%', justifyContent: 'center' }}>
                   <Select
                     value={wordCountLimit}
                     onChange={setWordCountLimit}
-                    style={{ width: 130 }}
+                    style={{ minWidth: 110 }}
                     className="word-limit-select"
                     popupClassName="word-limit-popup"
                   >
                     <Select.Option value={1500}>1500 字</Select.Option>
                     <Select.Option value={2000}>2000 字</Select.Option>
-                    <Select.Option value={2500}>2500 字(默认)</Select.Option>
+                    <Select.Option value={2500}>2500 字</Select.Option>
                     <Select.Option value={3000}>3000 字</Select.Option>
                     <Select.Option value={4000}>4000 字</Select.Option>
                     <Select.Option value={5000}>5000 字</Select.Option>
@@ -928,7 +928,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
               ) : (
                 <div style={{width: '100%'}}>
                   {isGenerating ? (
-                    <div style={{ display: 'flex', gap: 12, width: '100%' }}>
+                    <div style={{ display: 'flex', gap: 12, width: '100%', flexWrap: 'wrap' }}>
                       <Button
                         type="primary"
                         style={{ backgroundColor: '#fa8c16', borderColor: '#fa8c16', flex: 1 }}
@@ -948,7 +948,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                       </Button>
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', gap: 12, width: '100%' }}>
+                    <div style={{ display: 'flex', gap: 12, width: '100%', flexWrap: 'wrap' }}>
                       <Select
                         value={wordCountLimit}
                         onChange={setWordCountLimit}
