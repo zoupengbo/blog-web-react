@@ -445,15 +445,15 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
             先看细纲规划
           </Button>
         </Tooltip>
-        <Tooltip title="将白稿按黄金留钩点直接切割拆分为章节正文（保留原汁原味，零注水）">
+        <Tooltip title="将白稿按黄金留钩点智能拆分，若遇偏短章节自动顺承剧情微推进补齐至 2000+ 字标准大章">
           <Button
             type="primary"
             icon={<RocketOutlined />}
-            onClick={() => startGenerate(false)}
+            onClick={() => startGenerate(true)}
             disabled={!freeText.trim()}
             style={{ fontWeight: 600, backgroundColor: '#0e7490', borderColor: '#0e7490' }}
           >
-            🚀 智能拆章（白稿直出正文）
+            🚀 智能拆章（自动补齐短章直出）
           </Button>
         </Tooltip>
       </div>
