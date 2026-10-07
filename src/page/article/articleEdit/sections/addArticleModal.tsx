@@ -280,7 +280,7 @@ const App: React.FC<AppProps> = (props) => {
                   allowClear
                   showSearch
                   filterOption={(input, option) =>
-                    (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+                    String(option?.children || '').toLowerCase().includes(input.toLowerCase())
                   }
                 >
                   {categories.map((cat) => (
@@ -305,7 +305,7 @@ const App: React.FC<AppProps> = (props) => {
                   tokenSeparators={[',']}
                   showSearch
                   filterOption={(input, option) =>
-                    (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+                    String(option?.children || '').toLowerCase().includes(input.toLowerCase())
                   }
                 >
                   {tagOptions.map((tag) => (

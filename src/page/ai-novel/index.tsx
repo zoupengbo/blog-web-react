@@ -7,7 +7,7 @@ import { useTheme } from '../../context/themeContext';
 import { useAiConfig } from '../../context/aiConfigContext';
 // 导入类型与工具
 import {
-  Novel, NovelOutline, Idea, PaperTheme
+  Novel, NovelOutline, Idea, PaperTheme, PromptLogItem
 } from './types';
 
 // 导入 View 视图组件
@@ -27,12 +27,14 @@ import { BackgroundSettingsModal } from './modals/BackgroundSettingsModal';
 import { BatchAnalyzeModal } from './modals/BatchAnalyzeModal';
 import { InsertChapterModal } from './modals/InsertChapterModal';
 import { FreeWriteModal } from './modals/FreeWriteModal';
+import { AutoCruiseModal } from './modals/AutoCruiseModal';
 
 // 导入 自定义 Hooks
 import { useAiNovelData } from './hooks/useAiNovelData';
 import { useAiStreamWriter } from './hooks/useAiStreamWriter';
 import { useFanqiePublisher } from './hooks/useFanqiePublisher';
 import { useNovelModalsState } from './hooks/useNovelModalsState';
+import { useAutoWriterCruise } from './hooks/useAutoWriterCruise';
 
 const EMPTY_OUTLINE: NovelOutline = {
   chaptersOutline: [],
@@ -69,7 +71,10 @@ const AiNovelDashboard: React.FC = () => {
   const [leftCollapsed, setLeftCollapsed] = useState<boolean>(false);
   const [rightCollapsed, setRightCollapsed] = useState<boolean>(false);
   const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
-  const [chapterSortAsc, setChapterSortAsc] = useState<boolean>(true);
+  const [chapterSortAsc, setChapterSortAsc] = useState<boolean>(() => {
+    const saved = localStorage.getItem('novel_chapter_sort_asc');
+    return saved !== null ? saved === 'true' : false; // 默认倒序
+  });
   const [relSortAsc, setRelSortAsc] = useState<boolean>(true);
   const [selectedVolumeNum, setSelectedVolumeNum] = useState<number | null>(null);
   const [isDeleteMode, setIsDeleteMode] = useState<boolean>(false);
@@ -77,6 +82,7 @@ const AiNovelDashboard: React.FC = () => {
   const [rightWidth, setRightWidth] = useState<number>(380);
   const [isResizingRight, setIsResizingRight] = useState<boolean>(false);
   const [isFreeWriteOpen, setIsFreeWriteOpen] = useState<boolean>(false);
+  const [promptLogs, setPromptLogs] = useState<PromptLogItem[]>([]);
 
   // 2. 抽离的 Hooks
   const {
@@ -113,7 +119,8 @@ const AiNovelDashboard: React.FC = () => {
     setSelectedOutline,
     setSelectedNovel,
     loadChapterContent,
-    loadNovelToEditor
+    loadNovelToEditor,
+    setPromptLogs
   );
 
   const fanqieHook = useFanqiePublisher(
@@ -134,6 +141,28 @@ const AiNovelDashboard: React.FC = () => {
     streamHook.chapterContent,
     streamHook.setIntervention,
     loadNovelToEditor
+  );
+
+  const [isMultiAgentModalOpen, setIsMultiAgentModalOpen] = useState<boolean>(false);
+
+  const cruiseHook = useAutoWriterCruise(
+    selectedNovel,
+    selectedOutline,
+    setSelectedOutline,
+    setSelectedNovel,
+    streamHook.activeChapterNum,
+    streamHook.setActiveChapterNum,
+    loadChapterContent,
+    streamHook.setChapterContent,
+    streamHook.wordCountLimit,
+    streamHook.setWordCountLimit,
+    setPromptLogs,
+    {
+      setAgentNodes: streamHook.setAgentNodes,
+      setAgentThoughts: streamHook.setAgentThoughts,
+      setCurrentArc: streamHook.setCurrentArc,
+      setCriticReport: streamHook.setCriticReport
+    }
   );
 
   const getProtagonistName = () => {
@@ -174,14 +203,12 @@ const AiNovelDashboard: React.FC = () => {
         setLoading(false);
         return;
       }
-      if (!tone || tone.length === 0) {
-        message.warning('请选择或输入至少一个整体故事基调！');
-        setLoading(false);
-        return;
-      }
+      const effectiveTone = (!tone || tone.length === 0)
+        ? ['由 AI 自主智能推导']
+        : tone;
       const res: any = await httpService.post('/ai-novel/generate-idea', {
         category: activeCategory,
-        tone: tone.join('、'),
+        tone: effectiveTone.join('、'),
         keywords
       });
       if (res.code === 200) {
@@ -265,37 +292,27 @@ const AiNovelDashboard: React.FC = () => {
         return String(w);
       })();
 
-      // 2. 提取与转义 角色设定
+      // 2. 提取与转义 角色设定 (100% 专属于主角灵魂人设与言行规范，配角归属于关系网)
       let characterSettingStr = (() => {
         const c = rawOutline.characterSetting || rawOutline.character_setting || rawOutline.characters || rawOutline.roles || rawOutline.character;
         if (!c) return '';
         if (typeof c === 'string') return c;
         if (Array.isArray(c)) {
-          return c.map((item: any) => typeof item === 'string' ? item : `${item.name || '角色'}（${item.roleType || item.identity || ''}）：${item.description || item.personality || ''}`).join('\n');
+          return c.map((item: any) => typeof item === 'string' ? item : `${item.name || '主角'}：${item.personality || item.identity || item.description || ''}`).join('\n');
         }
         if (typeof c === 'object') {
           const lines: string[] = [];
-          if (c.protagonist) {
-            const p = c.protagonist;
-            if (typeof p === 'string') {
-              lines.push(`【主角设定】\n${p}`);
-            } else {
-              lines.push(`【主角】${p.name || '核心主角'}`);
-              if (p.identity) lines.push(`身份：${p.identity}`);
-              if (p.personality) lines.push(`性格：${p.personality}`);
-              if (p.goldenFinger) lines.push(`金手指：${p.goldenFinger}`);
-            }
-          }
-          if (Array.isArray(c.keySupporting) && c.keySupporting.length > 0) {
-            if (lines.length > 0) lines.push('');
-            lines.push('【重要配角/反派】');
-            c.keySupporting.forEach((s: any) => {
-              if (typeof s === 'string') {
-                lines.push(`- ${s}`);
-              } else {
-                lines.push(`${s.name || '配角'}（${s.roleType || s.identity || ''}）：${s.description || ''}`);
-              }
-            });
+          const p = c.protagonist || c;
+          if (typeof p === 'string') {
+            lines.push(`【主角灵魂人设与言行铁律】\n${p}`);
+          } else {
+            lines.push(`【主角：${p.name || '主角'}】`);
+            if (p.identity) lines.push(`- 核心身份：${p.identity}`);
+            if (p.personality) lines.push(`- 核心性格特质：${p.personality}`);
+            if (p.speechStyle) lines.push(`- 对外说话风格与口癖：${p.speechStyle}`);
+            if (p.combatReactions) lines.push(`- 战斗获胜/降维打击时的真实本色反应：${p.combatReactions}`);
+            if (p.forbiddenOOC) lines.push(`- 绝对严禁行为与 OOC 红线：${p.forbiddenOOC}`);
+            if (p.goldenFinger) lines.push(`- 核心能力与金手指：${p.goldenFinger}`);
           }
           return lines.join('\n');
         }
@@ -340,14 +357,14 @@ const AiNovelDashboard: React.FC = () => {
       }
 
       if (!characterSettingStr.trim()) {
-        characterSettingStr = `【主角】
-身份：故事领衔主角，开局即觉醒【${idea.goldLine || '专属特殊挂钩'}】。
-性格：行事果断、冷静克制、智商在线，绝不拖泥带水。
-金手指：${idea.goldLine || '核心能力系统/特殊规则'}。
-
-【重要配角/反派】
-1. 傲慢宿敌（反派）：开局推波助澜，为主角提供打脸题材与升级阶梯。
-2. 忠诚盟友（配角）：在关键时刻协助主角获取情报与资源。`;
+        const pName = idea.protagonist ? idea.protagonist.split('，')[0].split('、')[0].split('（')[0].trim() : '主角';
+        characterSettingStr = `【主角：${pName}】
+- 核心身份：${idea.protagonist || '故事领衔核心人物'}。开局觉醒【${idea.goldLine || '专属金手指/能力'}】。
+- 核心性格特质：冷静理性、行事果断，有清晰的处事底线，双商在线不圣母。
+- 对外说话风格与口癖：言简意赅、平淡自然、大实话直击痛点，原生态世界观语言，严禁使用低俗现代网络热梗。
+- 战斗获胜/降维打击时的真实本色反应：从容收工、活动筋骨，一击解决问题，反差感源于认真本色，绝不油腻装逼。
+- 绝对严禁行为与 OOC 红线：严禁现代网络口水梗、严禁油腻轻浮口嗨、严禁自我感动的说教与圣母病！
+- 核心能力与金手指：${idea.goldLine || '专属能力系统'}`;
       }
 
       if (!mainLineStr.trim()) {
@@ -427,9 +444,8 @@ const AiNovelDashboard: React.FC = () => {
       return;
     }
 
-    if (selectedNovel && streamHook.activeChapterNum && streamHook.activeChapterNum !== chNum) {
-      // 切换章节前自动保存当前章节内容
-      await saveChapterContentData(selectedNovel.id, streamHook.activeChapterNum, streamHook.chapterContent, false);
+    if (streamHook.activeChapterNum === chNum) {
+      return;
     }
 
     streamHook.setActiveChapterNum(chNum);
@@ -532,13 +548,21 @@ const AiNovelDashboard: React.FC = () => {
         return { ...c, chapterNumber: nextNum, title: newTitle };
       });
 
+      // 1. 先调用后端接口批量物理落盘与记忆清理（后端现已使用单条 SQL 批量极速删除）
+      await httpService.post('/ai-novel/save-outline', {
+        novelId: selectedNovel.id,
+        chaptersOutline: reIndexed,
+        allowClear: true
+      });
+
+      // 2. 更新前端大纲状态与激活章节
       setSelectedOutline({ ...selectedOutline, chaptersOutline: reIndexed });
 
       let nextActiveNum = 1;
       if (reIndexed.length > 0) {
         nextActiveNum = reIndexed[0].chapterNumber;
         streamHook.setActiveChapterNum(nextActiveNum);
-        await loadChapterContent(selectedNovel.id, nextActiveNum);
+        loadChapterContent(selectedNovel.id, nextActiveNum).catch(() => {});
       } else {
         streamHook.setActiveChapterNum(1);
         streamHook.setChapterContent('');
@@ -546,12 +570,6 @@ const AiNovelDashboard: React.FC = () => {
 
       const newActiveChapter = reIndexed.find(c => c.chapterNumber === nextActiveNum);
       streamHook.setIntervention(newActiveChapter?.interventionPrompt || '');
-
-      await httpService.post('/ai-novel/save-outline', {
-        novelId: selectedNovel.id,
-        chaptersOutline: reIndexed,
-        allowClear: true
-      });
 
       setIsDeleteMode(false);
       setCheckedChapters([]);
@@ -596,7 +614,7 @@ const AiNovelDashboard: React.FC = () => {
   };
 
   return (
-    <div className="ai-novel-studio">
+    <div className={`ai-novel-studio ${view === 'editor' ? 'editor-mode' : ''}`}>
       <Spin spinning={loading} size="large" tip="系统全力运转中，请稍候...">
         {view === 'list' && (
           <NovelListView
@@ -643,6 +661,19 @@ const AiNovelDashboard: React.FC = () => {
         )}
         {view === 'editor' && (
           <EditorView
+            isCruising={cruiseHook.isCruising}
+            cruiseTargetCount={cruiseHook.cruiseTargetCount}
+            completedCount={cruiseHook.completedCount}
+            currentCruisingChapter={cruiseHook.currentCruisingChapter}
+            cruiseStatusText={cruiseHook.cruiseStatusText}
+            openCruiseModal={() => {
+              if (cruiseHook.isCruising || streamHook.isGenerating) {
+                setIsMultiAgentModalOpen(true);
+              } else {
+                cruiseHook.openCruiseModal();
+              }
+            }}
+            emergencyStop={cruiseHook.emergencyStop}
             selectedNovel={selectedNovel}
             selectedOutline={selectedOutline}
             setSelectedOutline={setSelectedOutline}
@@ -664,6 +695,8 @@ const AiNovelDashboard: React.FC = () => {
             setIsDeleteMode={setIsDeleteMode}
             checkedChapters={checkedChapters}
             setCheckedChapters={setCheckedChapters}
+            onConfirmBatchDelete={handleConfirmBatchDelete}
+            onOpenInsertModal={modalsHook.handleOpenInsertModal}
             onOpenBatchModal={() => {
               const chs = selectedOutline?.chaptersOutline || [];
               const hasCompleted = chs.some(c => c.status === 'completed' && (c.wordCount || 0) > 50);
@@ -684,8 +717,8 @@ const AiNovelDashboard: React.FC = () => {
             renamingChapter={streamHook.renamingChapter}
             chapterContent={streamHook.chapterContent}
             setChapterContent={streamHook.setChapterContent}
-            isGenerating={streamHook.isGenerating}
-            writingSpeed={streamHook.writingSpeed}
+            isGenerating={streamHook.isGenerating || cruiseHook.isCruising}
+            writingSpeed={cruiseHook.isCruising ? cruiseHook.writingSpeed : streamHook.writingSpeed}
             showPolishPop={modalsHook.showPolishPop}
             setShowPolishPop={modalsHook.setShowPolishPop}
             selectedText={modalsHook.selectedText}
@@ -736,6 +769,17 @@ const AiNovelDashboard: React.FC = () => {
             onDeslopContent={streamHook.handleDeslopContent}
             onStartEditRelationship={modalsHook.handleStartEditRelationship}
             onDeleteRelationship={modalsHook.handleDeleteRelationship}
+            promptLogs={promptLogs}
+            setPromptLogs={setPromptLogs}
+            currentArc={streamHook.currentArc}
+            agentNodes={streamHook.agentNodes}
+            criticReport={streamHook.criticReport}
+            wildReaderFeedback={streamHook.wildReaderFeedback}
+            agentThoughts={streamHook.agentThoughts}
+            useMultiAgent={streamHook.useMultiAgent}
+            setUseMultiAgent={streamHook.setUseMultiAgent}
+            isMultiAgentModalOpen={isMultiAgentModalOpen}
+            setIsMultiAgentModalOpen={setIsMultiAgentModalOpen}
           />
         )}
       </Spin>
@@ -914,6 +958,21 @@ const AiNovelDashboard: React.FC = () => {
         onChaptersGenerated={() => {
           setIsFreeWriteOpen(false);
           if (selectedNovel) loadNovelToEditor(selectedNovel.id);
+        }}
+        paperTheme={paperTheme}
+      />
+
+      {/* 🚀 全自动连写巡航控制台 */}
+      <AutoCruiseModal
+        open={cruiseHook.cruiseModalOpen}
+        onCancel={cruiseHook.closeCruiseModal}
+        defaultStartChapter={streamHook.activeChapterNum}
+        selectedOutline={selectedOutline}
+        wordCountLimit={streamHook.wordCountLimit}
+        lastInterruptedSession={cruiseHook.lastInterruptedSession}
+        onClearInterruptedSession={cruiseHook.clearInterruptedSession}
+        onStartCruise={(params) => {
+          cruiseHook.startCruise(params);
         }}
         paperTheme={paperTheme}
       />

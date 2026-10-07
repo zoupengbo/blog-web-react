@@ -62,8 +62,8 @@ const BookShelf: React.FC<BookShelfProps> = ({
         case 'addTime':
           return new Date(b.addedTime).getTime() - new Date(a.addedTime).getTime();
         case 'lastRead':
-          const progressA = StorageUtil.getReadingProgress(a.id);
-          const progressB = StorageUtil.getReadingProgress(b.id);
+          const progressA = (StorageUtil as any).getReadingProgress ? (StorageUtil as any).getReadingProgress(a.id) : null;
+          const progressB = (StorageUtil as any).getReadingProgress ? (StorageUtil as any).getReadingProgress(b.id) : null;
           const timeA = progressA?.lastReadTime || a.addedTime;
           const timeB = progressB?.lastReadTime || b.addedTime;
           return new Date(timeB).getTime() - new Date(timeA).getTime();
@@ -71,9 +71,6 @@ const BookShelf: React.FC<BookShelfProps> = ({
           return a.title.localeCompare(b.title);
         case 'author':
           return a.author.localeCompare(b.author);
-        case 'progress':
-          // 进度条功能已移除，按添加时间排序
-          return new Date(b.addedTime).getTime() - new Date(a.addedTime).getTime();
         default:
           return 0;
       }

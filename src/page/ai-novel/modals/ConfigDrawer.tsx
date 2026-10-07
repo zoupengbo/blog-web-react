@@ -57,10 +57,37 @@ const PROVIDER_TEMPLATES = [
     color: 'cyan'
   },
   {
+    name: 'Claude Sonnet 4.6 (本地 Antigravity)',
+    baseUrl: 'http://127.0.0.1:8045/v1',
+    modelName: 'claude-sonnet-4-6',
+    temperature: 0.75,
+    maxTokens: 8192,
+    tag: '网文正文 T0 / 极低AI味',
+    color: 'gold'
+  },
+  {
+    name: 'Gemini 3.8 Flash (本地 Antigravity)',
+    baseUrl: 'http://127.0.0.1:8045/v1',
+    modelName: 'gemini-3.8-flash',
+    temperature: 0.7,
+    maxTokens: 8192,
+    tag: '极速创作 / 智能推理 / 推荐连载',
+    color: 'volcano'
+  },
+  {
+    name: 'Gemini 3.1 Pro (本地 Antigravity)',
+    baseUrl: 'http://127.0.0.1:8045/v1',
+    modelName: 'gemini-3.1-pro-high',
+    temperature: 0.7,
+    maxTokens: 8192,
+    tag: '大纲与长篇架构',
+    color: 'geekblue'
+  },
+  {
     name: '本地服务 (Ollama/8045)',
     baseUrl: 'http://127.0.0.1:8045/v1',
-    modelName: 'deepseek-chat',
-    temperature: 0.7,
+    modelName: 'claude-sonnet-4-6',
+    temperature: 0.75,
     maxTokens: 8192,
     tag: '本地私有化',
     color: 'default'

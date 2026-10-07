@@ -6,8 +6,14 @@ module.exports = function(app) {
       target: 'http://127.0.0.1:3000/api/v1', //配置转发目标地址(能返回数据的服务器地址)
       changeOrigin: true, //控制服务器接收到的请求头中host字段的值
       pathRewrite: {'^/api': ''}, //去除请求前缀，保证交给后台服务器的是正常请求地址(必须配置)
-      timeout: 300000, // 5 minutes
-      proxyTimeout: 300000
+      timeout: 1800000, // 30 minutes to support deep multi-round AI auditing
+      proxyTimeout: 1800000
     })
-  )
+  );
+  app.use(
+    createProxyMiddleware('/uploads', {
+      target: 'http://127.0.0.1:3000',
+      changeOrigin: true
+    })
+  );
 }

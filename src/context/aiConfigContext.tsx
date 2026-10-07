@@ -196,7 +196,7 @@ export const AiConfigProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         onTest={handleTestConfig}
         loading={loading}
         testingConfig={testingConfig}
-        paperTheme={isDark ? 'dark' : 'parchment'}
+        paperTheme={isDark ? 'dark' : 'paper'}
       />
     </AiConfigContext.Provider>
   );

@@ -14,12 +14,14 @@ import {
   SettingOutlined,
   ExperimentOutlined,
   PlayCircleOutlined,
+  ThunderboltOutlined,
+  SendOutlined,
 } from '@ant-design/icons';
-import { AccessManager } from '@pages/count/accessManager/index.tsx';
-import { ArticleEdit } from '@pages/article/articleEdit/index.tsx';
-import { CategoryModule } from '@pages/article/categoryModule/index.tsx';
-import { TagModule } from '@pages/article/tagModule/index.tsx';
-import EbookReader from '@pages/entertainment/ebookReader/index.tsx';
+import { AccessManager } from '@pages/count/accessManager/index';
+import { ArticleEdit } from '@pages/article/articleEdit/index';
+import { CategoryModule } from '@pages/article/categoryModule/index';
+import { TagModule } from '@pages/article/tagModule/index';
+import EbookReader from '@pages/entertainment/ebookReader/index';
 import VideoDownloader from '../page/video/VideoDownloader';
 import AiNovelDashboard from '../page/ai-novel/index';
 import PriceCompareDashboard from '../page/price-compare/index';
@@ -27,6 +29,8 @@ import QuantDashboard from '../page/quant/dashboard/index';
 import QuantStrategies from '../page/quant/strategies/index';
 import QuantBacktesting from '../page/quant/backtesting/index';
 import QuantLiveTrading from '../page/quant/live-trading/index';
+import StockRadarDashboard from '../page/stock-radar/index';
+import MediaMatrixDashboard from '../page/media-matrix/index';
 
 // 路由配置接口
 export interface RouteConfig {
@@ -173,6 +177,24 @@ export const routeConfigs: RouteConfig[] = [
     icon: <PlayCircleOutlined />,
     component: QuantLiveTrading,
     group: "quant"
+  },
+  {
+    path: "/stock-radar",
+    title: "AI 股票预测雷达",
+    icon: <ThunderboltOutlined />,
+    component: StockRadarDashboard,
+    group: "stock",
+    groupTitle: "AI 股票预测",
+    groupIcon: <ThunderboltOutlined />
+  },
+  {
+    path: "/media-matrix",
+    title: "自媒体热点推送",
+    icon: <SendOutlined />,
+    component: MediaMatrixDashboard,
+    group: "media",
+    groupTitle: "自媒体矩阵",
+    groupIcon: <SendOutlined />
   }
 ];
 

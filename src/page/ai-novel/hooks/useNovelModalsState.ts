@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { message } from 'antd';
 import httpService from '../../../common/request';
-import { Novel, NovelOutline, CharacterRelationship, ChapterOutline } from '../types';
+import { Novel, NovelOutline, CharacterRelationship, ChapterOutline, PlotProposal, SuggestedPlotData } from '../types';
 import { isPastCharacter } from '../utils/volumeParser';
 
 export const useNovelModalsState = (
@@ -29,7 +29,7 @@ export const useNovelModalsState = (
 
   // AI 修改设定状态
   const [isModifyModalOpen, setIsModifyModalOpen] = useState<boolean>(false);
-  const [modifyField, setModifyField] = useState<'worldSetting' | 'mainLine' | 'characterSetting'>('worldSetting');
+  const [modifyField, setModifyField] = useState<'worldSetting' | 'mainLine' | 'characterSetting' | 'characterStates'>('worldSetting');
   const [modifyReqs, setModifyReqs] = useState<string>('');
   const [modifyLoading, setModifyLoading] = useState<boolean>(false);
   const [modifyResult, setModifyResult] = useState<string>('');
@@ -65,11 +65,12 @@ export const useNovelModalsState = (
   const [suggestPlotModalOpen, setSuggestPlotModalOpen] = useState<boolean>(false);
   const [suggestingPlot, setSuggestingPlot] = useState<boolean>(false);
   const [refineInstruction, setRefineInstruction] = useState<string>('');
-  const [suggestedPlotData, setSuggestedPlotData] = useState<{
-    suggestion: string;
-    auditMessage: string;
-    hasCorrected?: boolean;
-  }>({ suggestion: '', auditMessage: '', hasCorrected: false });
+  const [suggestedPlotData, setSuggestedPlotData] = useState<SuggestedPlotData>({
+    suggestion: '',
+    auditMessage: '',
+    hasCorrected: false,
+    proposals: []
+  });
 
   const [isBatchAnalyzeModalVisible, setIsBatchAnalyzeModalVisible] = useState<boolean>(false);
   const [batchAnalyzeSelectedChapters, setBatchAnalyzeSelectedChapters] = useState<number[]>([]);
@@ -331,7 +332,7 @@ export const useNovelModalsState = (
   };
 
   const handleTogglePastStatus = async (relName: string) => {
-    if (!selectedOutline || !selectedOutline.characterRelationships) return;
+    if (!selectedOutline || !Array.isArray(selectedOutline.characterRelationships)) return;
     const updatedList = selectedOutline.characterRelationships.map(r => {
       if (r.name === relName) {
         const currentPast = isPastCharacter(r);
@@ -343,7 +344,8 @@ export const useNovelModalsState = (
   };
 
   const handleDeleteRelationship = (name: string) => {
-    const list = (selectedOutline?.characterRelationships || []).filter(r => r.name !== name);
+    const currentList = Array.isArray(selectedOutline?.characterRelationships) ? selectedOutline.characterRelationships : [];
+    const list = currentList.filter(r => r.name !== name);
     handleSaveRelationships(list);
     if (activeRelNode?.name === name) {
       setActiveRelNode(null);
@@ -389,7 +391,7 @@ export const useNovelModalsState = (
       isPast: newRelIsPast
     };
 
-    let list = [...(selectedOutline?.characterRelationships || [])];
+    let list = Array.isArray(selectedOutline?.characterRelationships) ? [...selectedOutline.characterRelationships] : [];
     if (editingRel) {
       list = list.map(r => r.name === editingRel.name ? newEntry : r);
       if (activeRelNode?.name === editingRel.name) {
@@ -496,15 +498,22 @@ export const useNovelModalsState = (
       const suggestionText = typeof res.data === 'string'
         ? res.data
         : (res.data?.suggestion || res.data?.plot || '');
-      if (res.code === 200 && suggestionText) {
+      const proposals: PlotProposal[] = Array.isArray(res.proposals)
+        ? res.proposals
+        : (Array.isArray(res.data?.proposals) ? res.data.proposals : []);
+
+      if (res.code === 200 && (suggestionText || proposals.length > 0)) {
+        const finalSuggestion = suggestionText || (proposals[0]?.summary || '');
         setSuggestedPlotData({
-          suggestion: suggestionText,
-          auditMessage: res.msg || '已通过 AI 总编辑因果链与逻辑一致性深度审核！前文无断层、无凭空空降结论，角色关系自洽。',
-          hasCorrected: !!res.hasCorrected
+          suggestion: finalSuggestion,
+          auditMessage: res.auditMessage || res.msg || '已通过 AI 总编辑因果链与逻辑一致性深度审核！前文无断层、无凭空空降结论，角色关系自洽。',
+          hasCorrected: !!res.hasCorrected,
+          proposals: proposals
         });
-        setPlotDirection(suggestionText);
+        // CRITICAL FIX: REMOVE premature automatic overwrite of plotDirection on fetch.
+        // Populate plotDirection only upon explicit user adoption of a card!
         setSuggestPlotModalOpen(true);
-        message.success(effectiveInstruction ? '已根据您的最高指导要求，重构完成新版剧情建议！' : 'AI 剧情建议已生成并自动填入规划说明框！');
+        message.success(effectiveInstruction ? '已根据您的最高指导要求，重构完成新版剧情建议！' : 'AI 剧情提案已生成，请在工作台中选择心仪方案！');
       } else {
         message.error(res.msg || '获取 AI 建议失败');
       }
@@ -513,6 +522,15 @@ export const useNovelModalsState = (
     } finally {
       setSuggestingPlot(false);
     }
+  };
+
+  const handleAdoptPlotSuggestion = (chosenText: string) => {
+    if (chosenText) {
+      setPlotDirection(chosenText);
+    }
+    setSuggestPlotModalOpen(false);
+    setRefineInstruction('');
+    message.success('已采纳该剧情走向并填充至批量大纲说明框！');
   };
 
   const handleBatchGenerateChapters = async (setSelectedNovel: any) => {
@@ -716,6 +734,7 @@ export const useNovelModalsState = (
     batchGenerateMode,
     setBatchGenerateMode,
     handleFetchPlotSuggestion,
+    handleAdoptPlotSuggestion,
     handleBatchGenerateChapters,
     suggestPlotModalOpen,
     setSuggestPlotModalOpen,
@@ -764,7 +783,8 @@ export const useNovelModalsState = (
 
       setPolishing(true);
       try {
-        const [start, end] = selectedRange;
+        if (!selectedRange) return;
+        const { start, end } = selectedRange;
         const beforeText = (chapterContent || '').slice(Math.max(0, start - 1500), start);
         const afterText = (chapterContent || '').slice(end, end + 1500);
 
@@ -789,8 +809,8 @@ export const useNovelModalsState = (
       }
     },
     handleReplacePolishedText: (chapterContent: string, setChapterContent: (text: string) => void) => {
-      if (!polishedResult || !selectedText) return;
-      const [start, end] = selectedRange;
+      if (!polishedResult || !selectedText || !selectedRange) return;
+      const { start, end } = selectedRange;
       const newContent = (chapterContent || '').slice(0, start) + polishedResult + (chapterContent || '').slice(end);
       setChapterContent(newContent);
       setSelectedText('');

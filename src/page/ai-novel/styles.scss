@@ -24,6 +24,34 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
   box-sizing: border-box;
   transition: all 0.5s ease;
 
+  &.editor-mode {
+    padding: 0 !important;
+    margin: 0 !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+
+    .ant-spin-nested-loading,
+    .ant-spin-container {
+      height: 100% !important;
+      min-height: 100% !important;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden !important;
+    }
+
+    .novel-editor-view {
+      height: 100% !important;
+      min-height: 100% !important;
+      max-height: 100% !important;
+      border-radius: 0 !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+  }
+
   // 全局 Antd 组件在亮白底色下的兼容适配
   .ant-card {
     background: $color-light-card;
@@ -803,14 +831,18 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
               border: none;
               box-shadow: $gold-shadow;
               color: #ffffff;
-              font-weight: 700;
-              height: 52px;
-              border-radius: 8px;
-              font-size: 16px;
+              font-weight: 600;
+              height: 38px;
+              border-radius: 6px;
+              font-size: 14px;
+              padding: 0 20px;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
 
               &:hover {
-                box-shadow: 0 4px 18px rgba(180, 83, 9, 0.4);
-                transform: translateY(-2px);
+                box-shadow: 0 3px 12px rgba(180, 83, 9, 0.35);
+                transform: translateY(-1px);
               }
             }
           }
@@ -912,6 +944,116 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
 
           .ant-card-body {
             padding: 12px;
+          }
+        }
+
+        .prompt-trajectory-card {
+          .ant-card-head {
+            padding: 8px 12px;
+          }
+          .ant-card-body {
+            padding: 0 !important;
+          }
+          .prompt-trail-empty {
+            padding: 24px 0;
+            text-align: center;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px dashed #e2e8f0;
+            margin: 8px;
+
+            .prompt-trail-empty-text {
+              color: #8c8c8c;
+              margin-bottom: 8px;
+              font-size: 12px;
+            }
+            .prompt-trail-divider {
+              color: #bfbfbf;
+            }
+          }
+          .prompt-trail-list-wrapper {
+            border: 1px solid #f0f0f0;
+            border-radius: 6px;
+            background: #ffffff;
+            overflow: hidden;
+
+            .prompt-trail-list-header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              padding: 6px 12px;
+              background: #fafafa;
+              border-bottom: 1px solid #f0f0f0;
+              font-size: 11px;
+              color: #8c8c8c;
+              font-weight: 600;
+            }
+
+            .prompt-trail-list-item {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              padding: 8px 12px;
+              border-bottom: 1px solid #f5f5f5;
+              height: 52px;
+              box-sizing: border-box;
+              transition: background 0.2s;
+
+              &:hover {
+                background: #fafafa;
+              }
+
+              &:last-child {
+                border-bottom: none;
+              }
+
+              .prompt-trail-item-main {
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+                overflow: hidden;
+                flex: 1;
+                padding-right: 8px;
+
+                .prompt-trail-item-title-row {
+                  display: flex;
+                  align-items: center;
+                  gap: 4px;
+                  flex-wrap: nowrap;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  white-space: nowrap;
+
+                  .prompt-trail-item-title {
+                    font-weight: 600;
+                    font-size: 12px;
+                    color: inherit;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+
+                    &.is-error {
+                      color: #ff4d4f;
+                    }
+                  }
+                }
+
+                .prompt-trail-item-meta {
+                  font-size: 11px;
+                  color: #8c8c8c;
+                }
+              }
+            }
+
+            .rc-virtual-list-scrollbar {
+              width: 4px !important;
+              .rc-virtual-list-scrollbar-thumb {
+                background: rgba(0, 0, 0, 0.15) !important;
+                border-radius: 4px !important;
+                &:hover {
+                  background: rgba(0, 0, 0, 0.3) !important;
+                }
+              }
+            }
           }
         }
 
@@ -1160,6 +1302,89 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
             }
           }
 
+          .prompt-trajectory-card {
+            background: #1e1e26 !important;
+            border-color: #2e2e3a !important;
+
+            .ant-card-head {
+              background: #252530 !important;
+              padding: 8px 12px !important;
+              border-bottom: 1px solid #2e2e3a !important;
+              color: #ffffff !important;
+            }
+            .ant-card-body {
+              background: #1e1e26 !important;
+              padding: 0 !important;
+            }
+            .ant-segmented {
+              background: #18181f !important;
+              color: #a1a1aa !important;
+              .ant-segmented-item-selected {
+                background: #2e2e3d !important;
+                color: #ffd666 !important;
+                font-weight: 600;
+              }
+            }
+            .prompt-trail-empty {
+              background: #18181f !important;
+              border: 1px dashed #2e2e3a !important;
+
+              .prompt-trail-empty-text {
+                color: #a1a1aa !important;
+              }
+              .prompt-trail-divider {
+                color: #555566 !important;
+              }
+            }
+            .prompt-trail-list-wrapper {
+              background: #18181f !important;
+              border: 1px solid #2e2e3a !important;
+
+              .prompt-trail-list-header {
+                background: #252530 !important;
+                border-bottom: 1px solid #2e2e3a !important;
+                color: #a1a1aa !important;
+              }
+
+              .prompt-trail-list-item {
+                background: #18181f !important;
+                border-bottom: 1px solid #282833 !important;
+                color: #ffffff !important;
+
+                &:hover {
+                  background: #252530 !important;
+                }
+
+                &:last-child {
+                  border-bottom: none !important;
+                }
+
+                .prompt-trail-item-main {
+                  .prompt-trail-item-title-row {
+                    .prompt-trail-item-title {
+                      color: #f4f4f5 !important;
+                      &.is-error {
+                        color: #ff4d4f !important;
+                      }
+                    }
+                  }
+                  .prompt-trail-item-meta {
+                    color: #71717a !important;
+                  }
+                }
+              }
+
+              .rc-virtual-list-scrollbar {
+                .rc-virtual-list-scrollbar-thumb {
+                  background: rgba(255, 255, 255, 0.18) !important;
+                  &:hover {
+                    background: rgba(255, 255, 255, 0.35) !important;
+                  }
+                }
+              }
+            }
+          }
+
           textarea.ant-input, input.ant-input, textarea, input {
             background: #121215 !important;
             color: #ffffff !important;
@@ -1339,6 +1564,13 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
               font-weight: 700;
               color: #ffd666 !important;
             }
+          }
+
+          // 🚀 全自动连写巡航极简磨砂横条高对比度暗黑适配
+          .cruise-slim-bar {
+            background: rgba(24, 24, 32, 0.9) !important;
+            border: 1px solid #333344 !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35) !important;
           }
 
           .inkwell-textarea {
@@ -2153,6 +2385,131 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
   }
 }
 
+// =========================================================================
+// 🌟 全局 Ant Design 确认弹窗 (Modal.confirm) 暗黑模式与高对比度文字适配
+// 解决深色背景下确认框标题与正文发黑、无法看清的严重对比度缺陷
+// =========================================================================
+.ant-modal-confirm,
+.ant-modal-confirm-confirm {
+  .ant-modal-content {
+    background: #141418 !important;
+    border: 1px solid #2e2e38 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85) !important;
+    padding: 24px !important;
+  }
 
+  .ant-modal-confirm-title {
+    color: #f8fafc !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    line-height: 1.4 !important;
+  }
 
+  .ant-modal-confirm-content {
+    color: #cbd5e1 !important;
+    font-size: 13px !important;
+    line-height: 1.6 !important;
+    margin-top: 10px !important;
+  }
+
+  .ant-modal-confirm-btns {
+    margin-top: 24px !important;
+
+    .ant-btn-default {
+      background: #272730 !important;
+      border: 1px solid #3f3f4e !important;
+      color: #e4e4e7 !important;
+      border-radius: 6px !important;
+
+      &:hover {
+        background: #32323f !important;
+        border-color: #ffd666 !important;
+        color: #ffd666 !important;
+      }
+    }
+
+    .ant-btn-primary {
+      background: #2563eb !important;
+      border: none !important;
+      color: #ffffff !important;
+      border-radius: 6px !important;
+      font-weight: 600 !important;
+
+      &:hover {
+        background: #3b82f6 !important;
+      }
+    }
+  }
+}
+
+// 赛博全屏 MultiAgent 弹窗样式
+.sci-fi-multi-agent-modal-wrap,
+.sci-fi-multi-agent-modal {
+  .ant-modal {
+    max-width: 100vw !important;
+    width: 100vw !important;
+    top: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+    transform: none !important;
+    animation-duration: 0.15s !important;
+    will-change: opacity;
+  }
+
+  .ant-modal-content {
+    height: 100vh !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    background: #070a12 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .ant-modal-body {
+    height: 100vh !important;
+    max-height: 100vh !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  .ant-modal-close {
+    top: 10px !important;
+    right: 14px !important;
+    color: #94a3b8 !important;
+    z-index: 1000 !important;
+    background: rgba(15, 23, 42, 0.85) !important;
+    border: 1px solid rgba(56, 189, 248, 0.5) !important;
+    border-radius: 50% !important;
+    width: 30px !important;
+    height: 30px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s ease-in-out !important;
+
+    .ant-modal-close-x {
+      font-size: 14px !important;
+      line-height: 30px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+
+    &:hover {
+      color: #f43f5e !important;
+      border-color: #f43f5e !important;
+      box-shadow: 0 0 12px rgba(244, 63, 94, 0.6) !important;
+      transform: scale(1.08) !important;
+    }
+  }
+}
 

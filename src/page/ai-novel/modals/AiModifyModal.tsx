@@ -7,7 +7,7 @@ const { TextArea } = Input;
 interface AiModifyModalProps {
   open: boolean;
   onCancel: () => void;
-  modifyField: 'worldSetting' | 'mainLine' | 'characterSetting';
+  modifyField: 'worldSetting' | 'mainLine' | 'characterSetting' | 'characterStates';
   modifyReqs: string;
   setModifyReqs: (val: string) => void;
   modifyResult: string;
@@ -42,7 +42,7 @@ export const AiModifyModal: React.FC<AiModifyModalProps> = ({
       title={
         <span>
           🪄 AI 智能修改【
-          {modifyField === 'worldSetting' ? '世界观设定' : modifyField === 'mainLine' ? '命运主线大纲' : '人物卡设定'}
+          {modifyField === 'worldSetting' ? '世界观设定' : modifyField === 'mainLine' ? '命运主线大纲' : modifyField === 'characterStates' ? '角色状态追踪' : '主角人设与言行规范'}
           】
         </span>
       }

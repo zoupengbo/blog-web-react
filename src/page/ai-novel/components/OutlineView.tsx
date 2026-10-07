@@ -102,14 +102,14 @@ export const OutlineView: React.FC<OutlineViewProps> = ({
                   key: 'characters',
                   label: (
                     <Space>
-                      <span>👥 核心人物志</span>
+                      <span>👤 主角人设与言行规范</span>
                       <Button
                         size="small"
                         type="text"
                         icon={<FullscreenOutlined style={{color: '#d4b106'}} />}
                         onClick={(e) => {
                           e.stopPropagation();
-                          onOpenManualEdit('characterSetting', '核心人物志', draftOutline.characterSetting);
+                          onOpenManualEdit('characterSetting', '主角人设与言行规范', draftOutline.characterSetting);
                         }}
                         style={{ padding: '0 4px', height: 'auto', fontSize: 12 }}
                       >
@@ -136,6 +136,7 @@ export const OutlineView: React.FC<OutlineViewProps> = ({
                       onChange={e => setDraftOutline({...draftOutline, characterSetting: e.target.value})}
                       rows={18}
                       className="outline-textarea"
+                      placeholder={`在此输入主角核心人设与言行规范（与世界观同等地位，约束全书对话与行为）：\n【核心性格】：...\n【对外说话风格与口癖】：（如：极度诚挚直球、不玩现代流行语）\n【战斗获胜/降维打击时】：（如：从容从武道逻辑指出对手负担，绝不油腻装逼）\n【绝对严禁行为与OOC红线】：（如：严禁现代都市网梗口水话）`}
                     />
                   )
                 },

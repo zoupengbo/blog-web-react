@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Button, Space, Tooltip, Radio, Select, Card, Checkbox, Popconfirm, Badge,
-  Spin, Popover, Input, Tag, Tabs
+  Spin, Popover, Input, Tag, Tabs, Table, Segmented, Progress, message
 } from 'antd';
 import {
   ArrowLeftOutlined, BookOutlined, MenuUnfoldOutlined, MenuFoldOutlined,
@@ -9,14 +9,25 @@ import {
   RocketOutlined, CloudDownloadOutlined, DeleteOutlined, PlusOutlined, PlusCircleOutlined,
   SortAscendingOutlined, SortDescendingOutlined, InteractionOutlined, LoadingOutlined,
   HighlightOutlined, RedoOutlined, PlayCircleOutlined, CheckCircleFilled, UserAddOutlined,
-  UserDeleteOutlined, EditOutlined, EyeOutlined, SaveOutlined
+  UserDeleteOutlined, EditOutlined, EyeOutlined, SaveOutlined, ReloadOutlined, StopOutlined,
+  BranchesOutlined, RobotOutlined, BgColorsOutlined
 } from '@ant-design/icons';
-import { Novel, NovelOutline, CharacterRelationship, VectorMemoryItem, PaperTheme } from '../types';
+import { Novel, NovelOutline, CharacterRelationship, VectorMemoryItem, PaperTheme, PromptLogItem, StoryArc, CriticReport, AgentNodeState, WildReaderFeedback } from '../types';
 import { parseVolumeStructure, getChapterVolume, isPastCharacter } from '../utils/volumeParser';
+import { PromptDetailModal } from '../modals/PromptDetailModal';
+import { MultiAgentModal } from '../modals/MultiAgentModal';
+import VirtualList from 'rc-virtual-list';
 
 const { TextArea } = Input;
 
 interface EditorViewProps {
+  isCruising?: boolean;
+  cruiseTargetCount?: number;
+  completedCount?: number;
+  currentCruisingChapter?: number;
+  cruiseStatusText?: string;
+  openCruiseModal?: () => void;
+  emergencyStop?: () => void;
   selectedNovel: Novel | null;
   selectedOutline: NovelOutline | null;
   setSelectedOutline: React.Dispatch<React.SetStateAction<NovelOutline>>;
@@ -107,9 +118,27 @@ interface EditorViewProps {
   onDeslopContent?: (customInstruction?: string) => void;
   onStartEditRelationship: (rel: CharacterRelationship) => void;
   onDeleteRelationship: (name: string) => void;
+  promptLogs: PromptLogItem[];
+  setPromptLogs: React.Dispatch<React.SetStateAction<PromptLogItem[]>>;
+  currentArc?: StoryArc | null;
+  agentNodes?: Record<string, AgentNodeState>;
+  criticReport?: CriticReport | null;
+  wildReaderFeedback?: WildReaderFeedback | null;
+  agentThoughts?: Array<{ agent: string; thought: string; timestamp?: string }>;
+  useMultiAgent?: boolean;
+  setUseMultiAgent?: (val: boolean) => void;
+  isMultiAgentModalOpen?: boolean;
+  setIsMultiAgentModalOpen?: (val: boolean) => void;
 }
 
 export const EditorView: React.FC<EditorViewProps> = ({
+  isCruising = false,
+  cruiseTargetCount = 3,
+  completedCount = 0,
+  currentCruisingChapter = 1,
+  cruiseStatusText = '',
+  openCruiseModal,
+  emergencyStop,
   selectedNovel,
   selectedOutline,
   setSelectedOutline,
@@ -200,12 +229,118 @@ export const EditorView: React.FC<EditorViewProps> = ({
   onStartEditRelationship,
   onDeleteRelationship,
   onOpenFreeWrite,
+  promptLogs,
+  setPromptLogs,
+  currentArc = null,
+  agentNodes = {},
+  criticReport = null,
+  wildReaderFeedback = null,
+  agentThoughts = [],
+  useMultiAgent = true,
+  setUseMultiAgent,
+  isMultiAgentModalOpen: externalIsMultiAgentModalOpen,
+  setIsMultiAgentModalOpen: externalSetIsMultiAgentModalOpen,
 }) => {
+  const [activePromptLog, setActivePromptLog] = useState<PromptLogItem | null>(null);
+  const [isPromptModalOpen, setIsPromptModalOpen] = useState<boolean>(false);
+  const [promptLogScope, setPromptLogScope] = useState<'current' | 'all'>('current');
+  const [localMultiAgentModalOpen, setLocalMultiAgentModalOpen] = useState<boolean>(false);
+
+  const isMultiAgentModalOpen = externalIsMultiAgentModalOpen !== undefined ? externalIsMultiAgentModalOpen : localMultiAgentModalOpen;
+  const setIsMultiAgentModalOpen = externalSetIsMultiAgentModalOpen || setLocalMultiAgentModalOpen;
+
+  // 保持 MultiAgent 模态框默认关闭，仅由用户手动点击相关按钮触发打开
+
+  const fetchPromptLogs = (chapNum?: number) => {
+    if (!selectedNovel?.id) return;
+    const url = chapNum
+      ? `/ai-novel/prompt-logs?novelId=${selectedNovel.id}&chapterNumber=${chapNum}&limit=100`
+      : `/ai-novel/prompt-logs?novelId=${selectedNovel.id}&limit=200`;
+    httpService.get(url)
+      .then((res: any) => {
+        if (res.code === 200 && Array.isArray(res.data)) {
+          if (chapNum) {
+            setPromptLogs(prev => {
+              // 替换当前章节的日志为最新从后端获取的列表，保留其他章节日志
+              const otherLogs = (prev || []).filter(p => Number(p.chapterNumber) !== Number(chapNum));
+              return [...res.data, ...otherLogs].sort((a, b) => (b.id || 0) - (a.id || 0));
+            });
+          } else {
+            setPromptLogs(res.data);
+          }
+        }
+      })
+      .catch((err: any) => {
+        console.error('获取 Prompt 轨迹失败:', err);
+      });
+  };
+
+  const handleClearPromptLogs = async () => {
+    if (!selectedNovel?.id) return;
+    const isCurrent = promptLogScope === 'current' && activeChapterNum;
+    try {
+      await httpService.post('/ai-novel/clear-prompt-logs', {
+        novelId: selectedNovel.id,
+        chapterNumber: isCurrent ? activeChapterNum : undefined,
+      });
+      message.success(isCurrent ? `已清空第 ${activeChapterNum} 章的 Prompt 轨迹` : '已清空全书的 Prompt 轨迹');
+      if (isCurrent) {
+        setPromptLogs(prev => (prev || []).filter(p => Number(p.chapterNumber) !== Number(activeChapterNum)));
+      } else {
+        setPromptLogs([]);
+      }
+    } catch (e: any) {
+      message.error('清空 Prompt 轨迹失败: ' + (e.message || e));
+    }
+  };
+
+  useEffect(() => {
+    fetchPromptLogs();
+  }, [selectedNovel?.id]);
+
+  const currentChapterPromptLogs = useMemo(() => {
+    if (!promptLogs || !Array.isArray(promptLogs)) return [];
+    if (!activeChapterNum) return promptLogs;
+    return promptLogs.filter((log: PromptLogItem) => Number(log.chapterNumber) === Number(activeChapterNum));
+  }, [promptLogs, activeChapterNum]);
+
+  const displayedPromptLogs = useMemo(() => {
+    if (promptLogScope === 'current' && activeChapterNum) {
+      return currentChapterPromptLogs;
+    }
+    return promptLogs || [];
+  }, [promptLogs, currentChapterPromptLogs, promptLogScope, activeChapterNum]);
+
+  // 🌲 卷结构与章节筛选记忆化，杜绝正文输入时重复正则解析与重排
+  const volumeInfo = useMemo(() => {
+    return parseVolumeStructure(selectedOutline?.mainLine || '');
+  }, [selectedOutline?.mainLine]);
+
+  const filteredChapters = useMemo(() => {
+    let list = (selectedOutline?.chaptersOutline || []).filter(chap => {
+      if (!volumeInfo.parsed || selectedVolumeNum === null) return true;
+      const chapVol = getChapterVolume(chap.chapterNumber, volumeInfo.volumes);
+      return chapVol.volumeNumber === selectedVolumeNum;
+    });
+    if (!chapterSortAsc) {
+      list = [...list].reverse();
+    }
+    return list;
+  }, [selectedOutline?.chaptersOutline, volumeInfo, selectedVolumeNum, chapterSortAsc]);
+
   const [isEditingTitle, setIsEditingTitle] = React.useState(false);
   const [titleInputValue, setTitleInputValue] = React.useState('');
   const [popoverRenameNum, setPopoverRenameNum] = React.useState<number | null>(null);
   const [popoverRenameValue, setPopoverRenameValue] = React.useState('');
   const debounceSaveRef = React.useRef<any>(null);
+  const isDirtyRef = React.useRef<boolean>(false);
+
+  React.useEffect(() => {
+    if (debounceSaveRef.current) {
+      clearTimeout(debounceSaveRef.current);
+    }
+    isDirtyRef.current = false;
+  }, [activeChapterNum]);
 
   const getCleanChapterTitle = (chap: any) => {
     if (!chap || !chap.title) return `第${chap?.chapterNumber || ''}章`;
@@ -213,6 +348,12 @@ export const EditorView: React.FC<EditorViewProps> = ({
     const numPattern = new RegExp(`^第\\s*${num}\\s*章[\\s:：·—\\-]*`, 'i');
     const clean = chap.title.replace(numPattern, '').trim();
     return clean || chap.title;
+  };
+
+  const handleChapterClick = (targetChNum: number) => {
+    if (Number(targetChNum) === Number(activeChapterNum)) return;
+    flushSave(false);
+    onSelectChapter(targetChNum);
   };
 
   // 🧠 向量长程记忆库状态
@@ -252,21 +393,88 @@ export const EditorView: React.FC<EditorViewProps> = ({
     }
   };
 
+  const [localContent, setLocalContent] = React.useState<string>(chapterContent || '');
+  const isTypingRef = React.useRef<boolean>(false);
+  const typingTimerRef = React.useRef<any>(null);
+
+  // 当外部 chapterContent 变动且用户未在连续打字时（如换章、AI生成流式更新等），同步到本地状态
+  React.useEffect(() => {
+    if (!isTypingRef.current) {
+      setLocalContent(chapterContent || '');
+    }
+  }, [chapterContent]);
+
+  // 当 activeChapterNum 切换时强制重置本地状态与脏标记
+  React.useEffect(() => {
+    if (debounceSaveRef.current) {
+      clearTimeout(debounceSaveRef.current);
+    }
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current);
+    }
+    isTypingRef.current = false;
+    isDirtyRef.current = false;
+    setLocalContent(chapterContent || '');
+  }, [activeChapterNum]);
+
+  const flushSave = React.useCallback((showToast: boolean = false) => {
+    if (debounceSaveRef.current) {
+      clearTimeout(debounceSaveRef.current);
+    }
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current);
+    }
+    isTypingRef.current = false;
+    if (isDirtyRef.current) {
+      setChapterContent(localContent);
+      if (onSaveChapterContent && !isCruising) {
+        onSaveChapterContent(showToast);
+      }
+      isDirtyRef.current = false;
+    } else if (showToast && onSaveChapterContent) {
+      onSaveChapterContent(true);
+    }
+  }, [localContent, setChapterContent, onSaveChapterContent, isCruising]);
+
   const handleTextChange = (newVal: string) => {
-    setChapterContent(newVal);
+    isDirtyRef.current = true;
+    isTypingRef.current = true;
+    setLocalContent(newVal);
+
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current);
+    }
+    typingTimerRef.current = setTimeout(() => {
+      isTypingRef.current = false;
+    }, 1000);
+
     if (debounceSaveRef.current) {
       clearTimeout(debounceSaveRef.current);
     }
     debounceSaveRef.current = setTimeout(() => {
-      if (onSaveChapterContent) {
-        onSaveChapterContent(false);
+      if (isDirtyRef.current) {
+        setChapterContent(newVal);
+        if (onSaveChapterContent && !isCruising) {
+          onSaveChapterContent(false);
+          isDirtyRef.current = false;
+        }
       }
-    }, 1500);
+    }, 1200);
   };
 
   if (!selectedNovel) return null;
 
-  const safeOutline = selectedOutline || { chaptersOutline: [], characterRelationships: [], systemAndCultivationState: {}, theme: '', worldSetting: '', characterSetting: '', mainLine: '' };
+  const safeOutline = {
+    ...selectedOutline,
+    theme: selectedOutline?.theme || '',
+    worldSetting: selectedOutline?.worldSetting || '',
+    characterSetting: selectedOutline?.characterSetting || '',
+    mainLine: selectedOutline?.mainLine || '',
+    chaptersOutline: Array.isArray(selectedOutline?.chaptersOutline) ? selectedOutline!.chaptersOutline : [],
+    characterRelationships: Array.isArray(selectedOutline?.characterRelationships) ? selectedOutline!.characterRelationships : [],
+    systemAndCultivationState: selectedOutline?.systemAndCultivationState || {},
+    storyArcs: Array.isArray(selectedOutline?.storyArcs) ? selectedOutline!.storyArcs : []
+  };
   const currentChapter = (safeOutline.chaptersOutline || []).find((c: any) => parseInt(c.chapterNumber, 10) === parseInt(activeChapterNum as any, 10));
 
   const handleTextSelect = () => {
@@ -274,7 +482,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
       const start = textRef.current.selectionStart;
       const end = textRef.current.selectionEnd;
       if (start !== end) {
-        const text = chapterContent.substring(start, end);
+        const text = localContent.substring(start, end);
         setSelectedText(text);
         setSelectedRange({ start, end });
       }
@@ -293,21 +501,47 @@ export const EditorView: React.FC<EditorViewProps> = ({
           <span className="category-tag">{selectedNovel.category}</span>
         </div>
         <Space className="top-bar-actions">
-          <Tooltip title="切换护眼模式">
-            <Radio.Group value={paperTheme} onChange={e => setPaperTheme(e.target.value as any)} size="small">
-              <Radio.Button value="light">极简白</Radio.Button>
-              <Radio.Button value="paper">羊皮纸</Radio.Button>
-              <Radio.Button value="mint">薄荷绿</Radio.Button>
-              <Radio.Button value="dark">🌑 暗夜黑</Radio.Button>
-            </Radio.Group>
-          </Tooltip>
-          <Tooltip title="字号调节">
-            <Space>
-              <Button size="small" onClick={() => setFontSize(prev => Math.max(12, prev - 2))}>A-</Button>
-              <span>{fontSize}px</span>
-              <Button size="small" onClick={() => setFontSize(prev => Math.min(26, prev + 2))}>A+</Button>
-            </Space>
-          </Tooltip>
+          <Popover
+            trigger="click"
+            placement="bottomRight"
+            title={<span style={{ fontWeight: 700, fontSize: 13 }}>🎨 阅读与排版设置</span>}
+            content={
+              <div style={{ width: 250, padding: '4px 0' }}>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6, fontWeight: 600 }}>护眼阅读主题</div>
+                  <Radio.Group
+                    value={paperTheme}
+                    onChange={e => setPaperTheme(e.target.value as any)}
+                    size="small"
+                    style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}
+                  >
+                    <Radio.Button value="light" style={{ textAlign: 'center' }}>极简白</Radio.Button>
+                    <Radio.Button value="paper" style={{ textAlign: 'center' }}>羊皮纸</Radio.Button>
+                    <Radio.Button value="mint" style={{ textAlign: 'center' }}>薄荷绿</Radio.Button>
+                    <Radio.Button value="dark" style={{ textAlign: 'center' }}>🌑 暗夜黑</Radio.Button>
+                  </Radio.Group>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6, fontWeight: 600 }}>正文字号大小</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: 6 }}>
+                    <Button size="small" onClick={() => setFontSize(prev => Math.max(12, prev - 2))}>A- 缩小</Button>
+                    <span style={{ fontWeight: 700, fontSize: 13, color: '#d4b106' }}>{fontSize}px</span>
+                    <Button size="small" onClick={() => setFontSize(prev => Math.min(28, prev + 2))}>A+ 放大</Button>
+                  </div>
+                </div>
+              </div>
+            }
+          >
+            <Tooltip title="点击展开阅读主题与字号设置">
+              <Button
+                icon={<BgColorsOutlined />}
+                ghost
+                style={{ borderColor: 'rgba(212, 177, 6, 0.4)', color: '#d4b106' }}
+              >
+                排版设置
+              </Button>
+            </Tooltip>
+          </Popover>
           <Tooltip title={leftCollapsed ? '展开章节管理' : '收起章节管理'}>
             <Button
               icon={leftCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
@@ -353,16 +587,31 @@ export const EditorView: React.FC<EditorViewProps> = ({
         {/* 左侧章节树 */}
         <div className={`left-chapters-tree ${leftCollapsed ? 'collapsed' : ''}`}>
           {isDeleteMode ? (
-            <div className="tree-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px' }}>
-              <span style={{ fontSize: 13, color: '#ff4d4f', fontWeight: 600 }}>已选 {checkedChapters.length} 章</span>
-              <Space size="small">
+            <div className="tree-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    if (checkedChapters.length === (safeOutline.chaptersOutline?.length || 0)) {
+                      setCheckedChapters([]);
+                    } else {
+                      setCheckedChapters((safeOutline.chaptersOutline || []).map((c: any) => c.chapterNumber));
+                    }
+                  }}
+                  style={{ fontSize: 11, padding: '0 6px', height: 22, background: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.15)', color: '#93c5fd' }}
+                >
+                  {checkedChapters.length === (safeOutline.chaptersOutline?.length || 0) && (safeOutline.chaptersOutline?.length || 0) > 0 ? '取消全选' : '全选'}
+                </Button>
+                <span style={{ fontSize: 12, color: '#ff4d4f', fontWeight: 600 }}>已选 {checkedChapters.length} 章</span>
+              </div>
+              <Space size={4}>
                 <Button
                   size="small"
                   type="primary"
                   danger
                   disabled={checkedChapters.length === 0}
                   onClick={onConfirmBatchDelete}
-                  style={{ fontSize: 11, padding: '0 8px', height: 24 }}
+                  style={{ fontSize: 11, padding: '0 8px', height: 22 }}
                 >
                   确认删除
                 </Button>
@@ -372,7 +621,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                     setIsDeleteMode(false);
                     setCheckedChapters([]);
                   }}
-                  style={{ background: 'transparent', borderColor: 'rgba(255, 255, 255, 0.15)', color: '#cbd5e1', fontSize: 11, padding: '0 8px', height: 24 }}
+                  style={{ background: 'transparent', borderColor: 'rgba(255, 255, 255, 0.15)', color: '#cbd5e1', fontSize: 11, padding: '0 8px', height: 22 }}
                 >
                   取消
                 </Button>
@@ -381,11 +630,37 @@ export const EditorView: React.FC<EditorViewProps> = ({
           ) : (
             <div className="tree-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>章节管理</span>
-              <Space>
-                <Tooltip title="🪄 智能剧情批量拆章规划">
+              <Space size={4}>
+                {openCruiseModal && (
+                  <Tooltip
+                    title={
+                      (isCruising || isGenerating)
+                        ? '🚀 正在连写创作中，点击查看像素小人协同界面'
+                        : '🚀 全自动连写巡航 (AI 无人值守连续撰写多章)'
+                    }
+                  >
+                    <Button
+                      size="small"
+                      icon={<RocketOutlined spin={isCruising || isGenerating} />}
+                      onClick={() => {
+                        if (isCruising || isGenerating) {
+                          setIsMultiAgentModalOpen(true);
+                        } else {
+                          openCruiseModal();
+                        }
+                      }}
+                      style={{
+                        background: (isCruising || isGenerating) ? 'rgba(82, 196, 26, 0.15)' : 'transparent',
+                        color: (isCruising || isGenerating) ? '#52c41a' : '#1890ff',
+                        borderColor: (isCruising || isGenerating) ? '#52c41a' : 'rgba(24, 144, 255, 0.4)'
+                      }}
+                    />
+                  </Tooltip>
+                )}
+                <Tooltip title="🌿 智能剧情批量拆章规划">
                   <Button
                     size="small"
-                    icon={<RocketOutlined />}
+                    icon={<BranchesOutlined />}
                     onClick={onOpenBatchModal}
                     style={{ background: 'transparent', color: '#d4b106', borderColor: 'rgba(212, 177, 6, 0.3)' }}
                   />
@@ -444,7 +719,13 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   <Button
                     size="small"
                     icon={chapterSortAsc ? <SortAscendingOutlined /> : <SortDescendingOutlined />}
-                    onClick={() => setChapterSortAsc(v => !v)}
+                    onClick={() => {
+                      setChapterSortAsc(v => {
+                        const next = !v;
+                        localStorage.setItem('novel_chapter_sort_asc', String(next));
+                        return next;
+                      });
+                    }}
                     style={{ background: 'transparent', color: '#94a3b8', borderColor: 'rgba(148,163,184,0.3)' }}
                   />
                 </Tooltip>
@@ -452,14 +733,48 @@ export const EditorView: React.FC<EditorViewProps> = ({
             </div>
           )}
           {(() => {
-            const volumeInfo = parseVolumeStructure(selectedOutline?.mainLine || '');
-            let filteredChapters = (selectedOutline?.chaptersOutline || []).filter(chap => {
-              if (!volumeInfo.parsed || selectedVolumeNum === null) return true;
-              const chapVol = getChapterVolume(chap.chapterNumber, volumeInfo.volumes);
-              return chapVol.volumeNumber === selectedVolumeNum;
-            });
-            if (!chapterSortAsc) {
-              filteredChapters = [...filteredChapters].reverse();
+            if (filteredChapters.length === 0) {
+              return (
+                <>
+                  {volumeInfo.parsed && (
+                    <div className="volume-selector-container" style={{ padding: '8px 12px', borderBottom: '1px solid rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <BookOutlined style={{ color: '#d4b106', fontSize: 14, flexShrink: 0 }} />
+                      <Select
+                        value={selectedVolumeNum === null ? 'all' : selectedVolumeNum}
+                        onChange={val => setSelectedVolumeNum(val === 'all' ? null : Number(val))}
+                        style={{ flex: 1, minWidth: 0 }}
+                        size="small"
+                        bordered={false}
+                        dropdownMatchSelectWidth={false}
+                        className="volume-select-dropdown"
+                      >
+                        <Select.Option value="all">
+                          📖 全部卷章 (共 {selectedOutline?.chaptersOutline?.length || 0} 章)
+                        </Select.Option>
+                        {volumeInfo.volumes.map(vol => {
+                          const nextVol = volumeInfo.volumes.find((v: any) => v.volumeNumber === vol.volumeNumber + 1);
+                          const rangeText = nextVol
+                            ? `(第${vol.startChapter}-${nextVol.startChapter - 1}章)`
+                            : `(第${vol.startChapter}章+)`;
+                          return (
+                            <Select.Option key={vol.volumeNumber} value={vol.volumeNumber}>
+                              第{vol.volumeNumber}卷：{vol.title} {rangeText}
+                            </Select.Option>
+                          );
+                        })}
+                      </Select>
+                    </div>
+                  )}
+                  <div className="tree-scroll">
+                    <div style={{ textAlign: 'center', padding: '30px 12px', color: '#94a3b8' }}>
+                      <div style={{ fontSize: 13, marginBottom: 8 }}>该分卷下暂无章节</div>
+                      <Button size="small" type="dashed" onClick={() => setSelectedVolumeNum(null)}>
+                        显示全部章节
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              );
             }
 
             return (
@@ -494,42 +809,34 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   </div>
                 )}
                 <div className="tree-scroll">
-                  {filteredChapters.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '30px 12px', color: '#94a3b8' }}>
-                      <div style={{ fontSize: 13, marginBottom: 8 }}>该分卷下暂无章节</div>
-                      <Button size="small" type="dashed" onClick={() => setSelectedVolumeNum(null)}>
-                        显示全部章节
-                      </Button>
-                    </div>
-                  ) : (
-                    filteredChapters.map(chap => {
-                      const chapVol = getChapterVolume(chap.chapterNumber, volumeInfo.volumes);
-                      return (
-                        <div
-                          key={chap.chapterNumber}
-                          className={`tree-item ${Number(chap.chapterNumber) === Number(activeChapterNum) ? 'active' : ''}`}
-                          onClick={() => {
-                            if (isDeleteMode) {
-                              toggleCheckChapter(chap.chapterNumber);
-                            } else {
-                              onSelectChapter(chap.chapterNumber);
-                            }
-                          }}
-                        >
-                          {isDeleteMode && (
-                            <Checkbox
-                              checked={checkedChapters.includes(chap.chapterNumber)}
-                              onChange={() => toggleCheckChapter(chap.chapterNumber)}
-                              style={{ marginRight: 8 }}
-                              onClick={e => e.stopPropagation()}
-                            />
-                          )}
-                          <span className="chap-num">#{chap.chapterNumber}</span>
-                          {volumeInfo.parsed && (
-                            <span style={{ fontSize: 10, background: '#e8e8e8', color: '#666', padding: '0px 4px', borderRadius: 4, marginRight: 4, flexShrink: 0 }}>
-                              卷 {chapVol.volumeNumber}
-                            </span>
-                          )}
+                  {filteredChapters.map(chap => {
+                    const chapVol = getChapterVolume(chap.chapterNumber, volumeInfo.volumes);
+                    return (
+                      <div
+                        key={chap.chapterNumber}
+                        className={`tree-item ${Number(chap.chapterNumber) === Number(activeChapterNum) ? 'active' : ''}`}
+                        onClick={() => {
+                          if (isDeleteMode) {
+                            toggleCheckChapter(chap.chapterNumber);
+                          } else {
+                            handleChapterClick(chap.chapterNumber);
+                          }
+                        }}
+                      >
+                        {isDeleteMode && (
+                          <Checkbox
+                            checked={checkedChapters.includes(chap.chapterNumber)}
+                            onChange={() => toggleCheckChapter(chap.chapterNumber)}
+                            style={{ marginRight: 8 }}
+                            onClick={e => e.stopPropagation()}
+                          />
+                        )}
+                        <span className="chap-num">#{chap.chapterNumber}</span>
+                        {volumeInfo.parsed && (
+                          <span style={{ fontSize: 10, background: '#e8e8e8', color: '#666', padding: '0px 4px', borderRadius: 4, marginRight: 4, flexShrink: 0 }}>
+                            卷 {chapVol.volumeNumber}
+                          </span>
+                        )}
                         <span className="chap-name" title={chap.title}>
                           {getCleanChapterTitle(chap)}
                         </span>
@@ -573,48 +880,60 @@ export const EditorView: React.FC<EditorViewProps> = ({
                           )}
                           {!isDeleteMode && (
                             <span className="chap-hover-actions" style={{ display: 'inline-flex', alignItems: 'center' }}>
-                              <Popover
-                                trigger="click"
-                                open={popoverRenameNum === chap.chapterNumber}
-                                onOpenChange={(visible) => {
-                                  if (visible) {
-                                    setPopoverRenameNum(chap.chapterNumber);
-                                    setPopoverRenameValue(chap.title);
-                                  } else {
-                                    setPopoverRenameNum(null);
+                              {popoverRenameNum === chap.chapterNumber ? (
+                                <Popover
+                                  trigger="click"
+                                  open={true}
+                                  onOpenChange={(visible) => {
+                                    if (!visible) setPopoverRenameNum(null);
+                                  }}
+                                  content={
+                                    <div style={{ padding: 4, display: 'flex', gap: 6, alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+                                      <Input
+                                        size="small"
+                                        value={popoverRenameValue}
+                                        onChange={(e) => setPopoverRenameValue(e.target.value)}
+                                        onPressEnter={() => {
+                                          if (popoverRenameValue.trim()) {
+                                            onManualRenameChapter(chap.chapterNumber, popoverRenameValue);
+                                          }
+                                          setPopoverRenameNum(null);
+                                        }}
+                                        autoFocus
+                                        placeholder="输入新章节名"
+                                        style={{ width: 180 }}
+                                      />
+                                      <Button
+                                        type="primary"
+                                        size="small"
+                                        onClick={() => {
+                                          if (popoverRenameValue.trim()) {
+                                            onManualRenameChapter(chap.chapterNumber, popoverRenameValue);
+                                          }
+                                          setPopoverRenameNum(null);
+                                        }}
+                                      >
+                                        确定
+                                      </Button>
+                                    </div>
                                   }
-                                }}
-                                content={
-                                  <div style={{ padding: 4, display: 'flex', gap: 6, alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
-                                    <Input
-                                      size="small"
-                                      value={popoverRenameValue}
-                                      onChange={(e) => setPopoverRenameValue(e.target.value)}
-                                      onPressEnter={() => {
-                                        if (popoverRenameValue.trim()) {
-                                          onManualRenameChapter(chap.chapterNumber, popoverRenameValue);
-                                        }
-                                        setPopoverRenameNum(null);
-                                      }}
-                                      autoFocus
-                                      placeholder="输入新章节名"
-                                      style={{ width: 180 }}
-                                    />
+                                >
+                                  <Tooltip title="修改章节名字">
                                     <Button
-                                      type="primary"
                                       size="small"
-                                      onClick={() => {
-                                        if (popoverRenameValue.trim()) {
-                                          onManualRenameChapter(chap.chapterNumber, popoverRenameValue);
-                                        }
-                                        setPopoverRenameNum(null);
+                                      type="text"
+                                      icon={<EditOutlined />}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setPopoverRenameNum(chap.chapterNumber);
+                                        setPopoverRenameValue(chap.title);
                                       }}
-                                    >
-                                      确定
-                                    </Button>
-                                  </div>
-                                }
-                              >
+                                      className="chap-edit-btn"
+                                      style={{ padding: 0, width: 18, height: 18, fontSize: 11, marginLeft: 2, color: '#595959' }}
+                                    />
+                                  </Tooltip>
+                                </Popover>
+                              ) : (
                                 <Tooltip title="修改章节名字">
                                   <Button
                                     size="small"
@@ -629,7 +948,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                                     style={{ padding: 0, width: 18, height: 18, fontSize: 11, marginLeft: 2, color: '#595959' }}
                                   />
                                 </Tooltip>
-                              </Popover>
+                              )}
                               <Tooltip title={`在该章（第 ${chap.chapterNumber} 章）之后插入新章节`}>
                                 <Button
                                   size="small"
@@ -659,8 +978,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                         </span>
                       </div>
                     );
-                  })
-                )}
+                  })}
                 </div>
               </>
             );
@@ -748,10 +1066,15 @@ export const EditorView: React.FC<EditorViewProps> = ({
               </div>
               <div className="words-stats" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <span>字数统计: {chapterContent.length} 字</span>
+                  <span>字数统计: {localContent.length} 字</span>
                   {isGenerating && (
-                    <span className="speed-stats" style={{marginLeft: 15, color: '#389e0d'}}>
-                      <LoadingOutlined /> 生成中: {writingSpeed}字/秒
+                    <span
+                      className="speed-stats"
+                      style={{ marginLeft: 15, color: '#389e0d', cursor: 'pointer' }}
+                      onClick={() => setIsMultiAgentModalOpen(true)}
+                      title="点击查看像素小人协同界面"
+                    >
+                      <LoadingOutlined /> 生成中: {writingSpeed}字/秒 (👾 点击查看小人)
                     </span>
                   )}
                 </div>
@@ -759,7 +1082,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   type="primary"
                   size="small"
                   icon={<SaveOutlined />}
-                  onClick={() => onSaveChapterContent && onSaveChapterContent(true)}
+                  onClick={() => flushSave(true)}
                   style={{ borderRadius: 4 }}
                 >
                   保存正文
@@ -794,9 +1117,162 @@ export const EditorView: React.FC<EditorViewProps> = ({
               </div>
             )}
 
+            {/* 🚀 全自动连写巡航极简磨砂横条 (36px Slim Bar) */}
+            {isCruising && (
+              <div
+                className="cruise-slim-bar"
+                style={{
+                  height: 38,
+                  minHeight: 38,
+                  maxHeight: 38,
+                  background: 'rgba(30, 41, 59, 0.85)',
+                  backdropFilter: 'blur(8px)',
+                  WebkitBackdropFilter: 'blur(8px)',
+                  color: '#e2e8f0',
+                  padding: '0 12px',
+                  borderRadius: 6,
+                  marginBottom: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.25)',
+                  boxSizing: 'border-box',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                  width: '100%'
+                }}
+              >
+                {/* 左侧：微标 + 状态信息（单行严格防折行） */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 1,
+                  minWidth: 0
+                }}>
+                  <Tag
+                    color="purple"
+                    onClick={() => setIsMultiAgentModalOpen(true)}
+                    title="点击查看像素小人协同界面"
+                    style={{
+                      margin: 0,
+                      fontWeight: 700,
+                      fontSize: 12,
+                      lineHeight: '20px',
+                      height: 22,
+                      padding: '0 7px',
+                      borderRadius: 4,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      flexShrink: 0,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <RocketOutlined spin />
+                    全自动连写 (点击查看)
+                  </Tag>
+
+                  <Tag
+                    color="blue"
+                    style={{
+                      margin: 0,
+                      fontWeight: 700,
+                      fontSize: 12,
+                      lineHeight: '20px',
+                      height: 22,
+                      padding: '0 7px',
+                      borderRadius: 4,
+                      flexShrink: 0
+                    }}
+                  >
+                    第 {currentCruisingChapter} 章
+                  </Tag>
+
+                  <span style={{ fontSize: 12, color: '#94a3b8', flexShrink: 0 }}>
+                    进度: <b style={{ color: '#ffd591' }}>{Math.min(cruiseTargetCount || 1, (completedCount || 0) + 1)}</b> / {cruiseTargetCount} 章
+                  </span>
+
+                  <span style={{
+                    fontSize: 12,
+                    color: '#cbd5e1',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                    opacity: 0.9
+                  }}>
+                    {cruiseStatusText || '流水线处理中...'}
+                  </span>
+
+                  {writingSpeed > 0 && (
+                    <span style={{ fontSize: 11, color: '#52c41a', flexShrink: 0, fontWeight: 600 }}>
+                      ⚡ {writingSpeed} 字/秒
+                    </span>
+                  )}
+                </div>
+
+                {/* 右侧：微型进度条 + 迷你急停按钮 */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  flexShrink: 0,
+                  marginLeft: 12
+                }}>
+                  <Progress
+                    percent={Math.round(((completedCount || 0) / Math.max(1, cruiseTargetCount || 1)) * 100)}
+                    size="small"
+                    style={{ width: 80, margin: 0 }}
+                    strokeColor={{ '0%': '#1890ff', '100%': '#52c41a' }}
+                    trailColor="rgba(255, 255, 255, 0.15)"
+                    showInfo={false}
+                  />
+                  <span style={{ fontSize: 11, color: '#94a3b8', minWidth: 28, textAlign: 'right' }}>
+                    {Math.round(((completedCount || 0) / Math.max(1, cruiseTargetCount || 1)) * 100)}%
+                  </span>
+                  <Button
+                    size="small"
+                    type="link"
+                    icon={<RobotOutlined />}
+                    onClick={() => setIsMultiAgentModalOpen(true)}
+                    style={{ color: '#63b3ed', padding: '0 4px', fontSize: 11, fontWeight: 600 }}
+                  >
+                    Agent 面板
+                  </Button>
+                  {emergencyStop && (
+                    <Button
+                      danger
+                      type="primary"
+                      size="small"
+                      icon={<StopOutlined />}
+                      onClick={emergencyStop}
+                      style={{
+                        height: 24,
+                        fontSize: 12,
+                        padding: '0 8px',
+                        borderRadius: 4,
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        lineHeight: '22px'
+                      }}
+                    >
+                      停止
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {isGenerating && chapterContent.length === 0 ? (
-              <div className="writing-loading-state">
-                <Spin indicator={<LoadingOutlined style={{ fontSize: 32 }} spin />} tip="AI 正在凝神构思，铺展墨水..." />
+              <div className="writing-loading-state" style={{ textAlign: 'center', padding: '40px 0' }}>
+                <Spin indicator={<LoadingOutlined style={{ fontSize: 32 }} spin />} />
+                <div style={{ marginTop: 14, color: '#999', fontSize: 13 }}>AI 正在凝神构思，铺展墨水...</div>
               </div>
             ) : (
               <div className="editor-wrap-box">
@@ -840,19 +1316,16 @@ export const EditorView: React.FC<EditorViewProps> = ({
                 >
                   <textarea
                     ref={textRef}
-                    value={chapterContent}
+                    value={localContent}
+                    readOnly={isCruising}
                     onChange={e => handleTextChange(e.target.value)}
-                    onBlur={() => {
-                      if (onSaveChapterContent) {
-                        onSaveChapterContent(false);
-                      }
-                    }}
+                    onBlur={() => flushSave(false)}
                     onMouseUp={handleTextSelect}
                     onKeyUp={handleTextSelect}
                     onSelect={handleTextSelect}
                     className="inkwell-textarea"
                     style={{ fontSize: `${fontSize}px` }}
-                    placeholder="如果您处于[待写]状态，可在此处编写，或在右侧配置突发剧情干预，然后点击下方【召唤 AI 智能撰写章节正文】..."
+                    placeholder={isCruising ? "🚀 全自动连写巡航正在流式撰写中，请勿手动编辑..." : "如果您处于[待写]状态，可在此处编写，或在右侧配置突发剧情干预，然后点击下方【召唤 AI 智能撰写章节正文】..."}
                   />
                 </Popover>
               </div>
@@ -864,10 +1337,11 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   <Select
                     value={wordCountLimit}
                     onChange={setWordCountLimit}
-                    style={{ minWidth: 110 }}
+                    style={{ minWidth: 160 }}
                     className="word-limit-select"
                     popupClassName="word-limit-popup"
                   >
+                    <Select.Option value={0}>不限字数 (剧情自由发挥)</Select.Option>
                     <Select.Option value={1500}>1500 字</Select.Option>
                     <Select.Option value={2000}>2000 字</Select.Option>
                     <Select.Option value={2500}>2500 字</Select.Option>
@@ -884,7 +1358,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                         const start = textRef.current.selectionStart;
                         const end = textRef.current.selectionEnd;
                         if (start !== end) {
-                          const txt = chapterContent.substring(start, end);
+                          const txt = localContent.substring(start, end);
                           setSelectedText(txt);
                           setSelectedRange({ start, end });
                           setShowPolishPop(true);
@@ -903,7 +1377,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   <Button
                     style={{ backgroundColor: '#722ed1', borderColor: '#722ed1', color: '#fff', fontWeight: 600 }}
                     loading={isDeslopping}
-                    disabled={isGenerating || !chapterContent.trim()}
+                    disabled={isGenerating || !localContent.trim()}
                     onClick={() => onDeslopContent && onDeslopContent()}
                     icon={<span>✨</span>}
                   >
@@ -911,24 +1385,85 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   </Button>
                   <Button
                     icon={<PlusOutlined />}
-                    onClick={onContinueWriting}
-                    loading={loading}
+                    onClick={() => {
+                      if (isGenerating || isCruising) {
+                        setIsMultiAgentModalOpen(true);
+                      } else {
+                        onContinueWriting();
+                      }
+                    }}
+                    loading={loading && !isGenerating}
                   >
-                    AI 一键续写
+                    {isGenerating || isCruising ? '👾 写作中 (点击查看小人)' : 'AI 一键续写'}
                   </Button>
                   <Button
                     icon={<RedoOutlined />}
-                    danger
-                    onClick={() => onWriteChapterStream(false)}
-                    disabled={isGenerating}
+                    danger={!isGenerating && !isCruising}
+                    onClick={() => {
+                      if (isGenerating || isCruising) {
+                        setIsMultiAgentModalOpen(true);
+                        return;
+                      }
+                      onWriteChapterStream(false);
+                    }}
                   >
-                    重写当前章
+                    {isGenerating || isCruising ? '👾 写作中 (点击查看小人)' : '重写当前章'}
                   </Button>
                 </Space>
               ) : (
                 <div style={{width: '100%'}}>
-                  {isGenerating ? (
+                  {isCruising ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '6px 0', gap: 12 }}>
+                      <Button
+                        type="primary"
+                        icon={<RobotOutlined />}
+                        onClick={() => setIsMultiAgentModalOpen(true)}
+                        style={{
+                          background: 'linear-gradient(135deg, #1890ff, #722ed1)',
+                          borderColor: '#722ed1',
+                          fontWeight: 600,
+                          borderRadius: 6
+                        }}
+                      >
+                        👾 像素小人协同监控
+                      </Button>
+                      <Tag
+                        color="purple"
+                        style={{ fontSize: 13, padding: '4px 12px', margin: 0, borderRadius: 4, cursor: 'pointer' }}
+                        onClick={() => setIsMultiAgentModalOpen(true)}
+                        title="点击查看像素小人协同界面"
+                      >
+                        <RocketOutlined spin /> 全自动连写巡航中 (第 {currentCruisingChapter} 章)
+                      </Tag>
+                      {emergencyStop && (
+                        <Button
+                          type="primary"
+                          danger
+                          size="middle"
+                          icon={<StopOutlined />}
+                          onClick={emergencyStop}
+                          style={{ borderRadius: 6, fontWeight: 600 }}
+                        >
+                          🛑 停止巡航
+                        </Button>
+                      )}
+                    </div>
+                  ) : isGenerating ? (
                     <div style={{ display: 'flex', gap: 12, width: '100%', flexWrap: 'wrap' }}>
+                      <Button
+                        type="primary"
+                        icon={<RobotOutlined />}
+                        style={{
+                          background: 'linear-gradient(135deg, #1890ff, #722ed1)',
+                          borderColor: '#722ed1',
+                          fontWeight: 600,
+                          flex: 1
+                        }}
+                        size="large"
+                        onClick={() => setIsMultiAgentModalOpen(true)}
+                      >
+                        👾 查看像素小人协同界面
+                      </Button>
                       <Button
                         type="primary"
                         style={{ backgroundColor: '#fa8c16', borderColor: '#fa8c16', flex: 1 }}
@@ -948,15 +1483,15 @@ export const EditorView: React.FC<EditorViewProps> = ({
                       </Button>
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', gap: 12, width: '100%', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                       <Select
                         value={wordCountLimit}
                         onChange={setWordCountLimit}
-                        size="large"
-                        style={{ width: 140 }}
+                        style={{ width: 170 }}
                         className="word-limit-select"
                         popupClassName="word-limit-popup"
                       >
+                        <Select.Option value={0}>不限字数 (剧情自由发挥)</Select.Option>
                         <Select.Option value={1500}>1500 字</Select.Option>
                         <Select.Option value={2000}>2000 字</Select.Option>
                         <Select.Option value={2500}>2500 字(默认)</Select.Option>
@@ -964,41 +1499,57 @@ export const EditorView: React.FC<EditorViewProps> = ({
                         <Select.Option value={4000}>4000 字</Select.Option>
                         <Select.Option value={5000}>5000 字</Select.Option>
                       </Select>
-                      {isPaused ? (
-                        <div style={{ display: 'flex', gap: 12, flex: 1 }}>
+                      {isPaused || (localContent && localContent.trim().length > 30) ? (
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                           <Button
                             type="primary"
                             icon={<PlayCircleOutlined />}
-                            size="large"
-                            style={{ flex: 2 }}
-                            onClick={() => onWriteChapterStream(true)}
+                            style={{
+                              height: 38,
+                              padding: '0 18px',
+                              borderRadius: 6,
+                              background: 'linear-gradient(135deg, #1890ff, #722ed1)',
+                              borderColor: '#722ed1',
+                              fontWeight: 600
+                            }}
+                            onClick={() => {
+                              if (isGenerating || isCruising) {
+                                setIsMultiAgentModalOpen(true);
+                                return;
+                              }
+                              onWriteChapterStream(true);
+                            }}
                             className="btn-trigger-ai"
                           >
-                            ▶️ 继续 AI 撰写
+                            ▶️ 断点继续生成 ({localContent.trim().length}字起)
                           </Button>
                           <Button
                             danger
-                            size="large"
                             icon={<RedoOutlined />}
-                            style={{ flex: 1 }}
+                            style={{ height: 38, padding: '0 14px', borderRadius: 6 }}
                             onClick={() => {
                               setIsPaused(false);
                               onWriteChapterStream(false);
                             }}
                           >
-                            放弃并重写
+                            放弃并从头重写
                           </Button>
                         </div>
                       ) : (
                         <Button
                           type="primary"
                           icon={<PlayCircleOutlined />}
-                          size="large"
-                          style={{ flex: 1 }}
-                          onClick={() => onWriteChapterStream(false)}
+                          style={{ height: 38, padding: '0 22px', borderRadius: 6 }}
+                          onClick={() => {
+                            if (isGenerating || isCruising) {
+                              setIsMultiAgentModalOpen(true);
+                              return;
+                            }
+                            onWriteChapterStream(false);
+                          }}
                           className="btn-trigger-ai"
                         >
-                          🖋️ 召唤 AI 智能撰写章节正文
+                          {isGenerating || isCruising ? '👾 写作中，点击查看像素小人协同界面' : '🖋️ 召唤 AI 智能撰写章节正文'}
                         </Button>
                       )}
                     </div>
@@ -1105,55 +1656,148 @@ export const EditorView: React.FC<EditorViewProps> = ({
             </Card>
 
             <Card
-              className="mainline-sandbox-card"
+              className="prompt-trajectory-card"
               title={
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                  <span>⛓️ 四大分卷升级主线沙盘</span>
-                  <Space size="middle">
-                    <Button
-                      size="small"
-                      type="link"
-                      icon={<FullscreenOutlined />}
-                      style={{ color: '#d4b106', padding: 0 }}
-                      onClick={() => onOpenManualEdit('mainLine', '四大分卷升级主线沙盘', selectedOutline?.mainLine || '')}
-                    />
-                    <Button
-                      size="small"
-                      type="link"
-                      icon={<RocketOutlined />}
-                      style={{ color: '#d4b106', padding: 0 }}
-                      onClick={() => {
-                        setModifyField('mainLine');
-                        setIsModifyModalOpen(true);
-                      }}
-                    >
-                      AI修改
-                    </Button>
-                  </Space>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <Space size="small">
+                      <span>🧭 AI 调用与 Prompt 轨迹</span>
+                      <Badge
+                        count={displayedPromptLogs.length}
+                        overflowCount={999}
+                        style={{ backgroundColor: promptLogScope === 'current' ? '#1890ff' : '#52c41a' }}
+                      />
+                    </Space>
+                    <Space size={4}>
+                      <Button
+                        size="small"
+                        type="link"
+                        icon={<ReloadOutlined />}
+                        style={{ color: '#d4b106', padding: 0 }}
+                        title="刷新 Prompt 轨迹"
+                        onClick={() => fetchPromptLogs(promptLogScope === 'current' ? activeChapterNum : undefined)}
+                      />
+                      <Popconfirm
+                        title={promptLogScope === 'current' && activeChapterNum ? `确定清空第 ${activeChapterNum} 章的所有 Prompt 轨迹吗？` : '确定清空全书的所有 Prompt 轨迹吗？'}
+                        onConfirm={handleClearPromptLogs}
+                        okText="确定"
+                        cancelText="取消"
+                      >
+                        <Button
+                          size="small"
+                          type="link"
+                          icon={<DeleteOutlined />}
+                          style={{ color: '#ff4d4f', padding: 0 }}
+                          title={promptLogScope === 'current' && activeChapterNum ? `清空第 ${activeChapterNum} 章 Prompt 轨迹` : '清空全书 Prompt 轨迹'}
+                        />
+                      </Popconfirm>
+                    </Space>
+                  </div>
+                  <Segmented
+                    size="small"
+                    value={promptLogScope}
+                    onChange={(val) => setPromptLogScope(val as 'current' | 'all')}
+                    options={[
+                      {
+                        label: activeChapterNum ? `第 ${activeChapterNum} 章 (${currentChapterPromptLogs.length})` : '当前章',
+                        value: 'current',
+                      },
+                      {
+                        label: `全部 (${promptLogs?.length || 0})`,
+                        value: 'all',
+                      },
+                    ]}
+                    block
+                  />
                 </div>
               }
               size="small"
               style={{ marginBottom: 16 }}
             >
-              <TextArea
-                value={selectedOutline?.mainLine}
-                onChange={e => {
-                  if (selectedOutline) {
-                    setSelectedOutline({ ...selectedOutline, mainLine: e.target.value });
-                  }
-                }}
-                onBlur={async e => {
-                  if (!selectedNovel) return;
-                  await httpService.post('/ai-novel/save-outline', {
-                    novelId: selectedNovel.id,
-                    mainLine: e.target.value
-                  });
-                  message.success({ content: '主线沙盘设定自动保存成功！', duration: 1.5 });
-                }}
-                rows={6}
-                placeholder="在此输入并修改主线沙盘设定，引导后续剧情的发展大方向..."
-                style={{ fontSize: 13 }}
-              />
+              {displayedPromptLogs.length === 0 ? (
+                <div className="prompt-trail-empty">
+                  <div className="prompt-trail-empty-text">
+                    {promptLogScope === 'current' && activeChapterNum
+                      ? `第 ${activeChapterNum} 章暂无 AI 轨迹`
+                      : '暂无 Prompt 轨迹记录'}
+                  </div>
+                  {promptLogScope === 'current' && activeChapterNum ? (
+                    <Space size="small">
+                      <Button
+                        size="small"
+                        type="link"
+                        style={{ fontSize: 11, padding: 0 }}
+                        onClick={() => setPromptLogScope('all')}
+                      >
+                        查看全书所有轨迹
+                      </Button>
+                      <span className="prompt-trail-divider">|</span>
+                      <Button
+                        size="small"
+                        type="link"
+                        style={{ fontSize: 11, padding: 0 }}
+                        onClick={() => fetchPromptLogs(activeChapterNum)}
+                      >
+                        检索本章
+                      </Button>
+                    </Space>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="prompt-trail-list-wrapper">
+                  <div className="prompt-trail-list-header">
+                    <span>步骤名称与时间</span>
+                    <span>详情</span>
+                  </div>
+                  <VirtualList
+                    data={displayedPromptLogs}
+                    height={320}
+                    itemHeight={52}
+                    itemKey={(item: PromptLogItem) => String(item.id || Math.random())}
+                  >
+                    {(record: PromptLogItem) => (
+                      <div
+                        key={record.id}
+                        className="prompt-trail-list-item"
+                      >
+                        <div className="prompt-trail-item-main">
+                          <div className="prompt-trail-item-title-row">
+                            <span className={`prompt-trail-item-title ${record.status === 'error' ? 'is-error' : ''}`}>
+                              {record.stepName || 'AI 调用'}
+                            </span>
+                            {record.status === 'error' && (
+                              <Tag color="error" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0, flexShrink: 0 }}>
+                                失败
+                              </Tag>
+                            )}
+                            {record.chapterNumber && (
+                              <Tag color="cyan" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0, flexShrink: 0 }}>
+                                第 {record.chapterNumber} 章
+                              </Tag>
+                            )}
+                          </div>
+                          <div className="prompt-trail-item-meta">
+                            {record.createdAt || ''}
+                            {record.durationMs ? ` · ${(record.durationMs / 1000).toFixed(1)}s` : ''}
+                          </div>
+                        </div>
+                        <Button
+                          size="small"
+                          type="primary"
+                          ghost
+                          style={{ fontSize: 11, padding: '0 8px', height: 22, flexShrink: 0 }}
+                          onClick={() => {
+                            setActivePromptLog(record);
+                            setIsPromptModalOpen(true);
+                          }}
+                        >
+                          详情
+                        </Button>
+                      </div>
+                    )}
+                  </VirtualList>
+                </div>
+              )}
             </Card>
 
             <Card
@@ -1223,7 +1867,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                     key: 'c',
                     label: (
                       <Space>
-                        <span>主角团</span>
+                        <span>👤 主角人设规范</span>
                         <Button
                           size="small"
                           type="text"
@@ -1253,10 +1897,10 @@ export const EditorView: React.FC<EditorViewProps> = ({
                             novelId: selectedNovel.id,
                             characterSetting: e.target.value
                           });
-                          message.success({ content: '主角团人设已自动保存！', duration: 1.5 });
+                          message.success({ content: '主角人设与言行规范已自动保存！', duration: 1.5 });
                         }}
                         rows={8}
-                        placeholder="在此输入并修改主要人物及角色设定..."
+                        placeholder={`在此输入主角核心人设与言行规范（与世界观同等地位）：\n【核心性格】：...\n【对外说话风格与口癖】：（如：极度诚挚直球、不玩现代流行语）\n【战斗获胜/降维打击时】：（如：从容从武道逻辑指出对手负担，绝不油腻装逼）\n【绝对严禁行为与OOC红线】：（如：严禁现代都市网梗口水话）`}
                         style={{ fontSize: 13 }}
                       />
                     )
@@ -1310,11 +1954,11 @@ export const EditorView: React.FC<EditorViewProps> = ({
                           </Card>
 
                           {/* 随身关键道具/战利品 */}
-                          {selectedOutline?.systemAndCultivationState?.protagonistCultivation?.inventory && selectedOutline.systemAndCultivationState.protagonistCultivation.inventory.length > 0 && (
+                          {Boolean(safeOutline.systemAndCultivationState?.protagonistCultivation?.inventory && safeOutline.systemAndCultivationState.protagonistCultivation.inventory.length > 0) && (
                             <div>
                               <div style={{ fontSize: 11, fontWeight: 600, color: "#666", marginBottom: 4 }}>🎒 关键战利品与随身底牌：</div>
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                                {selectedOutline.systemAndCultivationState.protagonistCultivation.inventory.map((item, idx) => (
+                                {(safeOutline.systemAndCultivationState?.protagonistCultivation?.inventory || []).map((item, idx) => (
                                   <Tag key={idx} color="gold" style={{ fontSize: 10, margin: 0 }}>
                                     {item}
                                   </Tag>
@@ -1324,12 +1968,12 @@ export const EditorView: React.FC<EditorViewProps> = ({
                           )}
 
                           <div className="section-sub-title">已解锁金手指/系统功能：</div>
-                          {(!selectedOutline?.systemAndCultivationState?.systemFeatures || selectedOutline.systemAndCultivationState.systemFeatures.length === 0) ? (
+                          {(!safeOutline.systemAndCultivationState?.systemFeatures || safeOutline.systemAndCultivationState.systemFeatures.length === 0) ? (
                             <div className="empty-sub-tip">
                               暂无系统功能记载，可在正文生成后点击上方按钮 AI 分析提取。
                             </div>
                           ) : (
-                            selectedOutline.systemAndCultivationState.systemFeatures.map((feat, idx) => (
+                            (safeOutline.systemAndCultivationState.systemFeatures || []).map((feat, idx) => (
                               <div key={idx} className="cultivation-feat-card">
                                 <div className="feat-header">
                                   <span className="feat-name">{feat.featureName}</span>
@@ -1341,11 +1985,11 @@ export const EditorView: React.FC<EditorViewProps> = ({
                           )}
 
                           {/* 活跃伏笔与线索追踪 */}
-                          {selectedOutline?.systemAndCultivationState?.foreshadowingNotes && selectedOutline.systemAndCultivationState.foreshadowingNotes.length > 0 && (
+                          {Boolean(safeOutline.systemAndCultivationState?.foreshadowingNotes && safeOutline.systemAndCultivationState.foreshadowingNotes.length > 0) && (
                             <div style={{ marginTop: 6 }}>
                               <div className="section-foreshadow-title">🔍 活跃伏笔与悬念线索库：</div>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                {selectedOutline.systemAndCultivationState.foreshadowingNotes.map((note, idx) => (
+                                {(safeOutline.systemAndCultivationState.foreshadowingNotes || []).map((note, idx) => (
                                   <div key={idx} className="foreshadow-note-card">
                                     <div className="foreshadow-header">
                                       <span className="foreshadow-clue">{note.clue}</span>
@@ -1411,12 +2055,13 @@ export const EditorView: React.FC<EditorViewProps> = ({
                         </div>
 
                         <div className="relationships-scroll-list" style={{ maxHeight: 340, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, paddingRight: 4 }}>
-                          {(!selectedOutline?.characterRelationships || selectedOutline.characterRelationships.length === 0) ? (
+                          {safeOutline.characterRelationships.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: '30px 10px', color: '#ccc', fontSize: 12 }}>
                               暂无人物关系记录，可在正文生成后自动提取，或点击上方按钮手动录入。
                             </div>
                           ) : (() => {
-                            const sortedAll = [...(selectedOutline.characterRelationships)].sort((a, b) => {
+                            const relList = safeOutline.characterRelationships;
+                            const sortedAll = [...relList].sort((a, b) => {
                               const aMax = Math.max(...(a.appearanceChapters || [0]));
                               const bMax = Math.max(...(b.appearanceChapters || [0]));
                               return relSortAsc ? aMax - bMax : bMax - aMax;
@@ -1556,7 +2201,10 @@ export const EditorView: React.FC<EditorViewProps> = ({
                         {/* 记忆列表 */}
                         <div style={{ maxHeight: 330, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
                           {loadingMemories ? (
-                            <div style={{ textAlign: 'center', padding: '30px 0' }}><Spin size="small" tip="正在检索记忆库..." /></div>
+                            <div style={{ textAlign: 'center', padding: '30px 0' }}>
+                              <Spin size="small" />
+                              <div style={{ marginTop: 8, color: '#999', fontSize: 12 }}>正在检索记忆库...</div>
+                            </div>
                           ) : vectorMemories.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: '40px 10px', color: '#ccc', fontSize: 12 }}>
                               暂无已沉淀的长程记忆切片。<br />章节正文生成后后台会自动提炼入库。
@@ -1622,6 +2270,27 @@ export const EditorView: React.FC<EditorViewProps> = ({
           </div>
         </div>
       </div>
+      <PromptDetailModal
+        open={isPromptModalOpen}
+        onCancel={() => {
+          setIsPromptModalOpen(false);
+          setActivePromptLog(null);
+        }}
+        log={activePromptLog}
+        paperTheme={paperTheme}
+      />
+      <MultiAgentModal
+        open={isMultiAgentModalOpen}
+        onCancel={() => setIsMultiAgentModalOpen(false)}
+        currentArc={currentArc}
+        currentChapterNum={activeChapterNum}
+        agentNodes={agentNodes}
+        criticReport={criticReport}
+        wildReaderFeedback={wildReaderFeedback}
+        agentThoughts={agentThoughts}
+        isGenerating={isGenerating || !!isCruising}
+        onStartWrite={() => onWriteChapterStream(false)}
+      />
     </div>
   );
 };

@@ -13,6 +13,14 @@
     padding: 16px;
     transition: background-color 0.3s ease;
 
+    &.body-no-padding {
+      padding: 0 !important;
+      overflow: hidden !important;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
     // 自定义滚动条
     &::-webkit-scrollbar {
       width: 6px;

@@ -108,7 +108,7 @@ const CommonTable: React.FC<CommonTableProps> = ({
     <div className="common-table">
       <Table
         dataSource={data}
-        pagination={defaultPagination}
+        pagination={defaultPagination as any}
         onChange={onChange}
         rowKey={rowKey}
         scroll={scroll}

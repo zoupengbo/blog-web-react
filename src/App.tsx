@@ -5,7 +5,7 @@ import { PageLeft } from "@layout/page-left";
 import { PageTop } from "@layout/page-top";
 import { PageContent } from "@layout/page-content";
 import LoginPage from "@pages/login";
-import { AuthProvider, useAuth } from "@context/authContext.tsx";
+import { AuthProvider, useAuth } from "@context/authContext";
 import { NavigationProvider } from "@context/NavigationContext";
 import { ThemeProvider, useTheme } from "./context/themeContext";
 import { AiConfigProvider } from "./context/aiConfigContext";

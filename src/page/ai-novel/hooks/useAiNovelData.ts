@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { message, Modal } from 'antd';
 import httpService from '../../../common/request';
 import { Novel, NovelOutline, Idea } from '../types';
@@ -19,6 +19,7 @@ export const useAiNovelData = (
   const [selectedOutline, setSelectedOutline] = useState<NovelOutline>(EMPTY_OUTLINE);
   const [draftOutline, setDraftOutline] = useState<NovelOutline | null>(null);
   const [chosenIdea, setChosenIdea] = useState<Idea | null>(null);
+  const latestLoadChapterReqRef = useRef<number>(0);
 
   const extractChapterContent = (value: any): string => {
     if (typeof value === 'string') return value;
@@ -45,9 +46,13 @@ export const useAiNovelData = (
   };
 
   const loadChapterContent = async (novelId: number, chNum: number) => {
+    const reqId = ++latestLoadChapterReqRef.current;
     setChapterContent('');
     try {
       const resContent: any = await httpService.get(`/ai-novel/chapter-content?novelId=${novelId}&chapterNumber=${chNum}&_t=${Date.now()}`);
+      if (reqId !== latestLoadChapterReqRef.current) {
+        return;
+      }
       if (resContent.code === 200 && resContent.data) {
         const text = extractChapterContent(resContent.data);
         setChapterContent(text);
@@ -85,7 +90,9 @@ export const useAiNovelData = (
         setChapterContent('');
       }
     } catch (e) {
-      setChapterContent('');
+      if (reqId === latestLoadChapterReqRef.current) {
+        setChapterContent('');
+      }
     }
   };
 

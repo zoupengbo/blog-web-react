@@ -22,7 +22,7 @@ const getErrorMessage = (error: any): string => {
       case 429:
         return "请求过于频繁，请稍后重试";
       case 500:
-        return "服务器内部错误";
+        return data?.msg || data?.error || "服务器内部错误";
       case 502:
         return "网关错误";
       case 503:

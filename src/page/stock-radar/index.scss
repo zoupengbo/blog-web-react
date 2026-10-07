@@ -1,0 +1,743 @@
+.stock-radar-container {
+  padding: 20px;
+  min-height: calc(100vh - 120px);
+
+  .header-card {
+    margin-bottom: 16px;
+    border-radius: 12px;
+    background: var(--bg-card, #ffffff);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+
+      .title-area {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        .title-icon {
+          font-size: 28px;
+          color: #ff4d4f;
+        }
+
+        h2 {
+          margin: 0;
+          font-size: 20px;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+        }
+
+        .subtitle {
+          color: #8c8c8c;
+          font-size: 13px;
+        }
+      }
+
+      .action-area {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+    }
+
+    .indices-row {
+      margin-bottom: 16px;
+
+      .index-card {
+        padding: 12px 14px;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.02);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        transition: all 0.2s;
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .index-name {
+          font-size: 13px;
+          color: #595959;
+          margin-bottom: 4px;
+          display: flex;
+          justify-content: space-between;
+        }
+
+        .index-price {
+          font-size: 18px;
+          font-weight: 700;
+          font-family: 'DIN Alternate', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .index-change {
+          font-size: 13px;
+          font-weight: 600;
+          margin-left: 6px;
+        }
+
+        &.up {
+          border-left: 3px solid #f5222d;
+          .index-price, .index-change {
+            color: #cf1322;
+          }
+        }
+
+        &.down {
+          border-left: 3px solid #52c41a;
+          .index-price, .index-change {
+            color: #389e0d;
+          }
+        }
+      }
+    }
+
+    .market-stats-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: rgba(24, 144, 255, 0.04);
+      border-radius: 8px;
+      flex-wrap: wrap;
+      gap: 12px;
+
+      .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+
+        .label {
+          color: #8c8c8c;
+        }
+        .val {
+          font-weight: 600;
+        }
+      }
+    }
+  }
+
+  // 大盘弱势防御预警 Banner
+  .defensive-warning-banner {
+    border: 1px solid #ffbb96;
+    background: linear-gradient(90deg, #fff2e8 0%, #fff7e6 100%);
+    box-shadow: 0 4px 12px rgba(250, 84, 28, 0.08);
+
+    .ant-alert-message {
+      color: #d4380d;
+      font-weight: 700;
+    }
+  }
+
+  // 多策略雷达切换卡片
+  .strategy-switcher-card {
+    border-radius: 12px;
+    background: var(--bg-card, #ffffff);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+
+    .strategy-switcher-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 8px;
+
+      .title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .strategy-top-segmented {
+        font-weight: 600;
+        background: rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+      }
+    }
+
+    .strategy-cards-row {
+      .strategy-item-card {
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 10px;
+        padding: 14px 16px;
+        background: rgba(0, 0, 0, 0.015);
+        cursor: pointer;
+        transition: all 0.25s ease-in-out;
+        position: relative;
+        overflow: hidden;
+
+        &:hover {
+          transform: translateY(-2px);
+          border-color: #91caff;
+          box-shadow: 0 4px 12px rgba(24, 144, 255, 0.12);
+        }
+
+        &.active {
+          border-color: #1890ff;
+          background: rgba(24, 144, 255, 0.04);
+          box-shadow: 0 4px 16px rgba(24, 144, 255, 0.15);
+        }
+
+        .strat-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+
+          .strat-name-box {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+
+            .strat-icon {
+              font-size: 16px;
+            }
+
+            .strat-name {
+              font-size: 15px;
+              font-weight: 700;
+            }
+          }
+        }
+
+        .strat-desc {
+          font-size: 12px;
+          color: #595959;
+          margin-bottom: 8px;
+          line-height: 1.5;
+        }
+
+        .strat-target, .strat-risk {
+          font-size: 11px;
+          color: #8c8c8c;
+          margin-bottom: 2px;
+          line-height: 1.4;
+
+          .label {
+            color: #595959;
+            font-weight: 600;
+          }
+        }
+
+        .strat-active-tag {
+          position: absolute;
+          right: 0;
+          bottom: 0;
+          background: #1890ff;
+          color: #ffffff;
+          font-size: 10px;
+          padding: 2px 8px 2px 10px;
+          border-top-left-radius: 8px;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+      }
+    }
+  }
+
+  // 量化风控单元格
+  .quant-risk-cell {
+    font-size: 11px;
+
+    .risk-metric-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 4px;
+
+      .risk-metric-tag {
+        display: inline-block;
+        padding: 0 4px;
+        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.03);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        line-height: 18px;
+      }
+    }
+
+    .risk-badges-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+  }
+
+  // 卡片中的量化波动率指标条
+  .card-quant-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    font-size: 11px;
+    flex-wrap: wrap;
+
+    .quant-item {
+      color: #595959;
+      b {
+        font-weight: 700;
+      }
+    }
+  }
+
+  .insight-alert {
+    margin-bottom: 16px;
+    border-radius: 8px;
+    border: 1px solid #ffe58f;
+    background: #fffbe6;
+
+    .ant-alert-message {
+      font-weight: 700;
+      color: #d46b08;
+    }
+
+    .ant-alert-description {
+      color: #595959;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+  }
+
+  .main-content-card {
+    border-radius: 12px;
+    background: var(--bg-card, #ffffff);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+
+    .table-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 10px;
+
+      .left-tags {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+    }
+
+    .stock-name-cell {
+      .stock-name {
+        font-weight: 600;
+        font-size: 14px;
+        color: #1890ff;
+        cursor: pointer;
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+      .stock-code {
+        font-size: 12px;
+        color: #8c8c8c;
+        margin-left: 6px;
+      }
+    }
+
+    .win-rate-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 13px;
+      background: #fff1f0;
+      color: #cf1322;
+      border: 1px solid #ffa39e;
+
+      &.high {
+        background: #fff7e6;
+        color: #d46b08;
+        border-color: #ffd591;
+      }
+    }
+
+    .trade-plan-cell {
+      font-size: 12px;
+      line-height: 1.5;
+      .plan-row {
+        display: flex;
+        gap: 4px;
+        .plan-label {
+          color: #8c8c8c;
+        }
+        .plan-val {
+          font-weight: 500;
+        }
+      }
+    }
+
+    .rationale-text {
+      font-size: 13px;
+      color: #595959;
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .ant-table-wrapper {
+      .ant-table-cell {
+        padding: 12px 10px;
+      }
+
+      .ant-table-cell-fix-right,
+      .ant-table-cell-fix-left {
+        background: var(--bg-card, #ffffff) !important;
+        z-index: 2;
+      }
+
+      .ant-table-row:hover {
+        .ant-table-cell-fix-right,
+        .ant-table-cell-fix-left {
+          background: #fafafa !important;
+        }
+      }
+    }
+  }
+
+  .stock-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+
+    .stock-card {
+      border-radius: 10px;
+      border: 1px solid #f0f0f0;
+      transition: all 0.25s;
+
+      &:hover {
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+        border-color: #91caff;
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+
+        .name-box {
+          .name {
+            font-size: 16px;
+            font-weight: 700;
+          }
+          .code {
+            font-size: 12px;
+            color: #8c8c8c;
+            margin-left: 6px;
+          }
+        }
+      }
+
+      .card-price-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px dashed #f0f0f0;
+
+        .price {
+          font-size: 20px;
+          font-weight: 700;
+          color: #cf1322;
+        }
+        .gain {
+          font-size: 13px;
+          font-weight: 600;
+        }
+      }
+
+      .card-plan-box {
+        background: rgba(0, 0, 0, 0.02);
+        padding: 8px 10px;
+        border-radius: 6px;
+        margin-bottom: 10px;
+        font-size: 12px;
+
+        .plan-item {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 3px;
+          &:last-child {
+            margin-bottom: 0;
+          }
+        }
+      }
+
+      .card-rationale {
+        font-size: 12px;
+        color: #595959;
+        line-height: 1.5;
+        margin-bottom: 12px;
+        height: 38px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+    }
+  }
+
+  .detail-drawer {
+    .drawer-header-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f0f0f0;
+
+      .price-big {
+        font-size: 24px;
+        font-weight: 700;
+        color: #cf1322;
+      }
+    }
+
+    .detail-risk-metrics-card {
+      background: rgba(24, 144, 255, 0.03);
+      border: 1px solid rgba(24, 144, 255, 0.15);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+
+      .risk-metric-box {
+        background: rgba(255, 255, 255, 0.6);
+        border: 1px solid rgba(0, 0, 0, 0.04);
+        border-radius: 6px;
+        padding: 6px 8px;
+
+        .k {
+          font-size: 11px;
+          color: #8c8c8c;
+          display: block;
+          margin-bottom: 2px;
+        }
+
+        .v {
+          font-size: 14px;
+          font-weight: 700;
+          color: #262626;
+        }
+      }
+    }
+
+    .detail-tiered-points-box {
+      background: #fafafa;
+      border: 1px solid #f0f0f0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+
+      .tiered-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 13px;
+        font-weight: 700;
+        color: #262626;
+      }
+
+      .point-item {
+        font-size: 12px;
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 0;
+
+        .label {
+          color: #8c8c8c;
+        }
+        .val {
+          font-weight: 600;
+        }
+      }
+    }
+
+    .chart-box {
+      width: 100%;
+      height: 280px;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin: 16px 0 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .thesis-card {
+      background: #fafafa;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #262626;
+      margin-bottom: 12px;
+    }
+  }
+}
+
+// 暗黑模式适配
+.dark-theme .stock-radar-container {
+  .header-card, .main-content-card, .strategy-switcher-card {
+    background: #1f1f1f;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  .defensive-warning-banner {
+    background: #2b1d11;
+    border-color: #5c2b0b;
+    .ant-alert-message {
+      color: #ff7a45;
+    }
+  }
+
+  .strategy-switcher-card {
+    .strategy-top-segmented {
+      background: #141414;
+      border: 1px solid #303030;
+      .ant-segmented-item-selected {
+        background: #177ddc;
+        color: #ffffff;
+      }
+    }
+
+    .strategy-cards-row .strategy-item-card {
+      background: #141414;
+      border-color: #303030;
+
+      &.active {
+        background: rgba(24, 144, 255, 0.12);
+        border-color: #177ddc;
+      }
+
+      .strat-desc {
+        color: #8c8c8c;
+      }
+      .strat-target, .strat-risk {
+        color: #666;
+        .label {
+          color: #8c8c8c;
+        }
+      }
+    }
+  }
+
+  .quant-risk-cell {
+    .risk-metric-row .risk-metric-tag {
+      background: #141414;
+      border-color: #303030;
+    }
+  }
+
+  .card-quant-bar {
+    background: #1f1f1f;
+    .quant-item {
+      color: #8c8c8c;
+    }
+  }
+
+  .main-content-card {
+    .ant-table-wrapper {
+      .ant-table-cell-fix-right,
+      .ant-table-cell-fix-left {
+        background: #1f1f1f !important;
+      }
+
+      .ant-table-row:hover {
+        .ant-table-cell-fix-right,
+        .ant-table-cell-fix-left {
+          background: #282828 !important;
+        }
+      }
+    }
+  }
+
+  .header-card .indices-row .index-card {
+    background: #141414;
+    border-color: #303030;
+    .index-name {
+      color: #8c8c8c;
+    }
+  }
+
+  .header-card .market-stats-bar {
+    background: rgba(24, 144, 255, 0.1);
+  }
+
+  .insight-alert {
+    background: #2b2111;
+    border-color: #594214;
+    .ant-alert-description {
+      color: #d9d9d9;
+    }
+  }
+
+  .stock-cards-grid .stock-card {
+    background: #141414;
+    border-color: #303030;
+    .card-plan-box {
+      background: #1f1f1f;
+    }
+    .card-rationale {
+      color: #a6a6a6;
+    }
+  }
+
+  .detail-drawer {
+    .detail-risk-metrics-card {
+      background: rgba(24, 144, 255, 0.08);
+      border-color: rgba(24, 144, 255, 0.2);
+
+      .risk-metric-box {
+        background: #141414;
+        border-color: #303030;
+        .v {
+          color: #d9d9d9;
+        }
+      }
+    }
+
+    .detail-tiered-points-box {
+      background: #141414;
+      border-color: #303030;
+      .tiered-header {
+        color: #d9d9d9;
+      }
+    }
+
+    .thesis-card {
+      background: #141414;
+      color: #dfdfdf;
+    }
+  }
+
+  .ant-picker-dropdown {
+    .ant-picker-panel-container {
+      background: #1f1f1f;
+      border: 1px solid #303030;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }
+  }
+}

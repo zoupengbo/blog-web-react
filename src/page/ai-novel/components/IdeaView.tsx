@@ -1,6 +1,7 @@
-import React from 'react';
-import { Button, Card, Form, Select, Input, Spin } from 'antd';
-import { ArrowLeftOutlined, RocketOutlined, InteractionOutlined } from '@ant-design/icons';
+import React, { useState } from 'react';
+import { Button, Card, Form, Select, Input, Spin, Tag, message } from 'antd';
+import { ArrowLeftOutlined, RocketOutlined, InteractionOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import httpService from '../../../common/request';
 import { Idea } from '../types';
 
 const { TextArea } = Input;
@@ -42,6 +43,62 @@ export const IdeaView: React.FC<IdeaViewProps> = ({
   onToggleEditIdea,
   onBuildOutline,
 }) => {
+  const [aiSuggestingTone, setAiSuggestingTone] = useState<boolean>(false);
+  const [aiToneReason, setAiToneReason] = useState<string>('');
+  const [extraToneOptions, setExtraToneOptions] = useState<string[]>([]);
+
+  const handleAiSuggestTone = async () => {
+    setAiSuggestingTone(true);
+    try {
+      const activeCategory = category === 'custom' ? customCategory : category;
+      const res: any = await httpService.post('/ai-novel/suggest-tone', {
+        category: activeCategory || '玄幻修真',
+        keywords: keywords || ''
+      });
+      if (res && res.code === 200 && res.data) {
+        const { tones, reason } = res.data;
+        if (Array.isArray(tones) && tones.length > 0) {
+          setTone(tones);
+          setExtraToneOptions(prev => Array.from(new Set([...prev, ...tones])));
+          if (reason) setAiToneReason(reason);
+          message.success(`✨ AI 已为您匹配故事基调：${tones.join('、')}`);
+        } else {
+          message.info('未获取到推荐基调，已保留当前设置');
+        }
+      } else {
+        message.error(res?.msg || 'AI 匹配基调失败');
+      }
+    } catch (err: any) {
+      message.error(err.message || '网络连接故障');
+    } finally {
+      setAiSuggestingTone(false);
+    }
+  };
+
+  const quickTonePresets = [
+    { label: '🤖 由 AI 自由推导', value: '由 AI 自主智能推导' },
+    { label: '🔥 热血爽文', value: '热血爽文' },
+    { label: '😂 幽默爆笑', value: '幽默爆笑' },
+    { label: '🛡️ 稳健苟道', value: '稳健苟道' },
+    { label: '⚡ 杀伐果断', value: '杀伐果断' },
+    { label: '🔄 反转悬疑', value: '反转悬疑' },
+    { label: '🌾 轻松种田', value: '轻松种田' },
+    { label: '💖 狗粮恋爱', value: '狗粮恋爱' },
+    { label: '💥 无敌碾压', value: '无敌碾压' },
+  ];
+
+  const handleToggleQuickTag = (val: string) => {
+    if (val === '由 AI 自主智能推导') {
+      setTone(['由 AI 自主智能推导']);
+      return;
+    }
+    const clean = (tone || []).filter(t => t !== '由 AI 自主智能推导');
+    if (clean.includes(val)) {
+      setTone(clean.filter(t => t !== val));
+    } else {
+      setTone([...clean, val]);
+    }
+  };
   return (
     <div className="novel-idea-view">
       <div className="back-bar">
@@ -113,25 +170,81 @@ export const IdeaView: React.FC<IdeaViewProps> = ({
               )}
             </Form.Item>
 
-            <Form.Item label="🎭 整体故事基调">
+            <Form.Item
+              label={
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                  <span>🎭 整体故事基调</span>
+                  <Button
+                    type="link"
+                    size="small"
+                    icon={<ThunderboltOutlined style={{ color: '#faad14' }} />}
+                    loading={aiSuggestingTone}
+                    onClick={handleAiSuggestTone}
+                    style={{
+                      padding: 0,
+                      height: 'auto',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: '#faad14',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    ✨ AI 智能帮我选基调
+                  </Button>
+                </div>
+              }
+            >
               <Select
                 mode="tags"
                 size="large"
                 style={{ width: '100%' }}
-                placeholder="请选择或直接输入自定义基调（按回车添加）"
+                placeholder="可点击右上角【AI帮我选】，或直接选择/输入"
                 value={tone}
                 onChange={setTone}
               >
-                <Select.Option value="热血爽文">热血爽文</Select.Option>
-                <Select.Option value="幽默爆笑">幽默爆笑</Select.Option>
-                <Select.Option value="反转悬疑">反转悬疑</Select.Option>
-                <Select.Option value="深沉暗黑">深沉暗黑</Select.Option>
-                <Select.Option value="狗粮恋爱">狗粮恋爱</Select.Option>
-                <Select.Option value="轻松种田">轻松种田</Select.Option>
-                <Select.Option value="硬核极客">硬核极客</Select.Option>
-                <Select.Option value="无敌碾压">无敌碾压</Select.Option>
-                <Select.Option value="唯美治愈">唯美治愈</Select.Option>
+                <Select.Option value="由 AI 自主智能推导">🤖 由 AI 自主智能推导最佳爆款基调</Select.Option>
+                <Select.Option value="热血爽文">🔥 热血爽文</Select.Option>
+                <Select.Option value="幽默爆笑">😂 幽默爆笑</Select.Option>
+                <Select.Option value="反转悬疑">🔄 反转悬疑</Select.Option>
+                <Select.Option value="稳健苟道">🛡️ 稳健苟道</Select.Option>
+                <Select.Option value="杀伐果断">⚡ 杀伐果断</Select.Option>
+                <Select.Option value="深沉暗黑">🌑 深沉暗黑</Select.Option>
+                <Select.Option value="狗粮恋爱">💖 狗粮恋爱</Select.Option>
+                <Select.Option value="轻松种田">🌾 轻松种田</Select.Option>
+                <Select.Option value="硬核极客">⚙️ 硬核极客</Select.Option>
+                <Select.Option value="无敌碾压">💥 无敌碾压</Select.Option>
+                <Select.Option value="唯美治愈">🌸 唯美治愈</Select.Option>
+                <Select.Option value="扮猪吃虎">🎭 扮猪吃虎</Select.Option>
+                <Select.Option value="反差打脸">👊 反差打脸</Select.Option>
+                {extraToneOptions.map(opt => (
+                  <Select.Option key={opt} value={opt}>{opt}</Select.Option>
+                ))}
               </Select>
+
+              {aiToneReason && (
+                <div style={{ marginTop: 6, fontSize: 12, color: '#e6a23c', background: 'rgba(230, 162, 60, 0.08)', border: '1px dashed rgba(230, 162, 60, 0.3)', padding: '4px 8px', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>💡 AI 推荐理由：{aiToneReason}</span>
+                </div>
+              )}
+
+              <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.45)', marginRight: 2 }}>快捷点选:</span>
+                {quickTonePresets.map(tag => {
+                  const isSelected = (tone || []).includes(tag.value);
+                  return (
+                    <Tag
+                      key={tag.value}
+                      color={isSelected ? 'gold' : 'default'}
+                      style={{ cursor: 'pointer', userSelect: 'none', borderRadius: 12, padding: '1px 8px', fontSize: 12, margin: 0 }}
+                      onClick={() => handleToggleQuickTag(tag.value)}
+                    >
+                      {tag.label}
+                    </Tag>
+                  );
+                })}
+              </div>
             </Form.Item>
 
             <Form.Item label="🔮 一句话灵感闪光 (可选)">

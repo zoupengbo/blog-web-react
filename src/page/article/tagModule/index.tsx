@@ -111,7 +111,7 @@ const TagModule: React.FC = () => {
         <CommonTable
           data={data}
           total={total}
-          config={tableConfig}
+          config={tableConfig as any}
           onChange={pageChange}
         />
       </Card>

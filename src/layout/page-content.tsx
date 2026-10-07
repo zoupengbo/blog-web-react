@@ -5,13 +5,14 @@ import Breadcrumb from "../components/Breadcrumb";
 import "./page-content.scss";
 
 const PageContent: React.FC = () => {
-  const { routeMap } = useNavigation();
+  const { routeMap, currentPath } = useNavigation();
+  const isAiNovel = currentPath === '/ai-novel' || currentPath.startsWith('/ai-novel');
 
   return (
-    <div className="page-content">
+    <div className={`page-content ${isAiNovel ? 'no-padding-route' : ''}`}>
       <Breadcrumb />
       
-      <div className="page-content-body">
+      <div className={`page-content-body ${isAiNovel ? 'body-no-padding' : ''}`}>
         <Routes>
           {Array.from(routeMap.values()).map((route) => (
             <Route 

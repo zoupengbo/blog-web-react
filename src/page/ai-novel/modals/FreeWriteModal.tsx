@@ -401,8 +401,9 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
           <Select
             value={targetWords}
             onChange={setTargetWords}
-            style={{ width: 120 }}
+            style={{ width: 170 }}
             options={[
+              { label: '不限字数（剧情自由流淌）', value: 0 },
               { label: '1500 字', value: 1500 },
               { label: '2000 字', value: 2000 },
               { label: '2500 字（默认）', value: 2500 },
