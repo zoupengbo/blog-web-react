@@ -124,9 +124,13 @@ export const useAiNovelData = (
         await loadChapterContent(novelId, activeNum);
 
         const savedBookId = localStorage.getItem(`fanqie_book_id_${novelId}`) || '';
-        const savedBookName = localStorage.getItem(`fanqie_book_name_${novelId}`) || '';
+        let savedBookName = localStorage.getItem(`fanqie_book_name_${novelId}`) || '';
+        if (!savedBookName || savedBookName.includes('权路通天') || savedBookName.includes('市委办') || savedBookName !== res.data.novel.title) {
+          savedBookName = res.data.novel.title;
+          localStorage.setItem(`fanqie_book_name_${novelId}`, res.data.novel.title);
+        }
         setFanqieBookId(savedBookId);
-        setFanqieBookName(savedBookName || res.data.novel.title);
+        setFanqieBookName(savedBookName);
 
         setView('editor');
       } else {

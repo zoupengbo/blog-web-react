@@ -21,6 +21,13 @@ export const useFanqiePublisher = (
 
   const handleOpenFanqieModal = () => {
     if (!selectedOutline) return;
+
+    if (selectedNovel && selectedNovel.title) {
+      if (!fanqieBookName || fanqieBookName.includes('权路通天') || fanqieBookName.includes('市委办') || fanqieBookName !== selectedNovel.title) {
+        setFanqieBookName(selectedNovel.title);
+        localStorage.setItem(`fanqie_book_name_${selectedNovel.id}`, selectedNovel.title);
+      }
+    }
     const completedChapters = selectedOutline.chaptersOutline.filter(c => c.status === 'completed');
     const currentChapter = selectedOutline.chaptersOutline.find(c => c.chapterNumber === activeChapterNum);
 
