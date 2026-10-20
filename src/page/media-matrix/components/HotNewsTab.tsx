@@ -45,6 +45,7 @@ export const HotNewsTab: React.FC<HotNewsTabProps> = ({ onArticleGenerated }) =>
   const [data, setData] = useState<HotNewsItem[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [currentSource, setCurrentSource] = useState<string>('all');
+  const [currentCategory, setCurrentCategory] = useState<string>('all');
   const [searchText, setSearchText] = useState<string>('');
   const [pagination, setPagination] = useState({ current: 1, pageSize: 15 });
 
@@ -60,6 +61,7 @@ export const HotNewsTab: React.FC<HotNewsTabProps> = ({ onArticleGenerated }) =>
 
   const loadData = async (
     source = currentSource,
+    category = currentCategory,
     search = searchText,
     page = pagination.current,
     pageSize = pagination.pageSize
@@ -68,6 +70,7 @@ export const HotNewsTab: React.FC<HotNewsTabProps> = ({ onArticleGenerated }) =>
     try {
       const res: any = await MediaMatrixApi.getHotNewsList({
         source,
+        category,
         search,
         limit: pageSize,
         offset: (page - 1) * pageSize
@@ -123,8 +126,8 @@ export const HotNewsTab: React.FC<HotNewsTabProps> = ({ onArticleGenerated }) =>
     setRefreshing(true);
     try {
       const res: any = await MediaMatrixApi.refreshHotNews(currentSource === 'all' ? '' : currentSource);
-      message.success(res?.msg || '热搜抓取已刷新');
-      loadData(currentSource, searchText, 1, pagination.pageSize);
+      message.success(res?.msg || '全网热搜已智能分类并刷新！');
+      loadData(currentSource, currentCategory, searchText, 1, pagination.pageSize);
     } catch (err: any) {
       message.error(err.message || '刷新失败');
     } finally {
@@ -136,20 +139,37 @@ export const HotNewsTab: React.FC<HotNewsTabProps> = ({ onArticleGenerated }) =>
     const val = e.target.value;
     setCurrentSource(val);
     setPagination(prev => ({ ...prev, current: 1 }));
-    loadData(val, searchText, 1, pagination.pageSize);
+    loadData(val, currentCategory, searchText, 1, pagination.pageSize);
+  };
+
+  const handleCategoryChange = (e: any) => {
+    const val = e.target.value;
+    setCurrentCategory(val);
+    setPagination(prev => ({ ...prev, current: 1 }));
+    loadData(currentSource, val, searchText, 1, pagination.pageSize);
   };
 
   const handleSearch = () => {
     setPagination(prev => ({ ...prev, current: 1 }));
-    loadData(currentSource, searchText, 1, pagination.pageSize);
+    loadData(currentSource, currentCategory, searchText, 1, pagination.pageSize);
   };
 
   const openGenerateModal = (item: HotNewsItem) => {
     setSelectedHotNews(item);
+    // 智能根据热点所属分类，自动匹配最适合的写作风格
+    let recommendedStyle = 'viral';
+    if (item.category === '情感家庭') {
+      recommendedStyle = 'family';
+    } else if (item.category === '社会争议') {
+      recommendedStyle = 'controversy';
+    } else if (item.category === '财经商业') {
+      recommendedStyle = 'depth';
+    }
+
     generateForm.setFieldsValue({
       topic: item.title,
       digest: item.digest,
-      stylePreset: 'viral',
+      stylePreset: recommendedStyle,
       targetLength: 'long',
       customPrompt: ''
     });
@@ -179,6 +199,15 @@ export const HotNewsTab: React.FC<HotNewsTabProps> = ({ onArticleGenerated }) =>
     } finally {
       setGenerating(false);
     }
+  };
+
+  const CATEGORY_COLORS: Record<string, string> = {
+    '情感家庭': '#eb2f96',
+    '社会争议': '#fa541c',
+    '娱乐八卦': '#722ed1',
+    '财经商业': '#13c2c2',
+    '时政要闻': '#1890ff',
+    '民生百态': '#52c41a'
   };
 
   const columns = [
@@ -231,11 +260,14 @@ export const HotNewsTab: React.FC<HotNewsTabProps> = ({ onArticleGenerated }) =>
       )
     },
     {
-      title: '分类',
+      title: '话题类型',
       dataIndex: 'category',
       key: 'category',
-      width: 100,
-      render: (cat: string) => <Tag>{cat || '综合'}</Tag>
+      width: 110,
+      render: (cat: string) => {
+        const color = CATEGORY_COLORS[cat] || 'default';
+        return <Tag color={color} style={{ fontWeight: 500 }}>{cat || '民生百态'}</Tag>;
+      }
     },
     {
       title: '操作',
@@ -261,30 +293,21 @@ export const HotNewsTab: React.FC<HotNewsTabProps> = ({ onArticleGenerated }) =>
         style={{ marginBottom: 16, borderRadius: 8 }}
         bodyStyle={{ padding: '16px 20px' }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+          {/* 第一行：平台源筛选与定时同步开关 */}
           <Space wrap size="middle">
+            <Text strong style={{ color: '#555' }}>数据源：</Text>
             <Radio.Group
               value={currentSource}
               onChange={handleSourceChange}
               buttonStyle="solid"
             >
-              <Radio.Button value="all">全部热搜</Radio.Button>
+              <Radio.Button value="all">全部平台</Radio.Button>
               <Radio.Button value="weibo">微博热搜</Radio.Button>
               <Radio.Button value="baidu">百度热搜</Radio.Button>
               <Radio.Button value="zhihu">知乎热榜</Radio.Button>
               <Radio.Button value="toutiao">今日头条</Radio.Button>
             </Radio.Group>
-
-            <Input
-              placeholder="搜索热点关键词..."
-              prefix={<SearchOutlined />}
-              value={searchText}
-              onChange={e => setSearchText(e.target.value)}
-              onPressEnter={handleSearch}
-              style={{ width: 220 }}
-              allowClear
-            />
-            <Button onClick={handleSearch}>搜索</Button>
           </Space>
 
           <Space size={16} wrap>
@@ -314,8 +337,50 @@ export const HotNewsTab: React.FC<HotNewsTabProps> = ({ onArticleGenerated }) =>
               loading={refreshing}
               onClick={handleRefresh}
             >
-              立即拉取最新全网热搜
+              立即拉取全网最新热搜
             </Button>
+          </Space>
+        </div>
+
+        {/* 第二行：高共鸣题材/深度筛选分类与搜索 */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, paddingTop: 10, borderTop: '1px dashed #eee' }}>
+          <Space wrap size="middle" align="center">
+            <Text strong style={{ color: '#1890ff' }}>题材筛选：</Text>
+            <Radio.Group
+              value={currentCategory}
+              onChange={handleCategoryChange}
+              size="middle"
+            >
+              <Radio.Button value="all">全题材热点</Radio.Button>
+              <Radio.Button value="情感家庭" style={{ color: '#eb2f96' }}>
+                🏠 家长里短·家庭情感 ({total > 0 ? '热' : ''})
+              </Radio.Button>
+              <Radio.Button value="社会争议" style={{ color: '#fa541c' }}>
+                🔥 社会百态·争议民生
+              </Radio.Button>
+              <Radio.Button value="娱乐八卦" style={{ color: '#722ed1' }}>
+                🎬 娱乐八卦·明星动态
+              </Radio.Button>
+              <Radio.Button value="财经商业" style={{ color: '#13c2c2' }}>
+                💰 商业消费·股市房产
+              </Radio.Button>
+              <Radio.Button value="时政要闻" style={{ color: '#1890ff' }}>
+                🌍 时政国际·大国重器
+              </Radio.Button>
+            </Radio.Group>
+          </Space>
+
+          <Space size="middle">
+            <Input
+              placeholder="搜索热点关键词..."
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={e => setSearchText(e.target.value)}
+              onPressEnter={handleSearch}
+              style={{ width: 200 }}
+              allowClear
+            />
+            <Button onClick={handleSearch}>搜索</Button>
           </Space>
         </div>
       </Card>
@@ -331,10 +396,11 @@ export const HotNewsTab: React.FC<HotNewsTabProps> = ({ onArticleGenerated }) =>
             pageSize: pagination.pageSize,
             total,
             showSizeChanger: true,
-            pageSizeOptions: ['10', '15', '30', '50'],
+            pageSizeOptions: ['15', '30', '50'],
+            showTotal: t => `共 ${t} 条热点话题`,
             onChange: (page, pageSize) => {
               setPagination({ current: page, pageSize });
-              loadData(currentSource, searchText, page, pageSize);
+              loadData(currentSource, currentCategory, searchText, page, pageSize);
             }
           }}
         />
@@ -385,10 +451,12 @@ export const HotNewsTab: React.FC<HotNewsTabProps> = ({ onArticleGenerated }) =>
             rules={[{ required: true }]}
           >
             <Select>
-              <Select.Option value="viral">自媒体爆款（吸睛悬念、情绪共鸣、爆文结构）</Select.Option>
-              <Select.Option value="depth">深度商业与专栏（事实剖析、行业脉络、客观理性）</Select.Option>
-              <Select.Option value="tech">前沿科技探索（技术解读、落地应用、未来趋势）</Select.Option>
-              <Select.Option value="casual">轻快漫话随笔（亲切幽默、金句频出、通俗易懂）</Select.Option>
+              <Select.Option value="family">🏠 家长里短与人伦情感（家庭/亲戚/婆媳/婚姻，深挖人情世故与利益博弈，极强代入感）</Select.Option>
+              <Select.Option value="controversy">🔥 社会百态与犀利争议（民生/职场/消费，敢讲真话，直击争议痛点与制度规则）</Select.Option>
+              <Select.Option value="viral">🚀 自媒体现象级爆款（吸睛悬念、情绪共鸣、爆文结构）</Select.Option>
+              <Select.Option value="depth">📰 深度商业与社会观察（事实剖析、行业脉络、客观理性）</Select.Option>
+              <Select.Option value="tech">⚡ 前沿科技探索（技术解读、落地应用、未来趋势）</Select.Option>
+              <Select.Option value="casual">☕ 轻快漫话随笔（亲切幽默、金句频出、通俗易懂）</Select.Option>
             </Select>
           </Form.Item>
 

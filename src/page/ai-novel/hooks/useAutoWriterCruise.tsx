@@ -51,6 +51,15 @@ export const useAutoWriterCruise = (
   const activeReaderRef = useRef<ReadableStreamDefaultReader | null>(null);
   const latestOutlineRef = useRef<NovelOutline>(selectedOutline);
 
+  // 实时追踪当前编辑区查看的章节，杜绝闭包失效导致的跨章串流污染
+  const activeChapterNumRef = useRef<number>(activeChapterNum);
+  useEffect(() => {
+    activeChapterNumRef.current = activeChapterNum;
+  }, [activeChapterNum]);
+
+  // 巡航章节实时文本缓冲池（按章节号隔离存储），确保后台流式生成不丢失，且切回生成章时平滑恢复实况
+  const cruisingBuffersRef = useRef<Record<number, string>>({});
+
   useEffect(() => {
     latestOutlineRef.current = selectedOutline;
   }, [selectedOutline]);
@@ -89,14 +98,17 @@ export const useAutoWriterCruise = (
     });
   };
 
-  // 执行单章流式生成
   const executeSingleChapter = async (
     chNum: number,
     limit: number
   ): Promise<{ success: boolean; error?: string }> => {
     if (!selectedNovel) return { success: false, error: '小说不存在' };
 
-    setChapterContent('');
+    cruisingBuffersRef.current[chNum] = '';
+    // 跨章隔离守卫：仅当用户前台当前正在查看该巡航章节时，才清空编辑区
+    if (activeChapterNumRef.current === chNum) {
+      setChapterContent('');
+    }
     setWritingSpeed(0);
     const startTime = Date.now();
     let tokenCount = 0;
@@ -171,6 +183,11 @@ export const useAutoWriterCruise = (
           return;
         }
 
+        // 收到 SSE 10秒保活心跳（如 : keepalive），静默放行
+        if (trimmed.startsWith(':')) {
+          return;
+        }
+
         if (trimmed === 'data: [DONE]') {
           isCompleted = true;
           return;
@@ -185,10 +202,10 @@ export const useAutoWriterCruise = (
           try {
             const data = JSON.parse(trimmed.substring(6));
 
-            if (data.error) {
+            if (currentEvent === 'veto_blocked' || currentEvent === 'error' || data.error || (data.blocked && data.vetoReason)) {
               streamFailed = true;
-              failureReason = data.error;
-              setCruiseStatusText(`❌ 第 ${chNum} 章: ${data.error}`);
+              failureReason = data.vetoReason || data.error || data.message || '正文生成或审核未通过';
+              setCruiseStatusText(`❌ 第 ${chNum} 章: ${failureReason}`);
               return;
             }
 
@@ -228,7 +245,11 @@ export const useAutoWriterCruise = (
             if (currentEvent === 'complete') {
               isCompleted = true;
               if (data.finalContent) {
-                setChapterContent(data.finalContent);
+                cruisingBuffersRef.current[chNum] = data.finalContent;
+                // 跨章隔离守卫：仅当用户前台当前正在查看该巡航章节时，才将完成内容赋给编辑区
+                if (activeChapterNumRef.current === chNum) {
+                  setChapterContent(data.finalContent);
+                }
               }
               if (data.criticReport && multiAgentState?.setCriticReport) {
                 multiAgentState.setCriticReport(data.criticReport);
@@ -251,7 +272,12 @@ export const useAutoWriterCruise = (
 
             if ((currentEvent === 'chunk' || (!currentEvent && data.text)) && (data.text || data.content)) {
               const textChunk = data.text || data.content;
-              setChapterContent(prev => prev + textChunk);
+              cruisingBuffersRef.current[chNum] = (cruisingBuffersRef.current[chNum] || '') + textChunk;
+              // 跨章隔离守卫：仅当用户前台当前正在查看该巡航章节时，才向编辑区追加流式文字块！
+              // 若用户正在查阅其他章节（如第 1 章），绝对不将巡航 chunk 注入编辑区！
+              if (activeChapterNumRef.current === chNum) {
+                setChapterContent(prev => prev + textChunk);
+              }
               tokenCount += textChunk.length;
               const duration = (Date.now() - startTime) / 1000;
               if (duration > 0.5) {
@@ -318,7 +344,8 @@ export const useAutoWriterCruise = (
         }
       } catch (e) {}
 
-      return { success: true };
+      // 如果未收到完成事件且数据库中未落盘，返回失败并附带具体错误，杜绝回退到假成功
+      return { success: false, error: failureReason || '章节未通过质量门禁或流式异常中断' };
     } catch (err: any) {
       if (isStoppingRef.current) {
         return { success: false, error: '用户手动急停' };
@@ -329,9 +356,9 @@ export const useAutoWriterCruise = (
         return { success: true };
       }
 
-      // 异常时直查数据库，若数据库已成功落盘则判定成功
+      // 异常时直查数据库，若数据库已成功落盘则判定成功（多Agent思考耗时可达60~90秒，轮询等待50次*2秒=100秒）
       if (selectedNovel) {
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 50; i++) {
           await new Promise(r => setTimeout(r, 2000));
           if (isStoppingRef.current) return { success: false, error: '用户手动急停' };
           try {
@@ -412,7 +439,11 @@ export const useAutoWriterCruise = (
         }
 
         setCurrentCruisingChapter(currentCh);
-        setActiveChapterNum(currentCh);
+        // 跨章隔离守卫：仅当用户前台依然处于跟随巡航状态（初始第0步，或者当前正停留在刚写完的上一章/本章）时，
+        // 才自动推进前台 activeChapterNum 到新章节；若用户正在主动查阅其他章节（如第 1 章），则绝不强行跳转打断用户阅读！
+        if (step === 0 || activeChapterNumRef.current === currentCh - 1 || activeChapterNumRef.current === currentCh) {
+          setActiveChapterNum(currentCh);
+        }
 
         // 1. 检查大纲列表中是否存在本章细纲
         let currentOutline = latestOutlineRef.current;
@@ -590,7 +621,11 @@ export const useAutoWriterCruise = (
 
         // 3. 本章写入成功，刷新数据与界面
         setCompletedCount(prev => prev + 1);
-        await loadChapterContent(selectedNovel.id, currentCh);
+        // 跨章隔离守卫：仅当用户前台当前正在查看该完成章节时，才从数据库重载回填编辑区；
+        // 若用户正在查阅其他章节（如第 1 章），绝对不要强行覆盖破坏用户当前的查阅内容！
+        if (activeChapterNumRef.current === currentCh) {
+          await loadChapterContent(selectedNovel.id, currentCh);
+        }
 
         const updatedDetail: any = await httpService.get(`/ai-novel/detail/${selectedNovel.id}?_t=${Date.now()}`);
         if (updatedDetail.code === 200 && updatedDetail.data?.outline) {
@@ -637,6 +672,7 @@ export const useAutoWriterCruise = (
     useMultiAgent,
     setUseMultiAgent,
     lastInterruptedSession,
-    clearInterruptedSession: () => setLastInterruptedSession(null)
+    clearInterruptedSession: () => setLastInterruptedSession(null),
+    getCruisingChapterBuffer: (chNum: number) => cruisingBuffersRef.current[chNum]
   };
 };

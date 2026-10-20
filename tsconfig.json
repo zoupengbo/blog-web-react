@@ -26,7 +26,10 @@
       "@pages/*": ["page/*"],
       "@common/*": ["common/*"],
       "@layout/*": ["layout/*"],
-      "@context/*": ["context/*"]
+      "@context/*": ["context/*"],
+      "@service/*": ["common/services/*"],
+      "@services/*": ["common/services/*"],
+      "@api/*": ["common/*"]
     }
   },
   "include": [

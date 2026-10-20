@@ -68,6 +68,7 @@ import {
   StrategyMode,
   STRATEGY_OPTIONS
 } from '../../common/services/stockService';
+import BacktestDashboardDrawer from './BacktestDashboardDrawer';
 import './index.scss';
 
 const formatChangePercent = (val: string | number | undefined): { text: string; isUp: boolean } => {
@@ -173,6 +174,7 @@ const StockRadarDashboard: React.FC = () => {
   const [historyStrategyFilter, setHistoryStrategyFilter] = useState<string>('ALL');
 
   // 回测抽屉状态与多维筛选
+  const [backtestDashboardOpen, setBacktestDashboardOpen] = useState<boolean>(false);
   const [backtestVisible, setBacktestVisible] = useState<boolean>(false);
   const [backtestLoading, setBacktestLoading] = useState<boolean>(false);
   const [backtestReport, setBacktestReport] = useState<BacktestReport | null>(null);
@@ -1099,9 +1101,15 @@ const StockRadarDashboard: React.FC = () => {
             </div>
 
             <Button
+              type="primary"
               icon={<AimOutlined />}
-              style={{ borderColor: '#faad14', color: '#d46b08' }}
-              onClick={() => handleOpenBacktest()}
+              style={{
+                background: 'linear-gradient(135deg, #1890ff 0%, #722ed1 100%)',
+                borderColor: 'transparent',
+                fontWeight: 600,
+                boxShadow: '0 2px 8px rgba(24, 144, 255, 0.35)'
+              }}
+              onClick={() => setBacktestDashboardOpen(true)}
             >
               历史预测胜率复盘
             </Button>
@@ -2047,6 +2055,12 @@ const StockRadarDashboard: React.FC = () => {
           }}
         />
       </Drawer>
+
+      {/* M4 全景历史回测归因与效能看板抽屉 */}
+      <BacktestDashboardDrawer
+        open={backtestDashboardOpen}
+        onClose={() => setBacktestDashboardOpen(false)}
+      />
 
       {/* 历史预测胜率与复盘回测抽屉 */}
       <Drawer

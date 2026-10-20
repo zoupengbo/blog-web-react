@@ -69,18 +69,18 @@ const PROVIDER_TEMPLATES = [
     name: 'Gemini 3.8 Flash (本地 Antigravity)',
     baseUrl: 'http://127.0.0.1:8045/v1',
     modelName: 'gemini-3.8-flash',
-    temperature: 0.7,
+    temperature: 1.0,
     maxTokens: 8192,
-    tag: '极速创作 / 智能推理 / 推荐连载',
+    tag: '思考模型建议 temp=1.0 / 系统自动三档分工',
     color: 'volcano'
   },
   {
     name: 'Gemini 3.1 Pro (本地 Antigravity)',
     baseUrl: 'http://127.0.0.1:8045/v1',
     modelName: 'gemini-3.1-pro-high',
-    temperature: 0.7,
+    temperature: 1.0,
     maxTokens: 8192,
-    tag: '大纲与长篇架构',
+    tag: '长篇思考模型 / 大纲高推理 / 建议 temp=1.0',
     color: 'geekblue'
   },
   {
@@ -147,6 +147,9 @@ export const ConfigDrawer: React.FC<ConfigDrawerProps> = ({
     setNewPresetName('');
   };
 
+  const currentActivePreset = configPresets.find(p => (activePresetId ? p.id === activePresetId : p.isActive) || (apiConfig?.id === p.id)) || configPresets[0];
+  const currentActiveId = currentActivePreset?.id;
+
   return (
     <Drawer
       title={
@@ -191,65 +194,90 @@ export const ConfigDrawer: React.FC<ConfigDrawerProps> = ({
         </div>
 
         {configPresets.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {configPresets.map(preset => {
-              const isActive = (activePresetId ? preset.id === activePresetId : preset.isActive) || (apiConfig?.id === preset.id);
-              return (
-                <div
-                  key={preset.id}
-                  className={`preset-card-item ${isActive ? 'active' : ''}`}
-                  onClick={() => onSwitchPreset && onSwitchPreset(preset.id)}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '8px 10px',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {isActive ? (
-                      <CheckCircleFilled style={{ color: '#ffd666', fontSize: 14 }} />
-                    ) : (
-                      <span style={{ width: 14, height: 14, borderRadius: '50%', border: '1px solid #71717a', display: 'inline-block' }} />
-                    )}
-                    <span style={{ fontSize: 13, fontWeight: isActive ? 600 : 500, color: isActive ? '#ffd666' : 'inherit' }}>
-                      {preset.name || `预设 #${preset.id}`}
-                    </span>
-                    <Tag style={{ margin: 0, fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>
-                      {preset.modelName || '默认模型'}
-                    </Tag>
-                  </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Select
+              style={{ flex: 1 }}
+              value={currentActiveId}
+              onChange={(newId) => onSwitchPreset && onSwitchPreset(newId)}
+              popupMatchSelectWidth={false}
+              placeholder="选择已保存的模型预设"
+              optionLabelProp="label"
+            >
+              {configPresets.map(preset => {
+                const isActive = (activePresetId ? preset.id === activePresetId : preset.isActive) || (apiConfig?.id === preset.id);
+                return (
+                  <Select.Option
+                    key={preset.id}
+                    value={preset.id}
+                    label={
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontWeight: 600 }}>{preset.name || `预设 #${preset.id}`}</span>
+                        <Tag style={{ margin: 0, fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>
+                          {preset.modelName || '默认模型'}
+                        </Tag>
+                      </div>
+                    }
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {isActive ? (
+                          <CheckCircleFilled style={{ color: '#ffd666', fontSize: 13 }} />
+                        ) : (
+                          <span style={{ width: 13, height: 13, borderRadius: '50%', border: '1px solid #71717a', display: 'inline-block' }} />
+                        )}
+                        <span style={{ fontWeight: isActive ? 600 : 400, color: isActive ? '#ffd666' : 'inherit' }}>
+                          {preset.name || `预设 #${preset.id}`}
+                        </span>
+                        <Tag style={{ margin: 0, fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>
+                          {preset.modelName || '默认模型'}
+                        </Tag>
+                      </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    {isActive && (
-                      <Tag color="gold" style={{ margin: 0, fontSize: 10 }}>当前生效</Tag>
-                    )}
-                    {configPresets.length > 1 && (
-                      <Popconfirm
-                        title="确定删除此模型预设吗？"
-                        okText="删除"
-                        cancelText="取消"
-                        onConfirm={(e) => {
-                          e?.stopPropagation();
-                          onDeletePreset && onDeletePreset(preset.id);
-                        }}
-                      >
-                        <Button
-                          type="text"
-                          size="small"
-                          icon={<DeleteOutlined style={{ fontSize: 11, color: '#ff4d4f' }} />}
-                          onClick={(e) => e.stopPropagation()}
-                          style={{ width: 22, height: 22, padding: 0 }}
-                        />
-                      </Popconfirm>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {isActive && (
+                          <Tag color="gold" style={{ margin: 0, fontSize: 10 }}>当前生效</Tag>
+                        )}
+                        {configPresets.length > 1 && (
+                          <Popconfirm
+                            title="确定删除此模型预设吗？"
+                            okText="删除"
+                            cancelText="取消"
+                            onConfirm={(e) => {
+                              e?.stopPropagation();
+                              onDeletePreset && onDeletePreset(preset.id);
+                            }}
+                          >
+                            <Button
+                              type="text"
+                              size="small"
+                              danger
+                              icon={<DeleteOutlined style={{ fontSize: 12 }} />}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ width: 22, height: 22, padding: 0 }}
+                            />
+                          </Popconfirm>
+                        )}
+                      </div>
+                    </div>
+                  </Select.Option>
+                );
+              })}
+            </Select>
+
+            {configPresets.length > 1 && currentActivePreset && (
+              <Popconfirm
+                title={`确定删除预设「${currentActivePreset.name || currentActivePreset.id}」吗？`}
+                okText="删除"
+                cancelText="取消"
+                onConfirm={() => onDeletePreset && onDeletePreset(currentActivePreset.id)}
+              >
+                <Button
+                  danger
+                  icon={<DeleteOutlined />}
+                  title="删除当前选中的预设"
+                />
+              </Popconfirm>
+            )}
           </div>
         ) : (
           <div style={{ fontSize: 12, color: '#71717a', textAlign: 'center', padding: '10px 0' }}>
@@ -315,9 +343,12 @@ export const ConfigDrawer: React.FC<ConfigDrawerProps> = ({
           />
         </Form.Item>
 
-        <Form.Item label="Temperature (多样性温度)">
+        <Form.Item
+          label="Temperature (多样性温度)"
+          extra="常规模型建议 0.7；若是 Gemini / 深度思考模型，官方强烈建议固定 1.0（系统底层已为大纲/正文/清洗全自动自适应三档思考预算）。"
+        >
           <Progress
-            percent={Math.round((apiConfig.temperature || 0.7) * 100)}
+            percent={Math.min(100, Math.round((apiConfig.temperature || 0.7) * 100))}
             showInfo={false}
             strokeColor="#d4b106"
           />
@@ -332,6 +363,7 @@ export const ConfigDrawer: React.FC<ConfigDrawerProps> = ({
               <Radio.Button value={0.5}>0.5</Radio.Button>
               <Radio.Button value={0.7}>0.7</Radio.Button>
               <Radio.Button value={0.9}>0.9</Radio.Button>
+              <Radio.Button value={1.0}>1.0 (思考模型)</Radio.Button>
             </Radio.Group>
             <span style={{ fontSize: 11, color: '#888' }}>更多脑洞灵感</span>
           </div>

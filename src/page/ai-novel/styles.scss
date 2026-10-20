@@ -564,7 +564,8 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
         }
 
         .paper-container {
-          max-width: 900px !important;
+          width: 100% !important;
+          max-width: 100% !important;
         }
       }
     }
@@ -749,17 +750,21 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
         flex-direction: column;
         overflow-y: auto;
         overflow-x: hidden;
-        padding: 40px 20px;
+        padding: 24px 24px;
         box-sizing: border-box;
         transition: background 0.3s ease;
 
         .paper-container {
-          max-width: 800px;
           width: 100%;
+          max-width: 100%;
           margin: 0 auto;
           display: flex;
           flex-direction: column;
           flex: 1;
+          box-sizing: border-box;
+          padding: 28px 36px 36px;
+          border-radius: 12px;
+          border: 1px solid transparent;
 
           .paper-header-info {
             border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
@@ -1119,6 +1124,11 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
       .center-writing-desk {
         background: #f8fafc;
         color: #0f172a;
+        .paper-container {
+          background: #ffffff;
+          border-color: rgba(0, 0, 0, 0.08);
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+        }
         .inkwell-textarea {
           color: #1e293b;
         }
@@ -1130,6 +1140,11 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
       .center-writing-desk {
         background: #f4ecd8; // 高档复古羊皮纸黄
         color: #2c1a04;
+        .paper-container {
+          background: #fdfbf7;
+          border-color: rgba(180, 83, 9, 0.15);
+          box-shadow: 0 4px 20px rgba(180, 83, 9, 0.06);
+        }
         .paper-header-info {
           border-bottom-color: rgba(0, 0, 0, 0.08);
           h2 { color: #2c1a04; }
@@ -1152,6 +1167,11 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
       .center-writing-desk {
         background: #e2ede4; // 莫兰迪薄荷绿
         color: #172a1e;
+        .paper-container {
+          background: #f0f7f4;
+          border-color: rgba(23, 42, 30, 0.12);
+          box-shadow: 0 4px 20px rgba(23, 42, 30, 0.05);
+        }
         .paper-header-info {
           border-bottom-color: rgba(0, 0, 0, 0.08);
           h2 { color: #172a1e; }
@@ -1548,7 +1568,7 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
 
           // 🎯 本章高级蓝图指示栏高对比度暗黑适配
           .chapter-blueprint-bar {
-            margin: 0 24px 8px 24px;
+            margin: 0 0 12px 0;
             padding: 8px 14px;
             background: #181820 !important;
             border: 1px solid #333344 !important;

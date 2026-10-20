@@ -136,6 +136,7 @@ export const useAiStreamWriter = (
   const handleWriteChapterStream = async (isResume = false) => {
     if (!selectedNovel || isGenerating) return;
     const shouldResume = isResume === true;
+    const targetChapterNum = activeChapterNum;
 
     setIsGenerating(true);
     setIsPaused(false);
@@ -209,6 +210,11 @@ export const useAiStreamWriter = (
         for (const line of lines) {
           const trimmed = line.trim();
           if (!trimmed) { currentEvent = ''; continue; }
+
+          // 收到 SSE 10秒保活心跳（如 : keepalive），静默放行
+          if (trimmed.startsWith(':')) {
+            continue;
+          }
 
           if (trimmed === 'data: [DONE]') {
             break;
@@ -337,7 +343,7 @@ export const useAiStreamWriter = (
 
               if (currentEvent === 'complete') {
                 isStreamCompletedSuccessfully = true;
-                if (data.finalContent) {
+                if (data.finalContent && activeChapterNum === targetChapterNum) {
                   setChapterContent(data.finalContent);
                 }
                 if (data.criticReport) {
@@ -353,14 +359,18 @@ export const useAiStreamWriter = (
 
               if ((currentEvent === 'chunk' || (!currentEvent && data.text)) && (data.text || data.content)) {
                 const textChunk = data.text || data.content;
-                setChapterContent(prev => prev + textChunk);
+                if (activeChapterNum === targetChapterNum) {
+                  setChapterContent(prev => prev + textChunk);
+                }
                 tokenCount += textChunk.length;
                 const duration = (Date.now() - startTime) / 1000;
                 if (duration > 0.5) {
                   setWritingSpeed(Math.round(tokenCount / duration));
                 }
               } else if (!currentEvent && data.content) {
-                setChapterContent(prev => prev + data.content);
+                if (activeChapterNum === targetChapterNum) {
+                  setChapterContent(prev => prev + data.content);
+                }
                 tokenCount += data.content.length;
                 const duration = (Date.now() - startTime) / 1000;
                 if (duration > 0.5) {

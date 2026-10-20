@@ -455,6 +455,28 @@ const AiNovelDashboard: React.FC = () => {
       const currentChapter = selectedOutline.chaptersOutline.find(c => c.chapterNumber === chNum);
       streamHook.setIntervention(currentChapter?.interventionPrompt || '');
     }
+
+    // 🌟 全自动巡航连写状态下的章节切换自适应隔离
+    if (cruiseHook.isCruising) {
+      if (chNum === cruiseHook.currentCruisingChapter) {
+        // 切回正在巡航生成的章节：优先使用缓冲区中的实况文本，若为空则尝试从数据库加载
+        const liveBuffer = cruiseHook.getCruisingChapterBuffer ? cruiseHook.getCruisingChapterBuffer(chNum) : undefined;
+        if (liveBuffer !== undefined && liveBuffer !== '') {
+          streamHook.setChapterContent(liveBuffer);
+        } else if (selectedNovel) {
+          await loadChapterContent(selectedNovel.id, chNum);
+        }
+        message.info(`已切回第 ${chNum} 章（正在流式巡航撰写）`);
+      } else {
+        // 查阅其他历史章节：安全加载历史内容，并以只读方式浏览，绝不串流污染
+        if (selectedNovel) {
+          await loadChapterContent(selectedNovel.id, chNum);
+        }
+        message.info(`正在后台巡航撰写第 ${cruiseHook.currentCruisingChapter} 章，当前以只读模式查阅第 ${chNum} 章`);
+      }
+      return;
+    }
+
     if (selectedNovel) {
       await loadChapterContent(selectedNovel.id, chNum);
     }
@@ -675,6 +697,9 @@ const AiNovelDashboard: React.FC = () => {
             }}
             emergencyStop={cruiseHook.emergencyStop}
             selectedNovel={selectedNovel}
+            novelList={novels}
+            loadNovelToEditor={loadNovelToEditor}
+            onRefreshNovels={fetchNovels}
             selectedOutline={selectedOutline}
             setSelectedOutline={setSelectedOutline}
             activeChapterNum={streamHook.activeChapterNum}
@@ -733,7 +758,12 @@ const AiNovelDashboard: React.FC = () => {
             onReplacePolishedText={() => modalsHook.handleReplacePolishedText(streamHook.chapterContent, streamHook.setChapterContent)}
             textRef={modalsHook.textRef as any}
             saveManualEdits={(content) => modalsHook.handleSaveManualEdit()}
-            onSaveChapterContent={(showToast = true) => selectedNovel && saveChapterContentData(selectedNovel.id, streamHook.activeChapterNum, streamHook.chapterContent, showToast)}
+            onSaveChapterContent={(showToast = true) => {
+              if (cruiseHook.isCruising) return;
+              if (selectedNovel) {
+                saveChapterContentData(selectedNovel.id, streamHook.activeChapterNum, streamHook.chapterContent, showToast);
+              }
+            }}
             wordCountLimit={streamHook.wordCountLimit}
             setWordCountLimit={streamHook.setWordCountLimit}
             onContinueWriting={() => streamHook.handleContinueWriting(setLoading)}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Button, Space, Tooltip, Radio, Select, Card, Checkbox, Popconfirm, Badge,
-  Spin, Popover, Input, Tag, Tabs, Table, Segmented, Progress, message
+  Spin, Popover, Input, Tag, Tabs, Table, Segmented, Progress, Modal, message
 } from 'antd';
 import {
   ArrowLeftOutlined, BookOutlined, MenuUnfoldOutlined, MenuFoldOutlined,
@@ -10,7 +10,7 @@ import {
   SortAscendingOutlined, SortDescendingOutlined, InteractionOutlined, LoadingOutlined,
   HighlightOutlined, RedoOutlined, PlayCircleOutlined, CheckCircleFilled, UserAddOutlined,
   UserDeleteOutlined, EditOutlined, EyeOutlined, SaveOutlined, ReloadOutlined, StopOutlined,
-  BranchesOutlined, RobotOutlined, BgColorsOutlined
+  BranchesOutlined, RobotOutlined, BgColorsOutlined, ThunderboltOutlined
 } from '@ant-design/icons';
 import { Novel, NovelOutline, CharacterRelationship, VectorMemoryItem, PaperTheme, PromptLogItem, StoryArc, CriticReport, AgentNodeState, WildReaderFeedback } from '../types';
 import { parseVolumeStructure, getChapterVolume, isPastCharacter } from '../utils/volumeParser';
@@ -129,6 +129,9 @@ interface EditorViewProps {
   setUseMultiAgent?: (val: boolean) => void;
   isMultiAgentModalOpen?: boolean;
   setIsMultiAgentModalOpen?: (val: boolean) => void;
+  novelList?: Novel[];
+  loadNovelToEditor?: (novelId: number, chapterNum?: number) => Promise<void>;
+  onRefreshNovels?: () => Promise<void>;
 }
 
 export const EditorView: React.FC<EditorViewProps> = ({
@@ -240,11 +243,94 @@ export const EditorView: React.FC<EditorViewProps> = ({
   setUseMultiAgent,
   isMultiAgentModalOpen: externalIsMultiAgentModalOpen,
   setIsMultiAgentModalOpen: externalSetIsMultiAgentModalOpen,
+  novelList = [],
+  loadNovelToEditor,
+  onRefreshNovels,
 }) => {
   const [activePromptLog, setActivePromptLog] = useState<PromptLogItem | null>(null);
   const [isPromptModalOpen, setIsPromptModalOpen] = useState<boolean>(false);
   const [promptLogScope, setPromptLogScope] = useState<'current' | 'all'>('current');
   const [localMultiAgentModalOpen, setLocalMultiAgentModalOpen] = useState<boolean>(false);
+  const [isDerivingOutline, setIsDerivingOutline] = useState<boolean>(false);
+  const [isBranchModalOpen, setIsBranchModalOpen] = useState<boolean>(false);
+  const [branchNameInput, setBranchNameInput] = useState<string>('重构实验版');
+  const [isCloningBranch, setIsCloningBranch] = useState<boolean>(false);
+
+  // 识别当前小说及其派生实验分支
+  const novelBranches = useMemo(() => {
+    if (!selectedNovel || !novelList || novelList.length === 0) return [];
+    const currentBaseTitle = selectedNovel.title.replace(/（[^）]*版[^）]*）/g, '').trim();
+    return novelList.filter(n => {
+      const base = n.title.replace(/（[^）]*版[^）]*）/g, '').trim();
+      return base === currentBaseTitle;
+    });
+  }, [selectedNovel, novelList]);
+
+  const handleCreateBranch = async () => {
+    if (!selectedNovel || !branchNameInput.trim() || isCloningBranch) return;
+    setIsCloningBranch(true);
+    const hideLoading = message.loading(`🌿 正在派生沙盒实验分支《${branchNameInput.trim()}》...`, 0);
+    try {
+      const res: any = await httpService.post('/ai-novel/branch-clone', {
+        sourceNovelId: selectedNovel.id,
+        branchName: branchNameInput.trim(),
+        inheritOutlines: false
+      });
+      hideLoading();
+      if (res && res.code === 200 && res.data) {
+        message.success(res.msg || '🎉 分支创建成功！');
+        setIsBranchModalOpen(false);
+        setBranchNameInput('重构实验版');
+        if (onRefreshNovels) await onRefreshNovels();
+        if (loadNovelToEditor) await loadNovelToEditor(res.data.novelId, 1);
+      } else {
+        throw new Error(res?.msg || '派生分支失败');
+      }
+    } catch (e: any) {
+      hideLoading();
+      console.error(e);
+      message.error('创建分支失败: ' + (e.message || e));
+    } finally {
+      setIsCloningBranch(false);
+    }
+  };
+
+  const handleDeriveOutline = async () => {
+    if (!selectedNovel || !activeChapterNum || isDerivingOutline) return;
+    setIsDerivingOutline(true);
+    const hideLoading = message.loading(`🔮 正在基于前文真实物理落盘正文动态推导第 ${activeChapterNum} 章大纲...`, 0);
+    try {
+      const res: any = await httpService.post('/ai-novel/derive-next-outline', {
+        novelId: selectedNovel.id,
+        targetChapterNumber: activeChapterNum,
+        userIntervention: intervention || ''
+      });
+      hideLoading();
+      if (res && res.code === 200 && res.data) {
+        const derived = res.data;
+        if (selectedOutline) {
+          const list = [...selectedOutline.chaptersOutline];
+          const idx = list.findIndex(c => Number(c.chapterNumber) === Number(activeChapterNum));
+          if (idx >= 0) {
+            list[idx] = { ...list[idx], ...derived };
+          } else {
+            list.push(derived);
+            list.sort((a, b) => Number(a.chapterNumber) - Number(b.chapterNumber));
+          }
+          setSelectedOutline({ ...selectedOutline, chaptersOutline: list });
+        }
+        message.success(res.msg || `🎉 第 ${activeChapterNum} 章细纲动态推导成功！`);
+      } else {
+        throw new Error(res?.msg || '推导大纲失败');
+      }
+    } catch (e: any) {
+      hideLoading();
+      console.error(e);
+      message.error('动态推导大纲失败：' + (e.message || e));
+    } finally {
+      setIsDerivingOutline(false);
+    }
+  };
 
   const isMultiAgentModalOpen = externalIsMultiAgentModalOpen !== undefined ? externalIsMultiAgentModalOpen : localMultiAgentModalOpen;
   const setIsMultiAgentModalOpen = externalSetIsMultiAgentModalOpen || setLocalMultiAgentModalOpen;
@@ -495,10 +581,50 @@ export const EditorView: React.FC<EditorViewProps> = ({
         <Button icon={<ArrowLeftOutlined />} onClick={onExitEditor} type="text" className="back-btn-editor">
           退出工坊
         </Button>
-        <div className="novel-main-title">
-          <BookOutlined style={{color: '#d4b106', marginRight: 8, flexShrink: 0}} />
-          <span className="title-text">《{selectedNovel.title}》</span>
+        <div className="novel-main-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <BookOutlined style={{color: '#d4b106', flexShrink: 0}} />
+          <span className="title-text">《{selectedNovel.title.replace(/（[^）]*版[^）]*）/g, '').trim()}》</span>
           <span className="category-tag">{selectedNovel.category}</span>
+
+          {novelBranches.length > 0 && (
+            <div style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <BranchesOutlined style={{ color: '#10b981', fontSize: 13 }} />
+              <Select
+                size="small"
+                value={selectedNovel.id}
+                style={{ minWidth: 170 }}
+                onChange={(val) => {
+                  if (val === -1) {
+                    setIsBranchModalOpen(true);
+                  } else if (loadNovelToEditor && val !== selectedNovel.id) {
+                    loadNovelToEditor(Number(val));
+                  }
+                }}
+                dropdownMatchSelectWidth={false}
+              >
+                {novelBranches.map(b => {
+                  const match = b.title.match(/（([^）]*版[^）]*)）/);
+                  const branchLabel = match ? match[1] : '正式版';
+                  const isCurrent = b.id === selectedNovel.id;
+                  return (
+                    <Select.Option key={b.id} value={b.id}>
+                      <Space size={6}>
+                        <Tag color={branchLabel.includes('实验') || branchLabel.includes('重构') ? 'purple' : 'green'} style={{ margin: 0, fontSize: 11, lineHeight: '18px', padding: '0 4px' }}>
+                          {branchLabel}
+                        </Tag>
+                        <span style={{ fontSize: 12, fontWeight: isCurrent ? 600 : 400 }}>
+                          ID:{b.id} ({b.totalChapters || b.crawledChapters || 0}章)
+                        </span>
+                      </Space>
+                    </Select.Option>
+                  );
+                })}
+                <Select.Option value={-1}>
+                  <span style={{ color: '#1890ff', fontSize: 12 }}>+ 派生新实验分支...</span>
+                </Select.Option>
+              </Select>
+            </div>
+          )}
         </div>
         <Space className="top-bar-actions">
           <Popover
@@ -1325,7 +1451,13 @@ export const EditorView: React.FC<EditorViewProps> = ({
                     onSelect={handleTextSelect}
                     className="inkwell-textarea"
                     style={{ fontSize: `${fontSize}px` }}
-                    placeholder={isCruising ? "🚀 全自动连写巡航正在流式撰写中，请勿手动编辑..." : "如果您处于[待写]状态，可在此处编写，或在右侧配置突发剧情干预，然后点击下方【召唤 AI 智能撰写章节正文】..."}
+                    placeholder={
+                      isCruising
+                        ? (activeChapterNum === currentCruisingChapter
+                            ? "🚀 全自动连写巡航正在流式撰写中，请勿手动编辑..."
+                            : `🚀 正在后台连写巡航第 ${currentCruisingChapter} 章，当前以只读模式查阅第 ${activeChapterNum} 章...`)
+                        : "如果您处于[待写]状态，可在此处编写，或在右侧配置突发剧情干预，然后点击下方【召唤 AI 智能撰写章节正文】..."
+                    }
                   />
                 </Popover>
               </div>
@@ -1579,13 +1711,27 @@ export const EditorView: React.FC<EditorViewProps> = ({
               title={
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                   <span>📋 本章细纲剧情要求</span>
-                  <Button
-                    size="small"
-                    type="link"
-                    icon={<FullscreenOutlined />}
-                    style={{ color: '#d4b106', padding: 0 }}
-                    onClick={() => onOpenManualEdit('outline', '本章细纲剧情要求', currentChapter?.outline || '')}
-                  />
+                  <Space size={4}>
+                    <Tooltip title="基于上一章真实落盘结尾与当前人物状态，动态推导/自愈本章细纲">
+                      <Button
+                        size="small"
+                        type="link"
+                        icon={<ThunderboltOutlined />}
+                        loading={isDerivingOutline}
+                        style={{ color: '#1890ff', padding: '0 4px', fontSize: '12px' }}
+                        onClick={handleDeriveOutline}
+                      >
+                        动态推导
+                      </Button>
+                    </Tooltip>
+                    <Button
+                      size="small"
+                      type="link"
+                      icon={<FullscreenOutlined />}
+                      style={{ color: '#d4b106', padding: 0 }}
+                      onClick={() => onOpenManualEdit('outline', '本章细纲剧情要求', currentChapter?.outline || '')}
+                    />
+                  </Space>
                 </div>
               }
               size="small"
@@ -2291,6 +2437,29 @@ export const EditorView: React.FC<EditorViewProps> = ({
         isGenerating={isGenerating || !!isCruising}
         onStartWrite={() => onWriteChapterStream(false)}
       />
+      <Modal
+        title={<span>🌿 派生沙盒实验分支</span>}
+        open={isBranchModalOpen}
+        onOk={handleCreateBranch}
+        onCancel={() => setIsBranchModalOpen(false)}
+        confirmLoading={isCloningBranch}
+        okText="创建沙盒分支"
+        cancelText="取消"
+        width={460}
+      >
+        <div style={{ padding: '8px 0' }}>
+          <p style={{ color: '#64748b', fontSize: 13, marginBottom: 12 }}>
+            将基于《{selectedNovel.title.replace(/（[^）]*版[^）]*）/g, '').trim()}》当前设定克隆一个独立的沙盒副本。500章宏观主线与世界观人设完整继承，原版正文不受任何影响。
+          </p>
+          <div style={{ marginBottom: 8, fontWeight: 600, fontSize: 13 }}>实验分支名称：</div>
+          <Input
+            value={branchNameInput}
+            onChange={e => setBranchNameInput(e.target.value)}
+            placeholder="例如：重构实验版、去AI味精炼版"
+            maxLength={30}
+          />
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -3,7 +3,7 @@ import { HotNewsItem, DraftArticleItem, ChannelConfigItem, PushRecordItem } from
 
 export const MediaMatrixApi = {
   // 获取热点列表
-  getHotNewsList: (params: { source?: string; search?: string; limit?: number; offset?: number }) => {
+  getHotNewsList: (params: { source?: string; category?: string; search?: string; limit?: number; offset?: number }) => {
     return httpService.get<{ total: number; items: HotNewsItem[] }>('/hot-news/list', { params });
   },
 

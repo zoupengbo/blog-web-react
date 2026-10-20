@@ -53,6 +53,8 @@ npx tsc --noEmit
 
 ### Step 3: Synthesis & Reporting (验证通过后告知用户)
 Only after the build command exits clean with code 0:
-- Concisely summarize what was updated.
+- **Mandatory File List**: 必须完整列出本次所有修改与新建的前端文件清单（带 Markdown 路径链接，如 `[EditorView.tsx](file:///...)`）及每个文件的具体改动摘要，严禁模糊汇报！
+- Concisely summarize what was updated and the rationale.
 - State the verification result (e.g., "Build passed with Exit Code 0").
 - Provide clear instructions on how the user can test or interact with the updated UI feature.
+
