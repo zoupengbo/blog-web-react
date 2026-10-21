@@ -1,9 +1,10 @@
 import React from 'react';
-import { Modal, Tabs, Space, Button, Input, Card, Badge, Tag, Popconfirm, Select } from 'antd';
+import { Modal, Tabs, Space, Button, Input, Card, Badge, Tag, Popconfirm, Select, Radio, Alert, Spin, Empty } from 'antd';
 import {
   BookOutlined, RocketOutlined, LoadingOutlined, CheckCircleFilled,
   PlusOutlined, SortAscendingOutlined, SortDescendingOutlined, UserAddOutlined,
-  UserDeleteOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, FileTextOutlined
+  UserDeleteOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, FileTextOutlined,
+  ExperimentOutlined, SafetyCertificateOutlined, StopOutlined, SaveOutlined
 } from '@ant-design/icons';
 import { NovelOutline, Novel, CharacterRelationship, PaperTheme } from '../types';
 import { isPastCharacter } from '../utils/volumeParser';
@@ -171,6 +172,67 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
       } catch (err: any) {
         message.error('保存失败: ' + err.message);
       }
+    }
+  };
+
+  // 🔬 蒸馏规则包单书级绑定与随时取消状态
+  const [bundles, setBundles] = React.useState<any[]>([]);
+  const [loadingBundles, setLoadingBundles] = React.useState<boolean>(false);
+  const [bundleMode, setBundleMode] = React.useState<'auto' | 'custom' | 'disabled'>(
+    selectedOutline?.ruleBundleMode || 'auto'
+  );
+  const [selectedBundleId, setSelectedBundleId] = React.useState<number | null>(
+    selectedOutline?.ruleBundleId || null
+  );
+  const [savingBundle, setSavingBundle] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    if (selectedOutline) {
+      setBundleMode(selectedOutline.ruleBundleMode || 'auto');
+      setSelectedBundleId(selectedOutline.ruleBundleId || null);
+    }
+  }, [selectedOutline?.ruleBundleMode, selectedOutline?.ruleBundleId]);
+
+  const fetchBundles = React.useCallback(async () => {
+    setLoadingBundles(true);
+    try {
+      const res = await httpService.get('/ai-novel/lab/bundles?pageSize=100');
+      const list = res.data?.data?.items || res.data?.items || [];
+      setBundles(list);
+    } catch (err: any) {
+      // 软降级
+    } finally {
+      setLoadingBundles(false);
+    }
+  }, [httpService]);
+
+  React.useEffect(() => {
+    if (open) {
+      fetchBundles();
+    }
+  }, [open, fetchBundles]);
+
+  const handleSaveDistillBundle = async (mode: 'auto' | 'custom' | 'disabled', bundleId: number | null) => {
+    if (!selectedNovel) return;
+    setSavingBundle(true);
+    try {
+      await httpService.post('/ai-novel/save-outline', {
+        novelId: selectedNovel.id,
+        ruleBundleMode: mode,
+        ruleBundleId: mode === 'custom' ? bundleId : null
+      });
+      if (selectedOutline) {
+        setSelectedOutline({
+          ...selectedOutline,
+          ruleBundleMode: mode,
+          ruleBundleId: mode === 'custom' ? bundleId : null
+        });
+      }
+      message.success('蒸馏笔法包单书绑定配置已成功落盘！');
+    } catch (err: any) {
+      message.error('保存失败: ' + err.message);
+    } finally {
+      setSavingBundle(false);
     }
   };
 
@@ -604,6 +666,216 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                 />
               </div>
             )
+          },
+          {
+            key: 'distill',
+            label: (
+              <Space>
+                <span>🔬 蒸馏笔法包</span>
+                {bundleMode === 'disabled' && (
+                  <Tag color="default" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0 }}>
+                    已禁用
+                  </Tag>
+                )}
+                {bundleMode === 'custom' && (
+                  <Tag color="blue" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0 }}>
+                    单本绑定
+                  </Tag>
+                )}
+                {bundleMode === 'auto' && (
+                  <Tag color="green" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0 }}>
+                    题材继承
+                  </Tag>
+                )}
+              </Space>
+            ),
+            children: (() => {
+              const currentGenre = (selectedNovel as any)?.category || selectedOutline?.theme || '体制官场';
+              const activeAutoBundle = bundles.find(
+                b => (b.targetGenre === currentGenre || b.genre === currentGenre) && b.isActive
+              );
+              const customSelectedBundle = bundles.find(b => b.id === selectedBundleId);
+              const effectiveBundle = bundleMode === 'custom' ? customSelectedBundle : activeAutoBundle;
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 14 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: 12,
+                      padding: '12px 16px',
+                      borderRadius: 8,
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)'
+                    }}
+                  >
+                    <Space size="middle" align="center" wrap>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: '#ffd666', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <ExperimentOutlined /> 蒸馏规则生效模式：
+                      </span>
+                      <Radio.Group
+                        value={bundleMode}
+                        onChange={(e) => setBundleMode(e.target.value)}
+                        buttonStyle="solid"
+                      >
+                        <Radio.Button value="auto">
+                          <Space size={4}>
+                            <SafetyCertificateOutlined style={{ color: '#52c41a' }} />
+                            <span>跟随题材自动继承</span>
+                          </Space>
+                        </Radio.Button>
+                        <Radio.Button value="custom">
+                          <Space size={4}>
+                            <BookOutlined style={{ color: '#1890ff' }} />
+                            <span>专属绑定指定规则包</span>
+                          </Space>
+                        </Radio.Button>
+                        <Radio.Button value="disabled">
+                          <Space size={4}>
+                            <StopOutlined style={{ color: '#ff4d4f' }} />
+                            <span>彻底禁用（随时取消）</span>
+                          </Space>
+                        </Radio.Button>
+                      </Radio.Group>
+                    </Space>
+
+                    <Space>
+                      <Button
+                        size="middle"
+                        icon={<ReloadOutlined />}
+                        onClick={fetchBundles}
+                        loading={loadingBundles}
+                      >
+                        刷新规则库
+                      </Button>
+                      <Button
+                        type="primary"
+                        size="middle"
+                        icon={<SaveOutlined />}
+                        loading={savingBundle}
+                        onClick={() => handleSaveDistillBundle(bundleMode, selectedBundleId)}
+                      >
+                        保存蒸馏包设定
+                      </Button>
+                    </Space>
+                  </div>
+
+                  {bundleMode === 'auto' && (
+                    <Alert
+                      type="success"
+                      showIcon
+                      message={`当前小说题材为【${currentGenre}】· 采用题材级自动继承机制`}
+                      description={
+                        activeAutoBundle ? (
+                          <div>
+                            已匹配并自动挂载当前题材在能力实验室中激活的生效规则包：
+                            <strong style={{ color: '#52c41a', marginLeft: 6 }}>
+                              [{activeAutoBundle.bundleName}] ({activeAutoBundle.bundleVersion || 'v1.0.0'}) · 共 {activeAutoBundle.ruleCount || 0} 条蒸馏军规
+                            </strong>
+                            <div style={{ marginTop: 4, fontSize: 12, color: '#8c8c8c' }}>
+                              写手动笔生成正文时，将自动注入该包内经过真人标杆语料萃取的黄金笔法。若无需蒸馏包，可随时在上方向右切换为“彻底禁用”。
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            当前题材【{currentGenre}】在能力实验室中尚未手动激活规则包。系统正采用<strong>极简直通模式</strong>：动笔时将自动读取该题材所有已审核通过 (verified) 的精选规则。
+                          </div>
+                        )
+                      }
+                    />
+                  )}
+
+                  {bundleMode === 'custom' && (
+                    <Card size="small" style={{ borderRadius: 8, background: 'rgba(24, 144, 255, 0.04)', borderColor: 'rgba(24, 144, 255, 0.2)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 600, color: '#1890ff' }}>
+                          🎯 选择要为《{selectedNovel?.title}》专属绑定的蒸馏规则包：
+                        </span>
+                        <Select
+                          style={{ minWidth: 420 }}
+                          placeholder="请选择规则包（支持跨题材选择）"
+                          value={selectedBundleId || undefined}
+                          onChange={(val) => setSelectedBundleId(val)}
+                          options={bundles.map((b) => ({
+                            value: b.id,
+                            label: `[${b.targetGenre || b.genre || '通用'}] ${b.bundleName} (${b.bundleVersion || 'v1.0.0'}) · ${b.ruleCount || 0}条规则 ${b.isActive ? '★题材当前激活' : ''}`
+                          }))}
+                        />
+                        <span style={{ fontSize: 12, color: '#8c8c8c' }}>
+                          （已突破题材限制，可任意指定历史版本或特定名家风格蒸馏包）
+                        </span>
+                      </div>
+                    </Card>
+                  )}
+
+                  {bundleMode === 'disabled' && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message="已针对本小说彻底禁用蒸馏规则层（随时取消）"
+                      description={`当前《${selectedNovel?.title || '本作品'}》已单独切断蒸馏规则包注入。正文写手动笔时将严格保持纯净的通用写作军规与题材基础设定，不加载任何实验室提炼规则。`}
+                    />
+                  )}
+
+                  <Card
+                    title={
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>
+                          📜 注入正文写手的蒸馏笔法预览
+                          {bundleMode === 'disabled' && ' (当前已禁用，动笔不生效)'}
+                        </span>
+                        {effectiveBundle && (
+                          <Tag color="cyan">
+                            {effectiveBundle.bundleName} · {effectiveBundle.ruleCount || 0} 条规则
+                          </Tag>
+                        )}
+                      </div>
+                    }
+                    size="small"
+                    style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+                    bodyStyle={{ flex: 1, padding: 10, display: 'flex', flexDirection: 'column' }}
+                  >
+                    {bundleMode === 'disabled' ? (
+                      <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                        <Empty
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                          description="当前小说已处于【彻底禁用】状态，写作时不注入任何蒸馏规则包"
+                        />
+                      </div>
+                    ) : effectiveBundle ? (
+                      <TextArea
+                        readOnly
+                        value={effectiveBundle.compiledRulesPrompt || effectiveBundle.bundleContent || '暂无编译文本'}
+                        style={{
+                          flex: 1,
+                          height: 'calc(100vh - 430px)',
+                          minHeight: 320,
+                          resize: 'none',
+                          fontFamily: 'monospace, sans-serif',
+                          fontSize: 12.5,
+                          lineHeight: 1.6,
+                          background: 'rgba(0, 0, 0, 0.2)'
+                        }}
+                      />
+                    ) : (
+                      <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                        <Empty
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                          description={
+                            bundleMode === 'custom'
+                              ? '请在上方下拉列表中挑选要绑定的规则包'
+                              : '能力实验室中暂无已编译的规则包，系统动笔时将自动读取已审核精选规则直通生效'
+                          }
+                        />
+                      </div>
+                    )}
+                  </Card>
+                </div>
+              );
+            })()
           },
           {
             key: 'sys_big',

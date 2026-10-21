@@ -67,6 +67,8 @@ export interface NovelOutline {
   toneStyleDirectives?: string;
   storyArcs?: StoryArc[];
   multiAgentConfig?: any;
+  ruleBundleMode?: 'auto' | 'custom' | 'disabled';
+  ruleBundleId?: number | null;
 }
 
 export interface StoryArcBeat {
