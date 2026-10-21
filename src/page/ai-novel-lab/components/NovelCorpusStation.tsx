@@ -431,9 +431,11 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
 
   const handleOpenDistill = (record: GroupedNovelItem) => {
     setSelectedNovel(record);
+    const available = record.totalChapters || record.chapters.length || 1;
+    const defaultCount = available >= 10 ? 10 : (available >= 5 ? 5 : (available >= 3 ? 3 : available));
     distillForm.setFieldsValue({
-      dimension: 'dialogue',
-      sampleCount: Math.min(record.chapters.length, 5),
+      capabilities: ['dialogue', 'scene', 'pacing'],
+      sampleCount: defaultCount,
     });
     setIsDistillModalOpen(true);
   };
@@ -444,16 +446,23 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
       const values = await distillForm.validateFields();
       setDistillLoading(true);
 
+      const caps: string[] = Array.isArray(values.capabilities) && values.capabilities.length > 0
+        ? values.capabilities
+        : ['dialogue'];
+      const count = Number(values.sampleCount || 10);
+
       const res = await createDistillTask({
-        taskName: `${selectedNovel.title} [${values.dimension}] 笔法提炼`,
+        taskName: `${selectedNovel.title} [${caps.join('+')}] 笔法提炼`,
         genre: selectedNovel.genre,
-        targetDimension: values.dimension,
-        workIds: selectedNovel.workIds.slice(0, values.sampleCount || 5),
-        sampleCount: values.sampleCount || 5,
+        targetDimension: caps[0] || 'dialogue',
+        capabilities: caps,
+        workIds: selectedNovel.workIds.slice(0, count),
+        sampleCount: count,
+        requestedChapterCount: count,
       });
 
       if (res.code === 200) {
-        message.success('已启动 AI 深度蒸馏任务！正文生成与因果动机模型提炼中...');
+        message.success(`已启动从《${selectedNovel.title}》分析 ${count} 章的 AI 深度蒸馏流水线！`);
         setIsDistillModalOpen(false);
         if (onGoToRules) {
           onGoToRules(selectedNovel.genre);
@@ -726,42 +735,77 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
         cancelText="取消"
         destroyOnClose
       >
-        <Form form={distillForm} layout="vertical" initialValues={{ dimension: 'dialogue', sampleCount: 3 }}>
-          <Form.Item label="作品与题材">
-            <Input value={`${selectedNovel?.title} (${selectedNovel?.genre}) · 共 ${selectedNovel?.totalChapters} 章`} disabled />
+        <Form form={distillForm} layout="vertical" initialValues={{ capabilities: ['dialogue', 'scene', 'pacing'], sampleCount: 10 }}>
+          <Form.Item label="分析目标作品与题材">
+            <Input value={`《${selectedNovel?.title}》（${selectedNovel?.genre}） · 当前书库共入库 ${selectedNovel?.totalChapters} 章`} disabled />
           </Form.Item>
 
-          <Form.Item name="dimension" label="提炼重点维度" rules={[{ required: true }]}>
-            <Radio.Group style={{ width: '100%' }}>
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Radio value="dialogue">
-                  <Text strong>对话机锋与潜台词点透</Text>
-                  <Text type="secondary" style={{ display: 'block', fontSize: 12, marginLeft: 24 }}>
+          <Form.Item
+            name="capabilities"
+            label="提炼重点维度（支持多选融合提炼）"
+            rules={[{ required: true, message: '请至少选择一个提炼维度' }]}
+          >
+            <Checkbox.Group style={{ width: '100%' }}>
+              <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                <Checkbox value="dialogue" style={{ marginLeft: 0 }}>
+                  <Text strong>一、对话机锋与潜台词点透</Text>
+                  <Text type="secondary" style={{ display: 'block', fontSize: 12, marginLeft: 24, marginTop: 2 }}>
                     重点逆向破解上位者含蓄施压、下位者程序留痕与逢三必解的说话玄机
                   </Text>
-                </Radio>
-                <Radio value="scene">
-                  <Text strong>场景白描与客观事实推演</Text>
-                  <Text type="secondary" style={{ display: 'block', fontSize: 12, marginLeft: 24 }}>
+                </Checkbox>
+                <Checkbox value="scene" style={{ marginLeft: 0 }}>
+                  <Text strong>二、场景白描与客观事实推演</Text>
+                  <Text type="secondary" style={{ display: 'block', fontSize: 12, marginLeft: 24, marginTop: 2 }}>
                     动词主导、砍掉流水账形容词，讲究空间站位与物理事务动作
                   </Text>
-                </Radio>
-                <Radio value="pacing">
-                  <Text strong>因果动机与留白克制</Text>
-                  <Text type="secondary" style={{ display: 'block', fontSize: 12, marginLeft: 24 }}>
+                </Checkbox>
+                <Checkbox value="pacing" style={{ marginLeft: 0 }}>
+                  <Text strong>三、因果动机与留白克制</Text>
+                  <Text type="secondary" style={{ display: 'block', fontSize: 12, marginLeft: 24, marginTop: 2 }}>
                     凡反常举动必交代前置恩怨与利益诱因，杜绝突兀送小抄与机械降神
                   </Text>
-                </Radio>
+                </Checkbox>
+                <Checkbox value="subtext" style={{ marginLeft: 0 }}>
+                  <Text strong>四、制度逻辑与利益博弈暗线</Text>
+                  <Text type="secondary" style={{ display: 'block', fontSize: 12, marginLeft: 24, marginTop: 2 }}>
+                    深入推导权责归属、公文流转合规、回避制度与多方心理暗流
+                  </Text>
+                </Checkbox>
               </Space>
-            </Radio.Group>
+            </Checkbox.Group>
           </Form.Item>
 
-          <Form.Item name="sampleCount" label="参与采样的章节切片数">
-            <Select>
-              <Option value={1}>精选 1 章切片进行极速提炼</Option>
-              <Option value={2}>精选 2 章切片进行对比提炼</Option>
-              <Option value={3}>精选 3 章切片深度交叉提炼 (推荐)</Option>
-              <Option value={5}>精选 5 章多样本全方位提炼</Option>
+          <Form.Item
+            name="sampleCount"
+            label="参与分析的章节数"
+            extra="💡 说明：章节数不等于切片数。单章节长文本将按自然段落智能切分为多段文本切片深入分析。"
+            rules={[{ required: true, message: '请选择分析章节数' }]}
+          >
+            <Select style={{ width: '100%' }}>
+              {[
+                { value: 3, label: '3 章 · 快速测试 (极速验证笔法)', desc: '极速验证' },
+                { value: 5, label: '5 章 · 小样本分析 (兼顾速度与基础规律)', desc: '小样本' },
+                { value: 10, label: '10 章 · 标准蒸馏 (推荐，充分交叉印证)', desc: '标准蒸馏' },
+                { value: 20, label: '20 章 · 深度蒸馏 (全景覆盖长线伏笔)', desc: '深度蒸馏' },
+                { value: 30, label: '30 章 · 大样本蒸馏 (最大上限，严密去AI味)', desc: '大样本' },
+              ].map(opt => {
+                const total = selectedNovel?.totalChapters || 1;
+                const isExceeded = opt.value > total;
+                return (
+                  <Option
+                    key={opt.value}
+                    value={opt.value}
+                    disabled={isExceeded}
+                  >
+                    <span>{opt.label}</span>
+                    {isExceeded && (
+                      <span style={{ color: '#ef4444', fontSize: 12, marginLeft: 8 }}>
+                        (当前书库仅有 {total} 章，超出上限)
+                      </span>
+                    )}
+                  </Option>
+                );
+              })}
             </Select>
           </Form.Item>
         </Form>

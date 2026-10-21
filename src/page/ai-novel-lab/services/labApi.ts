@@ -47,6 +47,7 @@ export interface DistillTaskItem {
   taskName: string;
   genre: string;
   targetDimension: string;
+  capabilities?: string[];
   sourceIds?: number[];
   workIds?: number[];
   sampleCount: number;
@@ -58,6 +59,18 @@ export interface DistillTaskItem {
   conflictCount: number;
   executionTimeMs?: number;
   errorMessage?: string;
+  resultSummary?: {
+    requestedChapterCount?: number;
+    actualChapterCount?: number;
+    actualSliceCount?: number;
+    analyzedSliceCount?: number;
+    candidateRuleCount?: number;
+    deduplicatedRuleCount?: number;
+    verifiedRuleCount?: number;
+    unverifiedRuleCount?: number;
+    conflictRuleCount?: number;
+    executionTimeMs?: number;
+  };
   logs?: DistillTaskLog[];
   created_at?: string;
 }
@@ -75,12 +88,33 @@ export interface DistillRuleItem {
   negativeExemplar?: string;
   evidenceSnippets?: (string | { snippet: string; verified?: boolean })[];
   evidenceVerified: boolean;
+  evidenceMatchRate?: number;
   isConflict: boolean;
   conflictNotes?: string;
   confidenceScore: number;
   riskLevel: 'low' | 'medium' | 'high';
   status: 'draft' | 'verified' | 'rejected' | 'merged';
   auditNotes?: string;
+  contextSnapshots?: Array<{
+    workId?: number;
+    workTitle?: string;
+    chapterNumber?: number;
+    chapterTitle?: string;
+    sliceId?: string;
+    startOffset?: number;
+    endOffset?: number;
+    snippet: string;
+    context?: string;
+    contextWindow?: string;
+    verified: boolean;
+    qualityMetrics?: {
+      evidenceScore?: number;
+      specificityScore?: number;
+      crossChapterScore?: number;
+      conflictScore?: number;
+      crossChapterCount?: number;
+    };
+  }>;
   created_at?: string;
 }
 

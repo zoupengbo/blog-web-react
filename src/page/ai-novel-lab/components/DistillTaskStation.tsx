@@ -17,6 +17,8 @@ import {
   Alert,
   message,
   Popconfirm,
+  Row,
+  Col,
 } from 'antd';
 import {
   PlusOutlined,
@@ -188,14 +190,33 @@ export const DistillTaskStation: React.FC<DistillTaskStationProps> = ({
       },
     },
     {
-      title: '规则产出',
+      title: '分析章节与切片',
+      key: 'chapterSliceMetrics',
+      render: (_: any, record: DistillTaskItem) => {
+        const req = record.resultSummary?.requestedChapterCount ?? record.sampleCount;
+        const actChap = record.resultSummary?.actualChapterCount ?? '-';
+        const actSlice = record.resultSummary?.actualSliceCount ?? '-';
+        return (
+          <div>
+            <div style={{ fontSize: 13 }}>
+              分析: <b>{actChap}</b> / <b>{req}</b> 章
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>
+              切片: <b>{actSlice}</b> 个段落切片
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      title: '规则产出与实证',
       key: 'rulesOutput',
       render: (_: any, record: DistillTaskItem) => (
         <Space direction="horizontal" size={8}>
-          <span>提炼: <b>{record.extractedRulesCount || 0}</b></span>
-          <span style={{ color: '#16a34a' }}>实证: <b>{record.verifiedRulesCount || 0}</b></span>
-          {(record.conflictCount || 0) > 0 && (
-            <span style={{ color: '#dc2626' }}>冲突: <b>{record.conflictCount}</b></span>
+          <span>提炼: <b>{record.resultSummary?.deduplicatedRuleCount ?? record.extractedRulesCount ?? 0}</b></span>
+          <span style={{ color: '#16a34a' }}>实证: <b>{record.resultSummary?.verifiedRuleCount ?? record.verifiedRulesCount ?? 0}</b></span>
+          {((record.resultSummary?.conflictRuleCount ?? record.conflictCount ?? 0) > 0) && (
+            <span style={{ color: '#dc2626' }}>冲突: <b>{record.resultSummary?.conflictRuleCount ?? record.conflictCount}</b></span>
           )}
         </Space>
       ),
@@ -309,37 +330,53 @@ export const DistillTaskStation: React.FC<DistillTaskStationProps> = ({
           initialValues={{
             genre: '体制官场',
             targetDimension: 'dialogue',
-            sampleCount: 5,
+            sampleCount: 10,
           }}
         >
           <Form.Item name="taskName" label="任务名称 (选填，自动基于题材与维度命名)">
             <Input placeholder="例如：体制官场对白机锋与公文质询蒸馏" />
           </Form.Item>
 
-          <Form.Item name="genre" label="蒸馏目标题材" rules={[{ required: true, message: '请选择题材' }]}>
-            <Select>
-              <Option value="体制官场">体制官场</Option>
-              <Option value="都市职场">都市职场</Option>
-              <Option value="社会现实">社会现实</Option>
-              <Option value="悬疑刑侦">悬疑刑侦</Option>
-              <Option value="科幻未来">科幻未来</Option>
-              <Option value="历史演义">历史演义</Option>
-            </Select>
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="genre" label="蒸馏目标题材" rules={[{ required: true, message: '请选择题材' }]}>
+                <Select>
+                  <Option value="体制官场">体制官场</Option>
+                  <Option value="都市职场">都市职场</Option>
+                  <Option value="社会现实">社会现实</Option>
+                  <Option value="悬疑刑侦">悬疑刑侦</Option>
+                  <Option value="科幻未来">科幻未来</Option>
+                  <Option value="历史演义">历史演义</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="targetDimension" label="蒸馏能力维度" rules={[{ required: true, message: '请选择维度' }]}>
+                <Select>
+                  <Option value="dialogue">一、对话潜台词与机锋交互</Option>
+                  <Option value="pacing">二、叙事留白与节奏克制</Option>
+                  <Option value="subtext">三、因果动机与心理暗线</Option>
+                  <Option value="scene">四、场景白描与官场制度推演</Option>
+                  <Option value="style">五、语言风格与去AI机械味</Option>
+                  <Option value="general">六、综合叙事实战军规</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
 
-          <Form.Item name="targetDimension" label="蒸馏能力维度" rules={[{ required: true, message: '请选择维度' }]}>
+          <Form.Item
+            name="sampleCount"
+            label="参与分析的章节数"
+            extra="💡 说明：章节数不等于切片数。系统将按自然段落智能切分为多段文本切片深入分析。"
+            rules={[{ required: true, message: '请选择章节数' }]}
+          >
             <Select>
-              <Option value="dialogue">一、对话潜台词与机锋交互 (Dialogue & Subtext)</Option>
-              <Option value="pacing">二、叙事留白与节奏克制 (Pacing & White Space)</Option>
-              <Option value="subtext">三、因果动机与心理暗线 (Causality & Psychological Current)</Option>
-              <Option value="scene">四、场景白描与官场制度推演 (Scene Sketching & Protocol)</Option>
-              <Option value="style">五、语言风格与去AI机械味 (Anti-AI Fluency & Tone)</Option>
-              <Option value="general">六、综合叙事实战军规 (General Narrative Mastery)</Option>
+              <Option value={3}>3 章 · 快速测试 (极速验证笔法)</Option>
+              <Option value={5}>5 章 · 小样本分析 (兼顾速度与基础规律)</Option>
+              <Option value={10}>10 章 · 标准蒸馏 (推荐，充分交叉印证)</Option>
+              <Option value={20}>20 章 · 深度蒸馏 (全景覆盖长线伏笔)</Option>
+              <Option value={30}>30 章 · 大样本蒸馏 (最大上限，严密去AI味)</Option>
             </Select>
-          </Form.Item>
-
-          <Form.Item name="sampleCount" label="采样合规切片数量 (3 - 15)">
-            <InputNumber min={2} max={15} style={{ width: '100%' }} />
           </Form.Item>
 
           <Form.Item name="extractionPromptOverride" label="高级提炼指令覆写 (选填)">
@@ -355,7 +392,7 @@ export const DistillTaskStation: React.FC<DistillTaskStationProps> = ({
       <Drawer
         title={`蒸馏流水线详情与执行日志 - #${selectedTask?.id || ''}`}
         placement="right"
-        width={600}
+        width={620}
         open={isLogDrawerOpen}
         onClose={() => setIsLogDrawerOpen(false)}
       >
@@ -363,13 +400,52 @@ export const DistillTaskStation: React.FC<DistillTaskStationProps> = ({
           <div>
             <Card size="small" style={{ marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <Text strong>{selectedTask.taskName}</Text>
+                <Text strong style={{ fontSize: 15 }}>{selectedTask.taskName}</Text>
                 <Tag color="blue">{selectedTask.genre}</Tag>
               </div>
               <Progress percent={selectedTask.progress} size="small" />
-              <div style={{ marginTop: 8, fontSize: 12, color: '#64748b' }}>
-                总耗时: {selectedTask.executionTimeMs ? `${(selectedTask.executionTimeMs / 1000).toFixed(1)} 秒` : '运行中...'}
+              <div style={{ marginTop: 8, fontSize: 12, color: '#64748b', display: 'flex', justifyContent: 'space-between' }}>
+                <span>状态: <b>{selectedTask.status}</b> · 阶段: <b>{selectedTask.currentStage}</b></span>
+                <span>总耗时: {selectedTask.executionTimeMs ? `${(selectedTask.executionTimeMs / 1000).toFixed(1)} 秒` : '运行中...'}</span>
               </div>
+            </Card>
+
+            {/* 四项核心统计指标看板 */}
+            <Card size="small" title="分析指标与质检全链路看板" style={{ marginBottom: 16, background: '#f8fafc' }}>
+              <Row gutter={[12, 12]}>
+                <Col span={12}>
+                  <div style={{ padding: '8px 12px', background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>请求章节 / 实际匹配</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginTop: 2 }}>
+                      {selectedTask.resultSummary?.requestedChapterCount ?? selectedTask.sampleCount} 章 / {selectedTask.resultSummary?.actualChapterCount ?? selectedTask.sampleCount} 章
+                    </div>
+                  </div>
+                </Col>
+                <Col span={12}>
+                  <div style={{ padding: '8px 12px', background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>切片总数 / 送模切片</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginTop: 2 }}>
+                      {selectedTask.resultSummary?.actualSliceCount ?? '-'} 个 / {selectedTask.resultSummary?.analyzedSliceCount ?? '-'} 个
+                    </div>
+                  </div>
+                </Col>
+                <Col span={12}>
+                  <div style={{ padding: '8px 12px', background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>候选提取 / 归纳去重</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#0284c7', marginTop: 2 }}>
+                      {selectedTask.resultSummary?.candidateRuleCount ?? selectedTask.extractedRulesCount ?? 0} 条 / {selectedTask.resultSummary?.deduplicatedRuleCount ?? selectedTask.extractedRulesCount ?? 0} 条
+                    </div>
+                  </div>
+                </Col>
+                <Col span={12}>
+                  <div style={{ padding: '8px 12px', background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>实证通过 / 语义冲突</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#16a34a', marginTop: 2 }}>
+                      {selectedTask.resultSummary?.verifiedRuleCount ?? selectedTask.verifiedRulesCount ?? 0} 条 / <span style={{ color: (selectedTask.resultSummary?.conflictRuleCount ?? selectedTask.conflictCount ?? 0) > 0 ? '#dc2626' : '#64748b' }}>{selectedTask.resultSummary?.conflictRuleCount ?? selectedTask.conflictCount ?? 0} 处</span>
+                    </div>
+                  </div>
+                </Col>
+              </Row>
             </Card>
 
             <Text strong style={{ display: 'block', marginBottom: 12 }}>流水线阶段推进记录：</Text>
@@ -393,7 +469,7 @@ export const DistillTaskStation: React.FC<DistillTaskStationProps> = ({
                     onNavigateTab('rules');
                   }}
                 >
-                  查看本次产出的 {selectedTask.extractedRulesCount} 条规则
+                  查看本次产出的 {selectedTask.resultSummary?.deduplicatedRuleCount ?? selectedTask.extractedRulesCount} 条规则
                 </Button>
               </div>
             )}

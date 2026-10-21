@@ -328,38 +328,137 @@ export const RuleAuditConsole: React.FC = () => {
           )}
         </div>
 
-        {/* 右侧：证据链溯源与语义冲突质检 */}
+        {/* 右侧：证据链溯源与多维质量评估 */}
         <div className="rule-evidence-panel">
-          <Text strong style={{ display: 'block', marginBottom: 12 }}>
-            证据链回溯与冲突质检
+          <Text strong style={{ display: 'block', marginBottom: 12, fontSize: 16 }}>
+            原文证据追溯与质量评估
           </Text>
 
           {selectedRule ? (
             <div>
-              {/* 原文证据切片 */}
+              {/* 规则多维质量评估看板 */}
+              {(() => {
+                const firstSnap = selectedRule.contextSnapshots?.[0];
+                const metrics = firstSnap?.qualityMetrics || {
+                  evidenceScore: selectedRule.evidenceMatchRate || (selectedRule.evidenceVerified ? 1.0 : 0.0),
+                  specificityScore: 0.85,
+                  crossChapterCount: selectedRule.contextSnapshots?.length || 1,
+                  crossChapterScore: (selectedRule.contextSnapshots?.length || 1) >= 2 ? 1.0 : 0.65,
+                  conflictScore: selectedRule.isConflict ? 0.2 : 1.0,
+                };
+
+                return (
+                  <Card size="small" style={{ marginBottom: 16, background: '#f8fafc', borderColor: '#e2e8f0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>规约质检可信度得分</span>
+                      <Tag color={selectedRule.confidenceScore >= 0.8 ? 'success' : 'orange'} style={{ fontWeight: 700 }}>
+                        综合置信度: {Math.round((selectedRule.confidenceScore || 0.85) * 100)}%
+                      </Tag>
+                    </div>
+                    <Row gutter={[8, 8]}>
+                      <Col span={12}>
+                        <div style={{ padding: '6px 8px', background: '#fff', borderRadius: 4, border: '1px solid #f1f5f9', fontSize: 12 }}>
+                          <span style={{ color: '#64748b' }}>证据实证: </span>
+                          <span style={{ fontWeight: 600, color: '#16a34a' }}>
+                            {Math.round((metrics.evidenceScore || 0) * 100)}%
+                          </span>
+                        </div>
+                      </Col>
+                      <Col span={12}>
+                        <div style={{ padding: '6px 8px', background: '#fff', borderRadius: 4, border: '1px solid #f1f5f9', fontSize: 12 }}>
+                          <span style={{ color: '#64748b' }}>实战具体: </span>
+                          <span style={{ fontWeight: 600, color: '#0284c7' }}>
+                            {Math.round((metrics.specificityScore || 0.8) * 100)}%
+                          </span>
+                        </div>
+                      </Col>
+                      <Col span={12}>
+                        <div style={{ padding: '6px 8px', background: '#fff', borderRadius: 4, border: '1px solid #f1f5f9', fontSize: 12 }}>
+                          <span style={{ color: '#64748b' }}>跨章印证: </span>
+                          <span style={{ fontWeight: 600, color: (metrics.crossChapterCount || 1) >= 2 ? '#16a34a' : '#d97706' }}>
+                            {(metrics.crossChapterCount || 1) >= 2 ? `通过 (${metrics.crossChapterCount} 章)` : '单章'}
+                          </span>
+                        </div>
+                      </Col>
+                      <Col span={12}>
+                        <div style={{ padding: '6px 8px', background: '#fff', borderRadius: 4, border: '1px solid #f1f5f9', fontSize: 12 }}>
+                          <span style={{ color: '#64748b' }}>冲突状态: </span>
+                          <span style={{ fontWeight: 600, color: selectedRule.isConflict ? '#dc2626' : '#16a34a' }}>
+                            {selectedRule.isConflict ? '有互斥' : '无冲突'}
+                          </span>
+                        </div>
+                      </Col>
+                    </Row>
+                  </Card>
+                );
+              })()}
+
+              {/* 语料原文精确切片证据 */}
               <div style={{ marginBottom: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>语料原文证据切片</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>原文切片证据链追踪</span>
                   {selectedRule.evidenceVerified ? (
-                    <Tag color="success" icon={<SafetyCertificateOutlined />}>已在库核实真实</Tag>
+                    <Tag color="success" icon={<SafetyCertificateOutlined />}>已在库实机核实</Tag>
                   ) : (
                     <Tag color="orange" icon={<WarningOutlined />}>存疑 / 局部未命中</Tag>
                   )}
                 </div>
 
-                {(selectedRule.evidenceSnippets || []).length === 0 ? (
-                  <Text type="secondary" style={{ fontSize: 12 }}>无原文证据切片引用</Text>
+                {(!selectedRule.contextSnapshots || selectedRule.contextSnapshots.length === 0) ? (
+                  (selectedRule.evidenceSnippets || []).length === 0 ? (
+                    <Text type="secondary" style={{ fontSize: 12 }}>无原文证据切片引用</Text>
+                  ) : (
+                    (selectedRule.evidenceSnippets || []).map((sn: any, idx: number) => {
+                      const text = typeof sn === 'string' ? sn : sn.snippet || sn.text;
+                      return (
+                        <div key={idx} className="evidence-box" style={{ marginBottom: 8 }}>
+                          <Paragraph style={{ margin: 0 }} copyable={{ text }}>
+                            "{text}"
+                          </Paragraph>
+                        </div>
+                      );
+                    })
+                  )
                 ) : (
-                  (selectedRule.evidenceSnippets || []).map((sn: any, idx: number) => {
-                    const text = typeof sn === 'string' ? sn : sn.snippet || sn.text;
-                    return (
-                      <div key={idx} className="evidence-box">
-                        <Paragraph style={{ margin: 0 }} copyable={{ text }}>
-                          "{text}"
+                  selectedRule.contextSnapshots.map((snap: any, idx: number) => (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: '10px 12px',
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 6,
+                        marginBottom: 10,
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 4 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: '#1e293b' }}>
+                          《{snap.workTitle || selectedRule.genre}》第{snap.chapterNumber}章 {snap.chapterTitle || ''}
+                        </span>
+                        <Space size={4}>
+                          {snap.sliceId && <Tag color="blue" style={{ margin: 0, fontSize: 11 }}>{snap.sliceId}</Tag>}
+                          {snap.startOffset !== undefined && (
+                            <Tag color="geekblue" style={{ margin: 0, fontSize: 11 }}>
+                              偏移 [{snap.startOffset} ~ {snap.endOffset}]
+                            </Tag>
+                          )}
+                        </Space>
+                      </div>
+
+                      <div style={{ background: '#f8fafc', padding: '6px 8px', borderRadius: 4, borderLeft: '3px solid #0284c7', marginBottom: 6 }}>
+                        <Paragraph style={{ margin: 0, fontSize: 13, color: '#0f172a' }} copyable={{ text: snap.snippet }}>
+                          "{snap.snippet}"
                         </Paragraph>
                       </div>
-                    );
-                  })
+
+                      {snap.contextWindow && (
+                        <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.4, wordBreak: 'break-all' }}>
+                          <b>上下文快照：</b> {snap.contextWindow}
+                        </div>
+                      )}
+                    </div>
+                  ))
                 )}
               </div>
 
