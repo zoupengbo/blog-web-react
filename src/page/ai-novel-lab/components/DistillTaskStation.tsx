@@ -31,6 +31,7 @@ import {
   ClockCircleOutlined,
   CloseCircleOutlined,
   SyncOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import {
   getDistillTasks,
@@ -167,6 +168,7 @@ export const DistillTaskStation: React.FC<DistillTaskStationProps> = ({
       render: (_: any, record: DistillTaskItem) => {
         let status: any = 'active';
         if (record.status === 'completed') status = 'success';
+        if (record.status === 'partial_success') status = 'normal';
         if (record.status === 'failed') status = 'exception';
 
         const stageDescMap: any = {
@@ -196,13 +198,14 @@ export const DistillTaskStation: React.FC<DistillTaskStationProps> = ({
         const req = record.resultSummary?.requestedChapterCount ?? record.sampleCount;
         const actChap = record.resultSummary?.actualChapterCount ?? '-';
         const actSlice = record.resultSummary?.actualSliceCount ?? '-';
+        const analyzed = record.resultSummary?.analyzedSliceCount;
         return (
           <div>
             <div style={{ fontSize: 13 }}>
               分析: <b>{actChap}</b> / <b>{req}</b> 章
             </div>
             <div style={{ fontSize: 12, color: '#64748b' }}>
-              切片: <b>{actSlice}</b> 个段落切片
+              有效切片: <b>{analyzed !== undefined ? analyzed : actSlice}</b> / <b>{actSlice}</b>
             </div>
           </div>
         );
@@ -229,7 +232,8 @@ export const DistillTaskStation: React.FC<DistillTaskStationProps> = ({
         const map: any = {
           pending: <Tag icon={<ClockCircleOutlined />}>等待中</Tag>,
           running: <Tag icon={<SyncOutlined spin />} color="processing">流水线执行中</Tag>,
-          completed: <Tag icon={<CheckCircleOutlined />} color="success">成功完成</Tag>,
+          completed: <Tag icon={<CheckCircleOutlined />} color="success">全量成功</Tag>,
+          partial_success: <Tag icon={<WarningOutlined />} color="orange">部分成功</Tag>,
           failed: <Tag icon={<CloseCircleOutlined />} color="error">执行失败</Tag>,
           cancelled: <Tag color="warning">已取消</Tag>,
         };
@@ -250,7 +254,7 @@ export const DistillTaskStation: React.FC<DistillTaskStationProps> = ({
             日志
           </Button>
 
-          {record.status === 'completed' && (
+          {(record.status === 'completed' || record.status === 'partial_success') && (
             <Button
               type="link"
               size="small"
@@ -459,7 +463,7 @@ export const DistillTaskStation: React.FC<DistillTaskStationProps> = ({
               ))}
             </div>
 
-            {selectedTask.status === 'completed' && (
+            {(selectedTask.status === 'completed' || selectedTask.status === 'partial_success') && (
               <div style={{ marginTop: 24, textAlign: 'center' }}>
                 <Button
                   type="primary"

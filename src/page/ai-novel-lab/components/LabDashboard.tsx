@@ -62,6 +62,7 @@ export const LabDashboard: React.FC<LabDashboardProps> = ({ onNavigateTab, onOpe
       render: (progress: number, record: any) => {
         let status: any = 'active';
         if (record.status === 'completed') status = 'success';
+        if (record.status === 'partial_success') status = 'normal';
         if (record.status === 'failed') status = 'exception';
         return (
           <div style={{ width: 140 }}>
@@ -79,7 +80,8 @@ export const LabDashboard: React.FC<LabDashboardProps> = ({ onNavigateTab, onOpe
         const map: any = {
           pending: <Tag color="default">排队中</Tag>,
           running: <Tag color="processing">正在蒸馏</Tag>,
-          completed: <Tag color="success">蒸馏完成</Tag>,
+          completed: <Tag color="success">全量完成</Tag>,
+          partial_success: <Tag color="orange">部分完成</Tag>,
           failed: <Tag color="error">异常终止</Tag>,
           cancelled: <Tag color="warning">已取消</Tag>,
         };

@@ -51,7 +51,7 @@ export interface DistillTaskItem {
   sourceIds?: number[];
   workIds?: number[];
   sampleCount: number;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  status: 'pending' | 'running' | 'completed' | 'partial_success' | 'failed' | 'cancelled';
   currentStage: 'init' | 'sampling' | 'extracting' | 'evaluating' | 'finalized' | 'failed' | 'cancelled';
   progress: number;
   extractedRulesCount: number;
@@ -64,6 +64,7 @@ export interface DistillTaskItem {
     actualChapterCount?: number;
     actualSliceCount?: number;
     analyzedSliceCount?: number;
+    batchStats?: any;
     candidateRuleCount?: number;
     deduplicatedRuleCount?: number;
     verifiedRuleCount?: number;

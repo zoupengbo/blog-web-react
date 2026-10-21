@@ -237,14 +237,20 @@ export const RuleAuditConsole: React.FC = () => {
                   </div>
                   <div className="item-meta">
                     <Space direction="horizontal" size={4}>
-                      <span style={{ color: '#0284c7' }}>{r.targetDimension}</span>
+                      {r.targetDimension === 'pending_review' ? (
+                        <Tooltip title="多维度提炼时模型未明确归类，待责编人工确认">
+                          <Tag color="magenta" style={{ margin: 0, padding: '0 4px' }}>待定维度</Tag>
+                        </Tooltip>
+                      ) : (
+                        <span style={{ color: '#0284c7' }}>{r.targetDimension}</span>
+                      )}
                       {r.isConflict && (
                         <Tooltip title="与同题材已有规则存在语义互斥冲突">
                           <Tag color="error" style={{ margin: 0, padding: '0 4px' }}>冲突</Tag>
                         </Tooltip>
                       )}
                     </Space>
-                    <span>置信度: {(r.confidenceScore * 100).toFixed(0)}%</span>
+                    <span>质检分: {(r.confidenceScore * 100).toFixed(0)}%</span>
                   </div>
                 </div>
               );
@@ -306,6 +312,16 @@ export const RuleAuditConsole: React.FC = () => {
                 </Space>
               </div>
 
+              {selectedRule.targetDimension === 'pending_review' && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message="维度归属待责编指定"
+                  description={selectedRule.auditNotes || '多维度蒸馏提取时模型未明确匹配候选维度，请在下方下拉框中人工选择其准确归属维度。'}
+                  style={{ marginBottom: 16 }}
+                />
+              )}
+
               <Row gutter={16}>
                 <Col span={14}>
                   <Form.Item name="ruleName" label="规则定名 (25字以内)" rules={[{ required: true }]}>
@@ -321,6 +337,7 @@ export const RuleAuditConsole: React.FC = () => {
                       <Option value="scene">四、场景白描与制度</Option>
                       <Option value="style">五、语言风格与去AI味</Option>
                       <Option value="general">六、综合叙事实战军规</Option>
+                      <Option value="pending_review">待定维度 (需责编归类)</Option>
                     </Select>
                   </Form.Item>
                 </Col>
@@ -365,7 +382,7 @@ export const RuleAuditConsole: React.FC = () => {
         {/* 右侧：证据链溯源与多维质量评估 */}
         <div className="rule-evidence-panel">
           <Text strong style={{ display: 'block', marginBottom: 12, fontSize: 16 }}>
-            原文证据追溯与质量评估
+            原文证据追溯与规则特征质检
           </Text>
 
           {selectedRule ? (
@@ -384,11 +401,19 @@ export const RuleAuditConsole: React.FC = () => {
                 return (
                   <Card size="small" style={{ marginBottom: 16, background: '#f8fafc', borderColor: '#e2e8f0' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600 }}>规约质检可信度得分</span>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>候选规则特征质检指标</span>
                       <Tag color={selectedRule.confidenceScore >= 0.8 ? 'success' : 'orange'} style={{ fontWeight: 700 }}>
-                        综合置信度: {Math.round((selectedRule.confidenceScore || 0.85) * 100)}%
+                        特征质检分: {Math.round((selectedRule.confidenceScore || 0.85) * 100)}%
                       </Tag>
                     </div>
+
+                    <Alert
+                      type="info"
+                      showIcon
+                      message="静态特征质检说明"
+                      description="此评分为基于语料在库实证与文本表述规范性的静态特征分，不可直接等同于已验证有效；真实的写作提升效果需通过正文生成对照评测验证。"
+                      style={{ marginBottom: 10, fontSize: 12 }}
+                    />
                     <Row gutter={[8, 8]}>
                       <Col span={12}>
                         <div style={{ padding: '6px 8px', background: '#fff', borderRadius: 4, border: '1px solid #f1f5f9', fontSize: 12 }}>
