@@ -289,13 +289,12 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                 size="small"
                 style={{
                   borderLeft: isVerified ? '4px solid #16a34a' : '4px solid #cbd5e1',
-                  background: isVerified ? '#ffffff' : '#f8fafc',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                   <Space align="center" wrap>
-                    <Text strong style={{ fontSize: 16, color: '#0f172a' }}>
+                    <Text strong style={{ fontSize: 16 }}>
                       {rule.ruleName}
                     </Text>
                     <Tag color="cyan">{rule.genre}</Tag>

@@ -209,3 +209,97 @@
     }
   }
 }
+
+// 🌑 全站暗黑模式深度适配 (Global Dark Mode Support)
+.dark-theme,
+[data-theme="dark"] {
+  .ai-novel-lab-container {
+    background-color: #0d0d10 !important;
+
+    .stat-card {
+      background: #16161a !important;
+      border-color: #27272e !important;
+
+      .stat-header {
+        color: #a1a1aa !important;
+      }
+      .stat-value {
+        color: #f4f4f5 !important;
+      }
+      .stat-footer {
+        color: #71717a !important;
+      }
+    }
+
+    .audit-layout {
+      .rule-list-panel {
+        background: #16161a !important;
+        border-color: #27272e !important;
+
+        .rule-item-card {
+          background: #1c1c22 !important;
+          border-color: #27272e !important;
+
+          &:hover {
+            background: #272732 !important;
+            border-color: #38bdf8 !important;
+          }
+
+          &.active {
+            background: #1e293b !important;
+            border-color: #38bdf8 !important;
+          }
+
+          .item-title {
+            color: #f4f4f5 !important;
+          }
+
+          .item-meta {
+            color: #a1a1aa !important;
+          }
+        }
+      }
+
+      .rule-edit-panel {
+        background: #16161a !important;
+        border-color: #27272e !important;
+
+        .ant-form-item-label > label {
+          color: #f4f4f5 !important;
+          font-weight: 500;
+        }
+
+        .ant-typography,
+        h1, h2, h3, h4, span:not(.ant-tag):not(.ant-badge) {
+          color: #f4f4f5;
+        }
+      }
+
+      .rule-evidence-panel {
+        background: #16161a !important;
+        border-color: #27272e !important;
+
+        .ant-typography,
+        h1, h2, h3, h4, span:not(.ant-tag):not(.ant-badge) {
+          color: #f4f4f5;
+        }
+
+        .evidence-box {
+          background: #1c1c24 !important;
+          border-left: 3px solid #38bdf8 !important;
+          color: #e2e8f0 !important;
+
+          .ant-typography {
+            color: #e2e8f0 !important;
+          }
+        }
+
+        .conflict-box {
+          background: #2a1b14 !important;
+          border: 1px solid #7c2d12 !important;
+          color: #fdba74 !important;
+        }
+      }
+    }
+  }
+}
