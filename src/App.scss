@@ -193,6 +193,27 @@ body.dark-theme {
     }
   }
 
+  .ant-select-dropdown {
+    background: #18181c !important;
+    border: 1px solid #2e2e38 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7) !important;
+
+    .ant-select-item {
+      color: #d4d4d8 !important;
+
+      &-option-active {
+        background: #272730 !important;
+        color: #ffffff !important;
+      }
+
+      &-option-selected {
+        background: #3a2e10 !important;
+        color: #ffd666 !important;
+        font-weight: 700 !important;
+      }
+    }
+  }
+
   // 7. 全局弹窗 (Modal) 与抽屉 (Drawer) 高对比度暗黑适配
   .ant-modal-content {
     background: #18181c !important;
@@ -366,3 +387,41 @@ body {
     }
   }
 }
+
+// =========================================================================
+// 全局弹出层级体系 (Unified Stacking Context)
+// 保证弹窗内呼出的抽屉、下拉选框、气泡提示等永远处于顶层可见状态
+// =========================================================================
+.ant-modal-mask {
+  z-index: 1000000 !important;
+}
+.ant-modal-root,
+.ant-modal-wrap {
+  z-index: 1000001 !important;
+}
+
+.ant-drawer-mask {
+  z-index: 1000020 !important;
+}
+.ant-drawer-root,
+.ant-drawer,
+.ant-drawer-content-wrapper,
+.ant-drawer-content {
+  z-index: 1000021 !important;
+}
+
+.ant-select-dropdown,
+.ant-dropdown,
+.ant-picker-dropdown,
+.ant-cascader-dropdown,
+.ant-popover,
+.ant-popconfirm,
+.ant-tooltip {
+  z-index: 1000050 !important;
+}
+
+.ant-message,
+.ant-notification {
+  z-index: 1000100 !important;
+}
+

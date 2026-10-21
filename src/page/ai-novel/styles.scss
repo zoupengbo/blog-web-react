@@ -1732,38 +1732,39 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 // =========================================================================
-// 5. 全局弹窗和悬浮层层级提升 (Z-index Battle Fixes for Fullscreen Mode)
-// =========================================================================
+.ant-modal-mask {
+  z-index: 1000000 !important;
+}
+
 .ant-modal-root,
-.ant-drawer-root,
-.ant-drawer {
-  z-index: 100000 !important;
+.ant-modal-wrap {
+  z-index: 1000001 !important;
 }
 
 .ant-drawer-mask {
-  z-index: 100000 !important;
+  z-index: 1000020 !important;
 }
 
+.ant-drawer-root,
+.ant-drawer,
 .ant-drawer-content-wrapper,
 .ant-drawer-content {
-  z-index: 100001 !important;
-}
-
-.ant-modal-mask {
-  z-index: 100000 !important;
-}
-
-.ant-modal-wrap {
-  z-index: 100001 !important;
+  z-index: 1000021 !important;
 }
 
 .ant-select-dropdown,
-.ant-popover,
-.ant-tooltip,
 .ant-dropdown,
+.ant-picker-dropdown,
+.ant-cascader-dropdown,
+.ant-popover,
+.ant-popconfirm,
+.ant-tooltip {
+  z-index: 1000050 !important;
+}
+
 .ant-message,
 .ant-notification {
-  z-index: 100002 !important;
+  z-index: 1000100 !important;
 }
 
 // 4.1 分卷选择器美化
@@ -1900,8 +1901,17 @@ $card-border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 // 确保全屏模式下所有确认弹窗与通知置于最顶层
-.ant-modal-root, .ant-modal-wrap, .ant-popover, .ant-popconfirm, .ant-message, .ant-notification {
-  z-index: 1000000 !important;
+.ant-modal-root, .ant-modal-wrap {
+  z-index: 1000001 !important;
+}
+.ant-drawer-root, .ant-drawer {
+  z-index: 1000021 !important;
+}
+.ant-select-dropdown, .ant-dropdown, .ant-popover, .ant-popconfirm, .ant-tooltip {
+  z-index: 1000050 !important;
+}
+.ant-message, .ant-notification {
+  z-index: 1000100 !important;
 }
 
 // 🌑 全局暗黑模式下的小说工坊深度适配 (Dark Theme Support for AI Novel Studio)

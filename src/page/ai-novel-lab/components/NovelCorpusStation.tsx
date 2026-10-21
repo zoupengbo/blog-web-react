@@ -56,6 +56,26 @@ import { StorageUtil } from '../../entertainment/ebookReader/utils/storage';
 const { Text, Paragraph } = Typography;
 const { Option } = Select;
 
+const GENRE_OPTIONS = [
+  { value: '体制官场', label: '体制官场' },
+  { value: '都市职场', label: '都市职场' },
+  { value: '社会现实', label: '社会现实' },
+  { value: '悬疑刑侦', label: '悬疑刑侦' },
+  { value: '玄幻修真', label: '玄幻修真' },
+  { value: '科幻未来', label: '科幻未来' },
+];
+
+const MODE_OPTIONS = [
+  { value: 'ai_climax', label: '🤖 AI甄选戏眼' },
+  { value: 'true_opening', label: '📖 黄金正文开篇' },
+];
+
+const CHAPTER_COUNT_OPTIONS = [
+  { value: 1, label: '采编 1 章' },
+  { value: 3, label: '采编 3 章' },
+  { value: 5, label: '采编 5 章' },
+];
+
 export interface GroupedNovelItem {
   key: string;
   title: string;
@@ -921,37 +941,26 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
                                 onChange={(val) =>
                                   setOnlineGenreMap((prev) => ({ ...prev, [bookUrl]: val }))
                                 }
-                              >
-                                <Option value="体制官场">体制官场</Option>
-                                <Option value="都市职场">都市职场</Option>
-                                <Option value="社会现实">社会现实</Option>
-                                <Option value="悬疑刑侦">悬疑刑侦</Option>
-                                <Option value="玄幻修真">玄幻修真</Option>
-                                <Option value="科幻未来">科幻未来</Option>
-                              </Select>
+                                options={GENRE_OPTIONS}
+                              />
                               <Select
                                 size="small"
-                                style={{ width: 135 }}
+                                style={{ width: 140 }}
                                 value={onlineModeMap[bookUrl] || 'ai_climax'}
                                 onChange={(val) =>
                                   setOnlineModeMap((prev) => ({ ...prev, [bookUrl]: val }))
                                 }
-                              >
-                                <Option value="ai_climax">🤖 AI甄选戏眼</Option>
-                                <Option value="true_opening">📖 黄金正文开篇</Option>
-                              </Select>
+                                options={MODE_OPTIONS}
+                              />
                               <Select
                                 size="small"
-                                style={{ width: 90 }}
+                                style={{ width: 105 }}
                                 value={selectedCount}
                                 onChange={(val) =>
                                   setOnlineChapterCountMap((prev) => ({ ...prev, [bookUrl]: val }))
                                 }
-                              >
-                                <Option value={1}>采编 1 章</Option>
-                                <Option value={3}>采编 3 章</Option>
-                                <Option value={5}>采编 5 章</Option>
-                              </Select>
+                                options={CHAPTER_COUNT_OPTIONS}
+                              />
                               <Button
                                 size="small"
                                 icon={<UnorderedListOutlined />}
@@ -1051,37 +1060,26 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
                                 onChange={(val) =>
                                   setOnlineGenreMap((prev) => ({ ...prev, [bookUrl]: val }))
                                 }
-                              >
-                                <Option value="体制官场">体制官场</Option>
-                                <Option value="都市职场">都市职场</Option>
-                                <Option value="社会现实">社会现实</Option>
-                                <Option value="悬疑刑侦">悬疑刑侦</Option>
-                                <Option value="玄幻修真">玄幻修真</Option>
-                                <Option value="科幻未来">科幻未来</Option>
-                              </Select>
+                                options={GENRE_OPTIONS}
+                              />
                               <Select
                                 size="small"
-                                style={{ width: 135 }}
+                                style={{ width: 140 }}
                                 value={onlineModeMap[bookUrl] || 'ai_climax'}
                                 onChange={(val) =>
                                   setOnlineModeMap((prev) => ({ ...prev, [bookUrl]: val }))
                                 }
-                              >
-                                <Option value="ai_climax">🤖 AI甄选戏眼</Option>
-                                <Option value="true_opening">📖 黄金正文开篇</Option>
-                              </Select>
+                                options={MODE_OPTIONS}
+                              />
                               <Select
                                 size="small"
-                                style={{ width: 90 }}
+                                style={{ width: 105 }}
                                 value={selectedCount}
                                 onChange={(val) =>
                                   setOnlineChapterCountMap((prev) => ({ ...prev, [bookUrl]: val }))
                                 }
-                              >
-                                <Option value={1}>采编 1 章</Option>
-                                <Option value={3}>采编 3 章</Option>
-                                <Option value={5}>采编 5 章</Option>
-                              </Select>
+                                options={CHAPTER_COUNT_OPTIONS}
+                              />
                               <Button
                                 size="small"
                                 icon={<UnorderedListOutlined />}
