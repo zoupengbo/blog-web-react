@@ -6,7 +6,7 @@ import "./page-content.scss";
 
 const PageContent: React.FC = () => {
   const { routeMap, currentPath } = useNavigation();
-  const isAiNovel = currentPath === '/ai-novel' || currentPath.startsWith('/ai-novel');
+  const isAiNovel = currentPath === '/ai-novel' || (currentPath.startsWith('/ai-novel/') && !currentPath.startsWith('/ai-novel-lab'));
 
   return (
     <div className={`page-content ${isAiNovel ? 'no-padding-route' : ''}`}>

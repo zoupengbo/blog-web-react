@@ -92,14 +92,15 @@
   .audit-layout {
     display: flex;
     gap: 16px;
-    min-height: 600px;
+    height: calc(100vh - 270px);
+    min-height: 520px;
 
     .rule-list-panel {
       flex: 0 0 320px;
       background: #fff;
       border-radius: 8px;
       border: 1px solid #e2e8f0;
-      max-height: 800px;
+      height: 100%;
       padding: 12px;
       display: flex;
       flex-direction: column;
@@ -108,7 +109,15 @@
         flex: 1;
         overflow-y: auto;
         min-height: 0;
-        padding-right: 2px;
+        padding-right: 4px;
+
+        &::-webkit-scrollbar {
+          width: 5px;
+        }
+        &::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 3px;
+        }
       }
 
       .rule-item-card {
@@ -154,8 +163,16 @@
       border-radius: 8px;
       border: 1px solid #e2e8f0;
       padding: 20px;
+      height: 100%;
       overflow-y: auto;
-      max-height: 750px;
+
+      &::-webkit-scrollbar {
+        width: 5px;
+      }
+      &::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 3px;
+      }
     }
 
     .rule-evidence-panel {
@@ -164,8 +181,16 @@
       border-radius: 8px;
       border: 1px solid #e2e8f0;
       padding: 16px;
+      height: 100%;
       overflow-y: auto;
-      max-height: 750px;
+
+      &::-webkit-scrollbar {
+        width: 5px;
+      }
+      &::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 3px;
+      }
 
       .evidence-box {
         background: #f8fafc;
