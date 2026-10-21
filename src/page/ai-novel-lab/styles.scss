@@ -99,9 +99,17 @@
       background: #fff;
       border-radius: 8px;
       border: 1px solid #e2e8f0;
-      overflow-y: auto;
-      max-height: 750px;
+      max-height: 800px;
       padding: 12px;
+      display: flex;
+      flex-direction: column;
+
+      .rule-items-container {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0;
+        padding-right: 2px;
+      }
 
       .rule-item-card {
         padding: 12px;

@@ -15,6 +15,7 @@ import {
   message,
   Badge,
   Tooltip,
+  Pagination,
 } from 'antd';
 import {
   CheckCircleOutlined,
@@ -41,6 +42,11 @@ export const RuleAuditConsole: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedRule, setSelectedRule] = useState<DistillRuleItem | null>(null);
 
+  // 分页状态
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [total, setTotal] = useState<number>(0);
+
   // 筛选器
   const [filterGenre, setFilterGenre] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -50,10 +56,10 @@ export const RuleAuditConsole: React.FC = () => {
   const [editForm] = Form.useForm();
   const [saveLoading, setSaveLoading] = useState<boolean>(false);
 
-  const fetchRules = async () => {
+  const fetchRules = async (targetPage = page, targetPageSize = pageSize) => {
     setLoading(true);
     try {
-      const params: any = { pageSize: 100 };
+      const params: any = { page: targetPage, pageSize: targetPageSize };
       if (filterGenre !== 'all') params.genre = filterGenre;
       if (filterStatus !== 'all') params.status = filterStatus;
       if (filterDimension !== 'all') params.dimension = filterDimension;
@@ -63,6 +69,7 @@ export const RuleAuditConsole: React.FC = () => {
       if (res.code === 200) {
         const items = res.data.items || [];
         setRules(items);
+        setTotal(res.data.total || 0);
         if (items.length > 0) {
           if (!selectedRule || !items.find((i) => i.id === selectedRule.id)) {
             setSelectedRule(items[0]);
@@ -85,7 +92,8 @@ export const RuleAuditConsole: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchRules();
+    setPage(1);
+    fetchRules(1, pageSize);
   }, [filterGenre, filterStatus, filterDimension]);
 
   const handleSelectRule = (r: DistillRuleItem) => {
@@ -186,10 +194,17 @@ export const RuleAuditConsole: React.FC = () => {
                 placeholder="搜索规则关键词"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
-                onSearch={fetchRules}
+                onSearch={() => {
+                  setPage(1);
+                  fetchRules(1, pageSize);
+                }}
                 style={{ width: 180 }}
               />
-              <Button icon={<ReloadOutlined />} onClick={fetchRules} loading={loading} />
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={() => fetchRules(page, pageSize)}
+                loading={loading}
+              />
             </Space>
           </Col>
         </Row>
@@ -198,39 +213,58 @@ export const RuleAuditConsole: React.FC = () => {
       <div className="audit-layout">
         {/* 左侧：候选规则列表 */}
         <div className="rule-list-panel">
-          <div style={{ padding: '4px 8px 8px', display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: 13 }}>
-            <span>规则列表 ({rules.length})</span>
+          <div style={{ padding: '4px 4px 8px', display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: 13, borderBottom: '1px solid #f1f5f9', marginBottom: 8 }}>
+            <span>规则列表 (共 {total} 条)</span>
+            <span>第 {page} / {Math.max(1, Math.ceil(total / pageSize))} 页</span>
           </div>
-          {rules.map((r) => {
-            const isSelected = selectedRule?.id === r.id;
-            return (
-              <div
-                key={r.id}
-                className={`rule-item-card ${isSelected ? 'active' : ''}`}
-                onClick={() => handleSelectRule(r)}
-              >
-                <div className="item-title">
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 190 }}>
-                    {r.ruleName}
-                  </span>
-                  {r.status === 'verified' && <Tag color="success" style={{ margin: 0 }}>已入库</Tag>}
-                  {r.status === 'draft' && <Tag color="warning" style={{ margin: 0 }}>待审</Tag>}
-                  {r.status === 'rejected' && <Tag color="error" style={{ margin: 0 }}>驳回</Tag>}
+
+          <div className="rule-items-container">
+            {rules.map((r) => {
+              const isSelected = selectedRule?.id === r.id;
+              return (
+                <div
+                  key={r.id}
+                  className={`rule-item-card ${isSelected ? 'active' : ''}`}
+                  onClick={() => handleSelectRule(r)}
+                >
+                  <div className="item-title">
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 190 }}>
+                      {r.ruleName}
+                    </span>
+                    {r.status === 'verified' && <Tag color="success" style={{ margin: 0 }}>已入库</Tag>}
+                    {r.status === 'draft' && <Tag color="warning" style={{ margin: 0 }}>待审</Tag>}
+                    {r.status === 'rejected' && <Tag color="error" style={{ margin: 0 }}>驳回</Tag>}
+                  </div>
+                  <div className="item-meta">
+                    <Space direction="horizontal" size={4}>
+                      <span style={{ color: '#0284c7' }}>{r.targetDimension}</span>
+                      {r.isConflict && (
+                        <Tooltip title="与同题材已有规则存在语义互斥冲突">
+                          <Tag color="error" style={{ margin: 0, padding: '0 4px' }}>冲突</Tag>
+                        </Tooltip>
+                      )}
+                    </Space>
+                    <span>置信度: {(r.confidenceScore * 100).toFixed(0)}%</span>
+                  </div>
                 </div>
-                <div className="item-meta">
-                  <Space direction="horizontal" size={4}>
-                    <span style={{ color: '#0284c7' }}>{r.targetDimension}</span>
-                    {r.isConflict && (
-                      <Tooltip title="与同题材已有规则存在语义互斥冲突">
-                        <Tag color="error" style={{ margin: 0, padding: '0 4px' }}>冲突</Tag>
-                      </Tooltip>
-                    )}
-                  </Space>
-                  <span>置信度: {(r.confidenceScore * 100).toFixed(0)}%</span>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+
+          <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'center' }}>
+            <Pagination
+              size="small"
+              current={page}
+              pageSize={pageSize}
+              total={total}
+              onChange={(newPage) => {
+                setPage(newPage);
+                fetchRules(newPage, pageSize);
+              }}
+              showSizeChanger={false}
+              simple={total > 40}
+            />
+          </div>
         </div>
 
         {/* 中间：规则精修与责编审核工作台 */}

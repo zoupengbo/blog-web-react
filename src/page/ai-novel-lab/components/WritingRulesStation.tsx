@@ -17,6 +17,7 @@ import {
   Col,
   Tooltip,
   Divider,
+  Pagination,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -54,16 +55,21 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
   const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'draft'>('all');
   const [searchKeyword, setSearchKeyword] = useState<string>('');
 
+  // 分页状态
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [total, setTotal] = useState<number>(0);
+
   // 编辑规则弹窗
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [editingRule, setEditingRule] = useState<DistillRuleItem | null>(null);
   const [editForm] = Form.useForm();
   const [saveLoading, setSaveLoading] = useState<boolean>(false);
 
-  const fetchRules = async () => {
+  const fetchRules = async (targetPage: number = page, targetPageSize: number = pageSize) => {
     setLoading(true);
     try {
-      const params: any = { pageSize: 200 };
+      const params: any = { page: targetPage, pageSize: targetPageSize };
       if (selectedGenre !== 'all') params.genre = selectedGenre;
       if (selectedDimension !== 'all') params.dimension = selectedDimension;
       if (statusFilter !== 'all') params.status = statusFilter;
@@ -72,6 +78,7 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
       const res = await getDistillRules(params);
       if (res.code === 200) {
         setRules(res.data.items || []);
+        setTotal(res.data.total || 0);
       }
     } catch (e) {
       console.error(e);
@@ -81,7 +88,8 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
   };
 
   useEffect(() => {
-    fetchRules();
+    setPage(1);
+    fetchRules(1, pageSize);
   }, [selectedGenre, selectedDimension, statusFilter]);
 
   const handleToggleActive = async (ruleId: number, active: boolean) => {
@@ -176,12 +184,12 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
             <FireOutlined style={{ color: '#ea580c' }} />
             <span style={{ fontSize: 16, fontWeight: 600 }}>写作笔法与因果规约库</span>
             <Tag color="success">当前生效: {activeCount} 条</Tag>
-            <Tag color="default">总库藏: {rules.length} 条</Tag>
+            <Tag color="default">总库藏: {total} 条</Tag>
           </Space>
         }
         extra={
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={fetchRules}>
+            <Button icon={<ReloadOutlined />} onClick={() => fetchRules(page, pageSize)}>
               刷新
             </Button>
             <Button
@@ -266,7 +274,10 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
             placeholder="搜索笔法关键字/规约/避坑..."
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
-            onSearch={fetchRules}
+            onSearch={() => {
+              setPage(1);
+              fetchRules(1, pageSize);
+            }}
             style={{ width: 240 }}
             allowClear
           />
@@ -359,6 +370,25 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
             );
           })}
         </div>
+
+        {/* 分页控制器 */}
+        {total > 0 && (
+          <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end' }}>
+            <Pagination
+              current={page}
+              pageSize={pageSize}
+              total={total}
+              showSizeChanger
+              pageSizeOptions={['10', '20', '50']}
+              showTotal={(tot) => `共 ${tot} 条笔法规约`}
+              onChange={(newPage, newPageSize) => {
+                setPage(newPage);
+                setPageSize(newPageSize);
+                fetchRules(newPage, newPageSize);
+              }}
+            />
+          </div>
+        )}
       </Card>
 
       {/* 规则编辑弹窗 */}
