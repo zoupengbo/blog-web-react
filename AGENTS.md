@@ -32,12 +32,13 @@
   2. 确保用户在界面上只需点击一次“Copy（复制）”按钮即可完整获取全文，无需手动跨行选中；
   3. 纯文本代码块内部采用标准 ASCII 分隔符（如 `===`、`---`）、明确层级标题与结构化对照，杜绝零碎散乱。
 
-## 完工自动 Git 提交与归档铁律 (Auto Git Commit on Completion Rule)
+## 完工自动 Git 提交与远程推送铁律 (Auto Git Commit & Push Rule)
 - 任何时候在 `blog-web` 或 `blog-server` 中完成代码新增、重构或 Bug 修复：
-  1. **必须自动加载并遵循 [auto-git-commit](file:///Users/zpb/person/blog/new-blog/blog-web/.agents/skills/auto-git-commit/SKILL.md) 技能**；
-  2. 严格遵循“先自测自检，后自动提交”原则：前端 `npx tsc --noEmit` 与 `npm run build` Exit Code 0、后端测试 100% 通过；
-  3. 验证通过后，**必须立即自动执行 `git add` 并按照规范提交 (`git commit -m "feat/fix/refactor: ..."`)**，严禁未提交直接结束任务！
-  4. 向用户完工汇报时必须完整展示本次 Git Commit Hash、提交信息与分支状态。
+  1. **明确定义**：用户的“提交”与“改完提交”，**严格指代 `git add .` + `git commit` + `git push origin master` 全流程闭环**；
+  2. **必须自动加载并遵循 [auto-git-commit](file:///Users/zpb/person/blog/new-blog/blog-web/.agents/skills/auto-git-commit/SKILL.md) 技能**；
+  3. 严格遵循“先自测自检，后自动提交推送”原则：前端 `npx tsc --noEmit` 与 `npm run build` Exit Code 0、后端测试 100% 通过；
+  4. 验证通过后，**必须立即自动执行暂存、规范提交并推送到远端 master 分支 (`git push origin master`)**，严禁未提交推送直接结束任务！
+  5. 向用户完工汇报时必须完整展示本次 Git Commit Hash、推送远程分支状态与提交信息。
 
 
 
