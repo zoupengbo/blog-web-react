@@ -1,6 +1,6 @@
 import React from 'react';
 import { Space, Button, Card, Spin, Tooltip, Badge, Popconfirm } from 'antd';
-import { BookOutlined, PlusOutlined, SettingOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { BookOutlined, PlusOutlined, SettingOutlined, EditOutlined, DeleteOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { Novel } from '../types';
 
 interface NovelListViewProps {
@@ -37,6 +37,12 @@ export const NovelListView: React.FC<NovelListViewProps> = ({
             className="create-btn"
           >
             开启全新创作
+          </Button>
+          <Button
+            icon={<ExperimentOutlined />}
+            onClick={() => window.location.href = '/ai-novel-lab'}
+          >
+            写作能力实验室
           </Button>
           <Button
             icon={<SettingOutlined />}

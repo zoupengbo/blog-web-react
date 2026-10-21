@@ -24,6 +24,7 @@ import { TagModule } from '@pages/article/tagModule/index';
 import EbookReader from '@pages/entertainment/ebookReader/index';
 import VideoDownloader from '../page/video/VideoDownloader';
 import AiNovelDashboard from '../page/ai-novel/index';
+import AiNovelLab from '../page/ai-novel-lab/index';
 import PriceCompareDashboard from '../page/price-compare/index';
 import QuantDashboard from '../page/quant/dashboard/index';
 import QuantStrategies from '../page/quant/strategies/index';
@@ -130,6 +131,13 @@ export const routeConfigs: RouteConfig[] = [
     title: "AI 写作工坊",
     icon: <EditOutlined />,
     component: AiNovelDashboard,
+    group: "entertainment"
+  },
+  {
+    path: "/ai-novel-lab",
+    title: "小说写作能力实验室",
+    icon: <ExperimentOutlined />,
+    component: AiNovelLab,
     group: "entertainment"
   },
   {

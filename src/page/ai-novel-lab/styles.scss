@@ -1,0 +1,211 @@
+.ai-novel-lab-container {
+  padding: 20px;
+  background-color: #f7f9fc;
+  min-height: calc(100vh - 64px);
+
+  .lab-header {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: #fff;
+    padding: 24px 32px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.15);
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+
+      .lab-icon {
+        font-size: 36px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 12px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #38bdf8;
+      }
+
+      .lab-title {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+        color: #f8fafc;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .lab-subtitle {
+        margin: 4px 0 0;
+        font-size: 13px;
+        color: #94a3b8;
+      }
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+  }
+
+  .stat-card {
+    border-radius: 10px;
+    transition: all 0.25s ease;
+    border: 1px solid #e2e8f0;
+
+    &:hover {
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+      transform: translateY(-2px);
+    }
+
+    .stat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #64748b;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .stat-footer {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+
+  .audit-layout {
+    display: flex;
+    gap: 16px;
+    min-height: 600px;
+
+    .rule-list-panel {
+      flex: 0 0 320px;
+      background: #fff;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      overflow-y: auto;
+      max-height: 750px;
+      padding: 12px;
+
+      .rule-item-card {
+        padding: 12px;
+        border-radius: 6px;
+        border: 1px solid #f1f5f9;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &:hover {
+          background: #f8fafc;
+          border-color: #cbd5e1;
+        }
+
+        &.active {
+          background: #eff6ff;
+          border-color: #3b82f6;
+        }
+
+        .item-title {
+          font-weight: 600;
+          font-size: 14px;
+          color: #1e293b;
+          margin-bottom: 6px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .item-meta {
+          font-size: 12px;
+          color: #64748b;
+          display: flex;
+          justify-content: space-between;
+        }
+      }
+    }
+
+    .rule-edit-panel {
+      flex: 1;
+      background: #fff;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      padding: 20px;
+      overflow-y: auto;
+      max-height: 750px;
+    }
+
+    .rule-evidence-panel {
+      flex: 0 0 360px;
+      background: #fff;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      padding: 16px;
+      overflow-y: auto;
+      max-height: 750px;
+
+      .evidence-box {
+        background: #f8fafc;
+        border-left: 3px solid #3b82f6;
+        padding: 10px 14px;
+        border-radius: 0 6px 6px 0;
+        margin-bottom: 12px;
+        font-size: 13px;
+        line-height: 1.6;
+        color: #334155;
+      }
+
+      .conflict-box {
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 12px;
+        font-size: 13px;
+        color: #9a3412;
+      }
+    }
+  }
+
+  .task-log-viewer {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 16px;
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+
+    .log-line {
+      margin-bottom: 6px;
+      line-height: 1.5;
+
+      .log-time {
+        color: #64748b;
+        margin-right: 8px;
+      }
+
+      .log-stage {
+        color: #38bdf8;
+        margin-right: 8px;
+        font-weight: 600;
+      }
+    }
+  }
+}
