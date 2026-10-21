@@ -183,8 +183,44 @@ export const importOnlineNovel = async (data: {
   author?: string;
   genre?: string;
   chapterCount?: number;
+  mode?: 'ai_climax' | 'true_opening' | 'manual';
+  selectedChapterUrls?: string[];
 }): Promise<{ code: number; data: any; message: string }> => {
   return httpService.post('/ai-novel/lab/works/import-online', data) as any;
+};
+
+export const getOnlineNovelChapters = async (novelUrl: string): Promise<{
+  code: number;
+  data: {
+    title: string;
+    author: string;
+    description: string;
+    category: string;
+    coverImage: string;
+    totalChapters: number;
+    validChaptersCount: number;
+    chapters: Array<{ title: string; sourceUrl: string; chapterNumber: number }>;
+  };
+}> => {
+  return httpService.get('/ai-novel/lab/works/online-chapters', { params: { novelUrl } }) as any;
+};
+
+export const aiSelectChapters = async (data: {
+  title: string;
+  genre?: string;
+  chapters?: any[];
+  novelUrl?: string;
+  count?: number;
+  mode?: 'ai_climax' | 'true_opening';
+}): Promise<{
+  code: number;
+  data: {
+    selectedChapters: Array<{ title: string; sourceUrl: string; chapterNumber: number }>;
+    mode: string;
+    rationale: string;
+  };
+}> => {
+  return httpService.post('/ai-novel/lab/works/ai-select-chapters', data) as any;
 };
 
 export const deleteCorpusWork = async (id: number): Promise<{ code: number; message: string }> => {

@@ -22,6 +22,7 @@ import {
   Tabs,
   Spin,
   Avatar,
+  Checkbox,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -34,6 +35,9 @@ import {
   GlobalOutlined,
   SearchOutlined,
   CloudDownloadOutlined,
+  RobotOutlined,
+  UnorderedListOutlined,
+  StarOutlined,
 } from '@ant-design/icons';
 import {
   getCorpusWorks,
@@ -43,6 +47,8 @@ import {
   createDistillTask,
   searchOnlineNovels,
   importOnlineNovel,
+  getOnlineNovelChapters,
+  aiSelectChapters,
   CorpusWorkItem,
 } from '../services/labApi';
 import { StorageUtil } from '../../entertainment/ebookReader/utils/storage';
@@ -100,7 +106,20 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
   const [onlineImportLoadingUrl, setOnlineImportLoadingUrl] = useState<string | null>(null);
   const [onlineGenreMap, setOnlineGenreMap] = useState<Record<string, string>>({});
   const [onlineChapterCountMap, setOnlineChapterCountMap] = useState<Record<string, number>>({});
+  const [onlineModeMap, setOnlineModeMap] = useState<Record<string, 'ai_climax' | 'true_opening'>>({});
   const [bookshelfBooks, setBookshelfBooks] = useState<any[]>([]);
+
+  // 章节目录挑选与 AI 戏眼推荐 Drawer 状态
+  const [isPickerDrawerOpen, setIsPickerDrawerOpen] = useState<boolean>(false);
+  const [pickerBook, setPickerBook] = useState<any>(null);
+  const [pickerChapters, setPickerChapters] = useState<Array<{ title: string; sourceUrl: string; chapterNumber: number }>>([]);
+  const [pickerLoading, setPickerLoading] = useState<boolean>(false);
+  const [selectedChapterUrls, setSelectedChapterUrls] = useState<string[]>([]);
+  const [aiClimaxUrls, setAiClimaxUrls] = useState<string[]>([]);
+  const [aiPickingLoading, setAiPickingLoading] = useState<boolean>(false);
+  const [aiSelectionRationale, setAiSelectionRationale] = useState<string>('');
+  const [pickerImportLoading, setPickerImportLoading] = useState<boolean>(false);
+  const [chapterSearchKw, setChapterSearchKw] = useState<string>('');
 
   const openOnlineModal = () => {
     try {
@@ -145,6 +164,7 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
     try {
       const genre = onlineGenreMap[bookUrl] || '体制官场';
       const count = onlineChapterCountMap[bookUrl] || 3;
+      const mode = onlineModeMap[bookUrl] || 'ai_climax';
 
       const res = await importOnlineNovel({
         novelUrl: bookUrl,
@@ -152,6 +172,7 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
         author: bookItem.author,
         genre,
         chapterCount: count,
+        mode,
       });
 
       if (res.code === 200) {
@@ -162,6 +183,106 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
       // 全局拦截
     } finally {
       setOnlineImportLoadingUrl(null);
+    }
+  };
+
+  const handleOpenPicker = async (bookItem: any) => {
+    const bookUrl = bookItem.url || bookItem.sourceUrl;
+    if (!bookUrl) {
+      message.error('该书籍缺少在线网络链接');
+      return;
+    }
+    setPickerBook(bookItem);
+    setIsPickerDrawerOpen(true);
+    setPickerLoading(true);
+    setSelectedChapterUrls([]);
+    setAiClimaxUrls([]);
+    setAiSelectionRationale('');
+    setChapterSearchKw('');
+
+    try {
+      const res = await getOnlineNovelChapters(bookUrl);
+      if (res.code === 200) {
+        const chaps = res.data?.chapters || [];
+        setPickerChapters(chaps);
+        if (chaps.length > 0) {
+          setSelectedChapterUrls(chaps.slice(0, 3).map(c => c.sourceUrl));
+        }
+      }
+    } catch (e: any) {
+      message.error(e.message || '获取章节目录失败');
+    } finally {
+      setPickerLoading(false);
+    }
+  };
+
+  const handleAiPickInDrawer = async (count = 3) => {
+    if (!pickerBook || pickerChapters.length === 0) return;
+    const bookUrl = pickerBook.url || pickerBook.sourceUrl;
+    const genre = onlineGenreMap[bookUrl] || '体制官场';
+    setAiPickingLoading(true);
+    try {
+      const res = await aiSelectChapters({
+        title: pickerBook.title,
+        genre,
+        chapters: pickerChapters,
+        novelUrl: bookUrl,
+        count,
+        mode: 'ai_climax',
+      });
+      if (res.code === 200 && res.data?.selectedChapters) {
+        const urls = res.data.selectedChapters.map(c => c.sourceUrl);
+        setSelectedChapterUrls(urls);
+        setAiClimaxUrls(urls);
+        setAiSelectionRationale(res.data.rationale || '');
+        message.success(`AI 已精准甄选出 ${urls.length} 个高潮博弈戏眼章！`);
+      }
+    } catch (e: any) {
+      message.error(e.message || 'AI 甄选章节失败');
+    } finally {
+      setAiPickingLoading(false);
+    }
+  };
+
+  const handleSelectOpeningInDrawer = (count = 3) => {
+    const urls = pickerChapters.slice(0, count).map(c => c.sourceUrl);
+    setSelectedChapterUrls(urls);
+    setAiSelectionRationale(`已勾选《${pickerBook?.title}》黄金开篇前 ${urls.length} 章`);
+  };
+
+  const handleToggleSelectChapter = (url: string) => {
+    setSelectedChapterUrls(prev =>
+      prev.includes(url) ? prev.filter(u => u !== url) : [...prev, url]
+    );
+  };
+
+  const handleConfirmPickerImport = async () => {
+    if (!pickerBook) return;
+    const bookUrl = pickerBook.url || pickerBook.sourceUrl;
+    if (selectedChapterUrls.length === 0) {
+      message.warning('请至少勾选一个章节');
+      return;
+    }
+    setPickerImportLoading(true);
+    try {
+      const genre = onlineGenreMap[bookUrl] || '体制官场';
+      const res = await importOnlineNovel({
+        novelUrl: bookUrl,
+        title: pickerBook.title,
+        author: pickerBook.author,
+        genre,
+        mode: 'manual',
+        selectedChapterUrls,
+      });
+      if (res.code === 200) {
+        message.success(res.message || '章节切片入库成功！');
+        setIsPickerDrawerOpen(false);
+        fetchWorks();
+      }
+    } catch (e: any) {
+      message.error(e.message || '导入章节切片失败');
+    } finally {
+      setPickerImportLoading(false);
     }
   };
 
@@ -766,6 +887,17 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
                               </Select>
                               <Select
                                 size="small"
+                                style={{ width: 135 }}
+                                value={onlineModeMap[bookUrl] || 'ai_climax'}
+                                onChange={(val) =>
+                                  setOnlineModeMap((prev) => ({ ...prev, [bookUrl]: val }))
+                                }
+                              >
+                                <Option value="ai_climax">🤖 AI甄选戏眼</Option>
+                                <Option value="true_opening">📖 黄金正文开篇</Option>
+                              </Select>
+                              <Select
+                                size="small"
                                 style={{ width: 90 }}
                                 value={selectedCount}
                                 onChange={(val) =>
@@ -777,6 +909,13 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
                                 <Option value={5}>采编 5 章</Option>
                               </Select>
                               <Button
+                                size="small"
+                                icon={<UnorderedListOutlined />}
+                                onClick={() => handleOpenPicker(item)}
+                              >
+                                挑选目录
+                              </Button>
+                              <Button
                                 type="primary"
                                 size="small"
                                 icon={<CloudDownloadOutlined />}
@@ -784,7 +923,7 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
                                 onClick={() => handleImportOnlineBook(item)}
                                 style={{ backgroundColor: '#0284c7', borderColor: '#0284c7' }}
                               >
-                                采编入库
+                                快速采编
                               </Button>
                             </Space>,
                           ]}
@@ -878,6 +1017,17 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
                               </Select>
                               <Select
                                 size="small"
+                                style={{ width: 135 }}
+                                value={onlineModeMap[bookUrl] || 'ai_climax'}
+                                onChange={(val) =>
+                                  setOnlineModeMap((prev) => ({ ...prev, [bookUrl]: val }))
+                                }
+                              >
+                                <Option value="ai_climax">🤖 AI甄选戏眼</Option>
+                                <Option value="true_opening">📖 黄金正文开篇</Option>
+                              </Select>
+                              <Select
+                                size="small"
                                 style={{ width: 90 }}
                                 value={selectedCount}
                                 onChange={(val) =>
@@ -888,6 +1038,13 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
                                 <Option value={3}>采编 3 章</Option>
                                 <Option value={5}>采编 5 章</Option>
                               </Select>
+                              <Button
+                                size="small"
+                                icon={<UnorderedListOutlined />}
+                                onClick={() => handleOpenPicker(item)}
+                              >
+                                挑选目录
+                              </Button>
                               <Button
                                 type="primary"
                                 size="small"
@@ -941,6 +1098,134 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
           ]}
         />
       </Modal>
+
+      {/* 章节目录挑选与 AI 戏眼推荐 Drawer */}
+      <Drawer
+        title={
+          <Space>
+            <UnorderedListOutlined style={{ color: '#7c3aed' }} />
+            <span>《{pickerBook?.title || '作品'}》章节目录挑选与 AI 戏眼甄选</span>
+            {pickerChapters.length > 0 && <Tag color="purple">共 {pickerChapters.length} 正文章节</Tag>}
+          </Space>
+        }
+        width={720}
+        open={isPickerDrawerOpen}
+        onClose={() => setIsPickerDrawerOpen(false)}
+        extra={
+          <Space>
+            <Button onClick={() => setIsPickerDrawerOpen(false)}>取消</Button>
+            <Button
+              type="primary"
+              loading={pickerImportLoading}
+              disabled={selectedChapterUrls.length === 0}
+              onClick={handleConfirmPickerImport}
+              style={{ backgroundColor: '#0284c7', borderColor: '#0284c7' }}
+            >
+              确认采编所选 ({selectedChapterUrls.length}) 章入库
+            </Button>
+          </Space>
+        }
+      >
+        <Spin spinning={pickerLoading}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <Alert
+              message="AI 章节甄选与自由切片工具"
+              description="可直接点击下方【🤖 AI 甄选戏眼】，系统将自动通读并理解全部章节标题语义，挑选最具冲突博弈与叙事深度的戏眼章；也可手动勾选任意章节切片入库。"
+              type="info"
+              showIcon
+            />
+
+            <Space wrap>
+              <Button
+                type="primary"
+                icon={<RobotOutlined />}
+                loading={aiPickingLoading}
+                onClick={() => handleAiPickInDrawer(3)}
+                style={{ backgroundColor: '#7c3aed', borderColor: '#7c3aed' }}
+              >
+                🤖 AI 甄选 3 个高潮戏眼章
+              </Button>
+              <Button
+                icon={<RobotOutlined />}
+                loading={aiPickingLoading}
+                onClick={() => handleAiPickInDrawer(5)}
+              >
+                AI 甄选 5 个戏眼章
+              </Button>
+              <Button onClick={() => handleSelectOpeningInDrawer(3)}>
+                📖 勾选开篇前 3 章
+              </Button>
+              <Button onClick={() => handleSelectOpeningInDrawer(5)}>
+                开篇前 5 章
+              </Button>
+              <Button onClick={() => setSelectedChapterUrls([])}>
+                清空选择
+              </Button>
+            </Space>
+
+            {aiSelectionRationale && (
+              <Alert
+                message="🧠 AI 责编推荐点评"
+                description={aiSelectionRationale}
+                type="success"
+                showIcon
+              />
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+              <Input.Search
+                placeholder="在目录中搜索章节关键词，如：常委、交锋、查封..."
+                style={{ width: 280 }}
+                value={chapterSearchKw}
+                onChange={e => setChapterSearchKw(e.target.value)}
+                allowClear
+              />
+              <Text type="secondary">
+                已选中 <Text strong style={{ color: '#0284c7' }}>{selectedChapterUrls.length}</Text> 章（建议 3~5 章以保证蒸馏速度与精度）
+              </Text>
+            </div>
+
+            <div style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12 }}>
+              <List
+                size="small"
+                dataSource={pickerChapters.filter(c => !chapterSearchKw || c.title.toLowerCase().includes(chapterSearchKw.toLowerCase()))}
+                renderItem={(chap) => {
+                  const isChecked = selectedChapterUrls.includes(chap.sourceUrl);
+                  const isAiPick = aiClimaxUrls.includes(chap.sourceUrl);
+                  return (
+                    <List.Item
+                      key={chap.sourceUrl}
+                      style={{
+                        padding: '6px 12px',
+                        cursor: 'pointer',
+                        backgroundColor: isChecked ? '#f0f9ff' : 'transparent',
+                        borderRadius: 4,
+                        marginBottom: 4,
+                      }}
+                      onClick={() => handleToggleSelectChapter(chap.sourceUrl)}
+                    >
+                      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                        <Space>
+                          <Checkbox checked={isChecked} />
+                          <Text strong={isChecked}>{chap.title}</Text>
+                        </Space>
+                        <Space>
+                          {isAiPick && (
+                            <Tag color="purple" icon={<StarOutlined />}>
+                              🌟 AI推荐戏眼
+                            </Tag>
+                          )}
+                          <Text type="secondary" style={{ fontSize: 12 }}>第 {chap.chapterNumber} 节</Text>
+                        </Space>
+                      </Space>
+                    </List.Item>
+                  );
+                }}
+              />
+            </div>
+          </div>
+        </Spin>
+      </Drawer>
     </div>
   );
 };
