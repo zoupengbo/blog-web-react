@@ -414,6 +414,17 @@ export const DistillTaskStation: React.FC<DistillTaskStationProps> = ({
               </div>
             </Card>
 
+            {selectedTask.resultSummary?.userProblem && (
+              <Card size="small" style={{ marginBottom: 16, background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                <Text strong style={{ color: '#166534', fontSize: 13, display: 'block', marginBottom: 4 }}>
+                  🎯 攻克创作痛点目标：
+                </Text>
+                <Paragraph style={{ margin: 0, fontSize: 13, color: '#14532d' }}>
+                  {selectedTask.resultSummary.userProblem}
+                </Paragraph>
+              </Card>
+            )}
+
             {/* 四项核心统计指标看板 */}
             <Card size="small" title="分析指标与质检全链路看板" style={{ marginBottom: 16, background: '#f8fafc' }}>
               <Row gutter={[12, 12]}>

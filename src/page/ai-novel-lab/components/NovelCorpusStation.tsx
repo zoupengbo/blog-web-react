@@ -19,10 +19,8 @@ import {
   Col,
   Drawer,
   List,
-  Tabs,
-  Spin,
   Avatar,
-  Checkbox,
+  Divider,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -34,10 +32,10 @@ import {
   EyeOutlined,
   GlobalOutlined,
   SearchOutlined,
-  CloudDownloadOutlined,
   RobotOutlined,
-  UnorderedListOutlined,
-  StarOutlined,
+  CheckCircleOutlined,
+  ArrowLeftOutlined,
+  FireOutlined,
 } from '@ant-design/icons';
 import {
   getCorpusWorks,
@@ -46,15 +44,14 @@ import {
   seedBenchmarkCorpus,
   createDistillTask,
   searchOnlineNovels,
-  importOnlineNovel,
-  getOnlineNovelChapters,
-  aiSelectChapters,
+  diagnoseAndPlanTask,
+  DiagnosisPlanItem,
   CorpusWorkItem,
 } from '../services/labApi';
-import { StorageUtil } from '../../entertainment/ebookReader/utils/storage';
 
 const { Text, Paragraph } = Typography;
 const { Option } = Select;
+const { TextArea } = Input;
 
 const GENRE_OPTIONS = [
   { value: '体制官场', label: '体制官场' },
@@ -65,15 +62,12 @@ const GENRE_OPTIONS = [
   { value: '科幻未来', label: '科幻未来' },
 ];
 
-const MODE_OPTIONS = [
-  { value: 'ai_climax', label: '🤖 AI甄选戏眼' },
-  { value: 'true_opening', label: '📖 黄金正文开篇' },
-];
-
-const CHAPTER_COUNT_OPTIONS = [
-  { value: 1, label: '采编 1 章' },
-  { value: 3, label: '采编 3 章' },
-  { value: 5, label: '采编 5 章' },
+const QUICK_PROBLEM_CHIPS = [
+  { label: '体制对话', text: '主角在体制内对话过于直白生硬、像在念公文，缺少暗线机锋、含蓄推拉与潜台词试探' },
+  { label: '因果动机', text: '配角动机单薄，反常举动或突然倒戈缺乏前置利益制衡与恩怨渊源，主角赢面显得机械降神' },
+  { label: '白描去水', text: '场景描写流水账严重，缺乏动词主导的物理动作与空间站位，环境描写无法烘托人物心理' },
+  { label: '公文合规', text: '办事流程欠严密，缺少真实的公文流转、程序留痕考量与各方权责推诿博弈细节' },
+  { label: '去AI机械味', text: '过度使用抒情排比与作者上帝视角泄题，缺乏人类优秀作家冷峻克制的叙事留白' },
 ];
 
 export interface GroupedNovelItem {
@@ -96,7 +90,7 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
   const [works, setWorks] = useState<CorpusWorkItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // TXT 上传弹窗
+  // TXT 上传独立弹窗
   const [isTxtModalOpen, setIsTxtModalOpen] = useState<boolean>(false);
   const [txtForm] = Form.useForm();
   const [txtLoading, setTxtLoading] = useState<boolean>(false);
@@ -108,203 +102,26 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
     preview: string;
   } | null>(null);
 
-  // 一键提炼弹窗
-  const [isDistillModalOpen, setIsDistillModalOpen] = useState<boolean>(false);
-  const [selectedNovel, setSelectedNovel] = useState<GroupedNovelItem | null>(null);
-  const [distillForm] = Form.useForm();
-  const [distillLoading, setDistillLoading] = useState<boolean>(false);
-
   // 查看章节抽屉
   const [viewNovel, setViewNovel] = useState<GroupedNovelItem | null>(null);
   const [seedLoading, setSeedLoading] = useState<boolean>(false);
 
-  // 全网在线小说检索与采编弹窗
-  const [isOnlineModalOpen, setIsOnlineModalOpen] = useState<boolean>(false);
-  const [onlineSearchKeyword, setOnlineSearchKeyword] = useState<string>('');
-  const [onlineSearchResults, setOnlineSearchResults] = useState<any[]>([]);
-  const [onlineSearchLoading, setOnlineSearchLoading] = useState<boolean>(false);
-  const [onlineImportLoadingUrl, setOnlineImportLoadingUrl] = useState<string | null>(null);
-  const [onlineGenreMap, setOnlineGenreMap] = useState<Record<string, string>>({});
-  const [onlineChapterCountMap, setOnlineChapterCountMap] = useState<Record<string, number>>({});
-  const [onlineModeMap, setOnlineModeMap] = useState<Record<string, 'ai_climax' | 'true_opening'>>({});
-  const [bookshelfBooks, setBookshelfBooks] = useState<any[]>([]);
+  // ==================== AI 笔法自主诊断与两阶段提炼弹窗状态 ====================
+  const [isDistillModalOpen, setIsDistillModalOpen] = useState<boolean>(false);
+  const [distillPhase, setDistillPhase] = useState<1 | 2>(1);
+  const [refSourceType, setRefSourceType] = useState<'existing' | 'online' | 'txt'>('existing');
+  const [selectedNovel, setSelectedNovel] = useState<GroupedNovelItem | null>(null);
+  const [userProblemText, setUserProblemText] = useState<string>('');
+  const [analysisMode, setAnalysisMode] = useState<'targeted' | 'comprehensive'>('targeted');
+  const [diagnosing, setDiagnosing] = useState<boolean>(false);
+  const [diagnosisPlan, setDiagnosisPlan] = useState<DiagnosisPlanItem | null>(null);
+  const [distillLoading, setDistillLoading] = useState<boolean>(false);
 
-  // 章节目录挑选与 AI 戏眼推荐 Drawer 状态
-  const [isPickerDrawerOpen, setIsPickerDrawerOpen] = useState<boolean>(false);
-  const [pickerBook, setPickerBook] = useState<any>(null);
-  const [pickerChapters, setPickerChapters] = useState<Array<{ title: string; sourceUrl: string; chapterNumber: number }>>([]);
-  const [pickerLoading, setPickerLoading] = useState<boolean>(false);
-  const [selectedChapterUrls, setSelectedChapterUrls] = useState<string[]>([]);
-  const [aiClimaxUrls, setAiClimaxUrls] = useState<string[]>([]);
-  const [aiPickingLoading, setAiPickingLoading] = useState<boolean>(false);
-  const [aiSelectionRationale, setAiSelectionRationale] = useState<string>('');
-  const [pickerImportLoading, setPickerImportLoading] = useState<boolean>(false);
-  const [chapterSearchKw, setChapterSearchKw] = useState<string>('');
-
-  const openOnlineModal = () => {
-    try {
-      const shelf = StorageUtil.getBookshelf() || [];
-      setBookshelfBooks(shelf);
-    } catch (e) {
-      console.warn('获取阅读器书架失败:', e);
-    }
-    setIsOnlineModalOpen(true);
-  };
-
-  const handleSearchOnline = async (kw?: string) => {
-    const keyword = (kw !== undefined ? kw : onlineSearchKeyword).trim();
-    if (!keyword) {
-      message.warning('请输入搜索书名或作者关键词');
-      return;
-    }
-    setOnlineSearchLoading(true);
-    try {
-      const res = await searchOnlineNovels(keyword);
-      if (res.code === 200) {
-        const results = res.data?.searchResults || [];
-        setOnlineSearchResults(results);
-        if (results.length === 0) {
-          message.info('未在全网检索到相关小说，可更换关键词重试');
-        }
-      }
-    } catch (e: any) {
-      // 全局拦截
-    } finally {
-      setOnlineSearchLoading(false);
-    }
-  };
-
-  const handleImportOnlineBook = async (bookItem: any) => {
-    const bookUrl = bookItem.url || bookItem.sourceUrl;
-    if (!bookUrl) {
-      message.error('该书籍缺少在线网络链接，无法抓取');
-      return;
-    }
-    setOnlineImportLoadingUrl(bookUrl);
-    try {
-      const genre = onlineGenreMap[bookUrl] || '体制官场';
-      const count = onlineChapterCountMap[bookUrl] || 3;
-      const mode = onlineModeMap[bookUrl] || 'ai_climax';
-
-      const res = await importOnlineNovel({
-        novelUrl: bookUrl,
-        title: bookItem.title,
-        author: bookItem.author,
-        genre,
-        chapterCount: count,
-        mode,
-      });
-
-      if (res.code === 200) {
-        message.success(res.message || `成功入库《${bookItem.title}》！`);
-        fetchWorks();
-      }
-    } catch (e: any) {
-      // 全局拦截
-    } finally {
-      setOnlineImportLoadingUrl(null);
-    }
-  };
-
-  const handleOpenPicker = async (bookItem: any) => {
-    const bookUrl = bookItem.url || bookItem.sourceUrl;
-    if (!bookUrl) {
-      message.error('该书籍缺少在线网络链接');
-      return;
-    }
-    setPickerBook(bookItem);
-    setIsPickerDrawerOpen(true);
-    setPickerLoading(true);
-    setSelectedChapterUrls([]);
-    setAiClimaxUrls([]);
-    setAiSelectionRationale('');
-    setChapterSearchKw('');
-
-    try {
-      const res = await getOnlineNovelChapters(bookUrl);
-      if (res.code === 200) {
-        const chaps = res.data?.chapters || [];
-        setPickerChapters(chaps);
-        if (chaps.length > 0) {
-          setSelectedChapterUrls(chaps.slice(0, 3).map(c => c.sourceUrl));
-        }
-      }
-    } catch (e: any) {
-      message.error(e.message || '获取章节目录失败');
-    } finally {
-      setPickerLoading(false);
-    }
-  };
-
-  const handleAiPickInDrawer = async (count = 3) => {
-    if (!pickerBook || pickerChapters.length === 0) return;
-    const bookUrl = pickerBook.url || pickerBook.sourceUrl;
-    const genre = onlineGenreMap[bookUrl] || '体制官场';
-    setAiPickingLoading(true);
-    try {
-      const res = await aiSelectChapters({
-        title: pickerBook.title,
-        genre,
-        chapters: pickerChapters,
-        novelUrl: bookUrl,
-        count,
-        mode: 'ai_climax',
-      });
-      if (res.code === 200 && res.data?.selectedChapters) {
-        const urls = res.data.selectedChapters.map(c => c.sourceUrl);
-        setSelectedChapterUrls(urls);
-        setAiClimaxUrls(urls);
-        setAiSelectionRationale(res.data.rationale || '');
-        message.success(`AI 已精准甄选出 ${urls.length} 个高潮博弈戏眼章！`);
-      }
-    } catch (e: any) {
-      message.error(e.message || 'AI 甄选章节失败');
-    } finally {
-      setAiPickingLoading(false);
-    }
-  };
-
-  const handleSelectOpeningInDrawer = (count = 3) => {
-    const urls = pickerChapters.slice(0, count).map(c => c.sourceUrl);
-    setSelectedChapterUrls(urls);
-    setAiSelectionRationale(`已勾选《${pickerBook?.title}》黄金开篇前 ${urls.length} 章`);
-  };
-
-  const handleToggleSelectChapter = (url: string) => {
-    setSelectedChapterUrls(prev =>
-      prev.includes(url) ? prev.filter(u => u !== url) : [...prev, url]
-    );
-  };
-
-  const handleConfirmPickerImport = async () => {
-    if (!pickerBook) return;
-    const bookUrl = pickerBook.url || pickerBook.sourceUrl;
-    if (selectedChapterUrls.length === 0) {
-      message.warning('请至少勾选一个章节');
-      return;
-    }
-    setPickerImportLoading(true);
-    try {
-      const genre = onlineGenreMap[bookUrl] || '体制官场';
-      const res = await importOnlineNovel({
-        novelUrl: bookUrl,
-        title: pickerBook.title,
-        author: pickerBook.author,
-        genre,
-        mode: 'manual',
-        selectedChapterUrls,
-      });
-      if (res.code === 200) {
-        message.success(res.message || '章节切片入库成功！');
-        setIsPickerDrawerOpen(false);
-        fetchWorks();
-      }
-    } catch (e: any) {
-      message.error(e.message || '导入章节切片失败');
-    } finally {
-      setPickerImportLoading(false);
-    }
-  };
+  // 全网搜索内嵌状态
+  const [onlineSearchKw, setOnlineSearchKw] = useState<string>('');
+  const [onlineResults, setOnlineResults] = useState<any[]>([]);
+  const [onlineSearching, setOnlineSearching] = useState<boolean>(false);
+  const [selectedOnlineBook, setSelectedOnlineBook] = useState<any | null>(null);
 
   const fetchWorks = async () => {
     setLoading(true);
@@ -348,7 +165,6 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
       item.workIds.push(w.id);
       item.chapters.push(w);
     }
-    // 章节排序
     const list = Array.from(map.values());
     list.forEach((item) => {
       item.chapters.sort((a: CorpusWorkItem, b: CorpusWorkItem) => a.chapterNumber - b.chapterNumber);
@@ -449,49 +265,167 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
     }
   };
 
-  const handleOpenDistill = (record: GroupedNovelItem) => {
-    setSelectedNovel(record);
-    const available = record.totalChapters || record.chapters.length || 1;
-    const defaultCount = available >= 10 ? 10 : (available >= 5 ? 5 : (available >= 3 ? 3 : available));
-    distillForm.setFieldsValue({
-      capabilities: ['dialogue', 'scene', 'pacing'],
-      sampleCount: defaultCount,
-    });
+  // ==================== 触发 AI 自主诊断与两阶段提炼 ====================
+  const handleOpenDistill = (record?: GroupedNovelItem) => {
+    setDistillPhase(1);
+    setDiagnosisPlan(null);
+    if (record) {
+      setSelectedNovel(record);
+      setRefSourceType('existing');
+    } else if (!selectedNovel && groupedNovels.length > 0) {
+      setSelectedNovel(groupedNovels[0]);
+      setRefSourceType('existing');
+    }
     setIsDistillModalOpen(true);
   };
 
-  const handleStartDistill = async () => {
-    if (!selectedNovel) return;
-    try {
-      const values = await distillForm.validateFields();
-      setDistillLoading(true);
+  // 阶段 1 -> 阶段 2: 提交写作痛点并触发 AI 诊断与规划
+  const handleDiagnoseAndPlan = async () => {
+    let targetWorkTitle = '';
+    let targetGenre = '体制官场';
+    let targetWorkId: number | undefined;
+    let targetNovelUrl: string | undefined;
+    let customChapters: any[] | undefined;
 
-      const caps: string[] = Array.isArray(values.capabilities) && values.capabilities.length > 0
-        ? values.capabilities
-        : ['dialogue'];
-      const count = Number(values.sampleCount || 10);
+    if (refSourceType === 'existing') {
+      if (!selectedNovel) {
+        message.warning('请先选择一部已入库的参考作品');
+        return;
+      }
+      targetWorkTitle = selectedNovel.title;
+      targetGenre = selectedNovel.genre;
+      targetWorkId = selectedNovel.workIds[0];
+    } else if (refSourceType === 'txt') {
+      const txtVals = txtForm.getFieldsValue();
+      if (!txtVals.rawText) {
+        message.warning('请先上传或拖入 TXT 小说文件');
+        return;
+      }
+      targetWorkTitle = txtVals.title || '上传文本参考小说';
+      targetGenre = txtVals.genre || '体制官场';
+      customChapters = [{ chapterNumber: 1, chapterTitle: '第1章', content: txtVals.rawText.slice(0, 3000) }];
+    } else if (refSourceType === 'online') {
+      if (!selectedOnlineBook) {
+        message.warning('请先在全网搜索并选中一部参考小说');
+        return;
+      }
+      targetWorkTitle = selectedOnlineBook.title;
+      targetGenre = selectedOnlineBook.genre || '体制官场';
+      targetNovelUrl = selectedOnlineBook.url || selectedOnlineBook.sourceUrl;
+    }
+
+    if (!userProblemText.trim()) {
+      message.warning('请简要描述你当前的写作瓶颈或想重点提升的笔法（可直接点击下方快捷标签）');
+      return;
+    }
+
+    setDiagnosing(true);
+    try {
+      const res = await diagnoseAndPlanTask({
+        workId: targetWorkId,
+        workTitle: targetWorkTitle,
+        genre: targetGenre,
+        novelUrl: targetNovelUrl,
+        customChapters,
+        userProblem: userProblemText.trim(),
+        analysisMode,
+      });
+
+      if (res.code === 200 && res.data) {
+        setDiagnosisPlan(res.data);
+        setDistillPhase(2);
+        message.success('AI 自主诊断完成，请确认提炼方案！');
+      } else {
+        message.error(res.message || '诊断规划失败，请重试');
+      }
+    } catch (e: any) {
+      message.error(e.message || 'AI 诊断异常');
+    } finally {
+      setDiagnosing(false);
+    }
+  };
+
+  // 阶段 2: 用户确认提炼方案，正式创建并启动任务
+  const handleExecuteDistillPlan = async () => {
+    if (!diagnosisPlan) return;
+    setDistillLoading(true);
+    try {
+      let finalWorkIds = selectedNovel?.workIds;
+      let onlineNovelInfo: any = undefined;
+      let selectedChapterUrls: string[] | undefined = undefined;
+
+      if (refSourceType === 'txt') {
+        const txtVals = txtForm.getFieldsValue();
+        const importRes = await importTxtCorpusWork({
+          title: txtVals.title || diagnosisPlan.workTitle,
+          author: txtVals.author,
+          genre: txtVals.genre || diagnosisPlan.genre,
+          rawText: txtVals.rawText,
+          sourceName: `${txtVals.title || diagnosisPlan.workTitle}·语料库`,
+        });
+        if (importRes.code === 200) {
+          await fetchWorks();
+        }
+      } else if (refSourceType === 'online' && selectedOnlineBook) {
+        onlineNovelInfo = {
+          novelUrl: selectedOnlineBook.url || selectedOnlineBook.sourceUrl,
+          title: selectedOnlineBook.title,
+          author: selectedOnlineBook.author || '佚名',
+          genre: diagnosisPlan.genre,
+        };
+        selectedChapterUrls = diagnosisPlan.selectedChapters.map(c => c.sourceUrl).filter(Boolean) as string[];
+      }
 
       const res = await createDistillTask({
-        taskName: `${selectedNovel.title} [${caps.join('+')}] 笔法提炼`,
-        genre: selectedNovel.genre,
-        targetDimension: caps[0] || 'dialogue',
-        capabilities: caps,
-        workIds: selectedNovel.workIds.slice(0, count),
-        sampleCount: count,
-        requestedChapterCount: count,
+        taskName: `《${diagnosisPlan.workTitle}》[${diagnosisPlan.primaryCapabilities.join('+')}] 笔法提炼·定向攻坚`,
+        genre: diagnosisPlan.genre,
+        targetDimension: diagnosisPlan.primaryCapabilities[0] || 'dialogue',
+        capabilities: diagnosisPlan.primaryCapabilities,
+        workIds: finalWorkIds,
+        sampleCount: diagnosisPlan.analysisBudget.chapterCount,
+        requestedChapterCount: diagnosisPlan.analysisBudget.chapterCount,
+        userProblem: diagnosisPlan.userProblem,
+        analysisMode: diagnosisPlan.analysisMode,
+        analysisPlan: diagnosisPlan,
+        dynamicDimensions: diagnosisPlan.dynamicDimensions,
+        selectedChapterNumbers: diagnosisPlan.selectedChapterNumbers,
+        onlineNovelInfo,
+        selectedChapterUrls,
       });
 
       if (res.code === 200) {
-        message.success(`已启动从《${selectedNovel.title}》分析 ${count} 章的 AI 深度蒸馏流水线！`);
+        message.success(`已启动针对“${diagnosisPlan.userProblem.slice(0, 15)}...”的 AI 笔法提炼流水线！`);
         setIsDistillModalOpen(false);
+        fetchWorks();
         if (onGoToRules) {
-          onGoToRules(selectedNovel.genre);
+          onGoToRules(diagnosisPlan.genre);
         }
       }
     } catch (e: any) {
-      // 错误已由 request 拦截
+      // 全局拦截
     } finally {
       setDistillLoading(false);
+    }
+  };
+
+  const handleSearchOnlineBooks = async () => {
+    if (!onlineSearchKw.trim()) {
+      message.warning('请输入搜索书名或作者');
+      return;
+    }
+    setOnlineSearching(true);
+    try {
+      const res = await searchOnlineNovels(onlineSearchKw.trim());
+      if (res.code === 200) {
+        const list = res.data?.searchResults || [];
+        setOnlineResults(list);
+        if (list.length === 0) {
+          message.info('未在全网检索到相关小说，可更换关键词重试');
+        }
+      }
+    } catch (e) {}
+    finally {
+      setOnlineSearching(false);
     }
   };
 
@@ -551,8 +485,8 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
             查看章节
           </Button>
           <Popconfirm
-            title={`确定移除小说《${record.title}》吗？`}
-            description="将同时删除该书已切片的所有章节语料记录。"
+            title="确定移除该小说的所有切片吗？"
+            description="移除后该作品的语料将不再参与蒸馏与规则提炼。"
             onConfirm={() => handleDeleteNovel(record)}
             okText="确定移除"
             cancelText="取消"
@@ -599,14 +533,6 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
             </Popconfirm>
             <Button
               type="primary"
-              icon={<GlobalOutlined />}
-              style={{ backgroundColor: '#7c3aed', borderColor: '#7c3aed' }}
-              onClick={openOnlineModal}
-            >
-              全网搜书采编
-            </Button>
-            <Button
-              type="primary"
               icon={<FileTextOutlined />}
               style={{ backgroundColor: '#059669', borderColor: '#059669' }}
               onClick={() => {
@@ -617,12 +543,20 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
             >
               上传 TXT 小说
             </Button>
+            <Button
+              type="primary"
+              icon={<ThunderboltOutlined />}
+              style={{ backgroundColor: '#0284c7', borderColor: '#0284c7' }}
+              onClick={() => handleOpenDistill()}
+            >
+              AI 笔法诊断与提炼
+            </Button>
           </Space>
         }
       >
         <Alert
-          message="极简模式：免复杂授权审核，拖入小说直接提炼"
-          description="将你喜欢的优秀同类型小说 TXT 拖入此处，系统自动解析章节并就绪。点击【一键提炼笔法】，AI 即可自动逆向拆解人类作者的精妙对话潜台词与深层因果动机！"
+          message="AI 自主诊断与写作笔法提炼"
+          description="无需人工猜测抓取多少章节或生硬选择单一固定维度。只需提供参考小说，描述你目前的写作瓶颈，AI 即可深度剖析病理、自主从范本文本中甄选实战教学章节、动态定制提炼维度，生成直击痛点的写手军规！"
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
@@ -637,7 +571,7 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
         />
       </Card>
 
-      {/* TXT 上传弹窗 */}
+      {/* TXT 独立上传入库弹窗 */}
       <Modal
         title={
           <Space>
@@ -650,72 +584,60 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
         confirmLoading={txtLoading}
         onCancel={() => {
           setIsTxtModalOpen(false);
+          txtForm.resetFields();
           setTxtFileMeta(null);
         }}
+        okText="确认切片入库"
+        cancelText="取消"
         width={680}
         destroyOnClose
-        okText="立即解析并加入书库"
-        cancelText="取消"
       >
-        <div style={{ marginBottom: 16 }}>
-          <Upload.Dragger
-            accept=".txt,.md"
-            showUploadList={false}
-            beforeUpload={handleTxtFileSelect}
-            style={{ padding: '20px 0', background: '#f8fafc', border: '1px dashed #cbd5e1' }}
-          >
-            <p className="ant-upload-drag-icon" style={{ marginBottom: 8 }}>
-              <InboxOutlined style={{ color: '#059669', fontSize: 36 }} />
-            </p>
-            <p className="ant-upload-text" style={{ fontSize: 15, fontWeight: 500 }}>
-              点击或将 .txt 小说文件拖拽到此区域
-            </p>
-            <p className="ant-upload-hint" style={{ color: '#64748b' }}>
-              支持整本长篇或多章文本，浏览器毫秒级读取，自动按“第X章”切片
-            </p>
-          </Upload.Dragger>
-        </div>
-
-        {txtFileMeta && (
-          <Card
-            size="small"
-            style={{ marginBottom: 16, backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}
-          >
-            <Space size="middle" wrap>
-              <Tag color="success">已加载: {txtFileMeta.fileName}</Tag>
-              <Text type="secondary">大小: {txtFileMeta.fileSize}</Text>
-              <Text type="secondary">总字数: {txtFileMeta.charCount} 字</Text>
-              <Tag color="blue">预估章节: 约 {txtFileMeta.chapterEstimate} 章</Tag>
-            </Space>
-            {txtFileMeta.preview && (
-              <Paragraph
-                ellipsis={{ rows: 2 }}
-                style={{ marginTop: 8, fontSize: 12, color: '#475569', marginBottom: 0 }}
-              >
-                文本前瞻: {txtFileMeta.preview}
-              </Paragraph>
-            )}
-          </Card>
-        )}
-
         <Form form={txtForm} layout="vertical">
-          <Form.Item name="rawText" hidden>
-            <Input />
+          <Form.Item label="选择或拖拽 TXT 文件" required>
+            <Upload.Dragger
+              accept=".txt"
+              showUploadList={false}
+              beforeUpload={handleTxtFileSelect}
+              style={{ padding: '20px 0' }}
+            >
+              <p className="ant-upload-drag-icon">
+                <InboxOutlined style={{ color: '#059669' }} />
+              </p>
+              <p className="ant-upload-text">点击或将本地小说 TXT 文件拖拽到此处</p>
+              <p className="ant-upload-hint">支持各类标准长篇小说，系统将自动基于章节标记与段落自适应分章入库</p>
+            </Upload.Dragger>
           </Form.Item>
+
+          {txtFileMeta && (
+            <Alert
+              message={`已读取文件：${txtFileMeta.fileName} (${txtFileMeta.fileSize})`}
+              description={
+                <Space direction="vertical" size={2} style={{ marginTop: 4 }}>
+                  <Text>预估有效字数: {txtFileMeta.charCount} 字 | 识别章节切片: 约 {txtFileMeta.chapterEstimate} 章</Text>
+                  <Paragraph ellipsis={{ rows: 2 }} style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
+                    预览: {txtFileMeta.preview}
+                  </Paragraph>
+                </Space>
+              }
+              type="success"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+          )}
 
           <Row gutter={16}>
             <Col span={14}>
               <Form.Item
                 name="title"
-                label="作品名称"
-                rules={[{ required: true, message: '请输入作品名称' }]}
+                label="作品书名"
+                rules={[{ required: true, message: '请输入作品书名' }]}
               >
-                <Input placeholder="自动提取文件名，可修改" />
+                <Input placeholder="例如：官神、执笔青云" />
               </Form.Item>
             </Col>
             <Col span={10}>
-              <Form.Item name="author" label="作者署名（可选）">
-                <Input placeholder="默认：佚名" />
+              <Form.Item name="author" label="作者（选填）">
+                <Input placeholder="作者名" />
               </Form.Item>
             </Col>
           </Row>
@@ -726,109 +648,350 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
             rules={[{ required: true, message: '请选择题材' }]}
             initialValue="体制官场"
           >
-            <Select>
-              <Option value="体制官场">体制官场</Option>
-              <Option value="都市职场">都市职场</Option>
-              <Option value="社会现实">社会现实</Option>
-              <Option value="悬疑刑侦">悬疑刑侦</Option>
-              <Option value="玄幻修真">玄幻修真</Option>
-              <Option value="科幻未来">科幻未来</Option>
-              <Option value="历史演义">历史演义</Option>
-            </Select>
+            <Select options={GENRE_OPTIONS} />
           </Form.Item>
         </Form>
       </Modal>
 
-      {/* 一键提炼弹窗 */}
+      {/* ==================== AI 自主诊断与两阶段笔法提炼弹窗 ==================== */}
       <Modal
         title={
           <Space>
             <ThunderboltOutlined style={{ color: '#0284c7' }} />
-            <span>从《{selectedNovel?.title}》提炼写作笔法</span>
+            <span style={{ fontSize: 16, fontWeight: 600 }}>
+              {distillPhase === 1 ? 'AI 写作痛点诊断与提炼规划' : '确认 AI 笔法提炼实战方案'}
+            </span>
           </Space>
         }
         open={isDistillModalOpen}
-        onOk={handleStartDistill}
-        confirmLoading={distillLoading}
-        onCancel={() => setIsDistillModalOpen(false)}
-        okText="开始提炼"
-        cancelText="取消"
+        onCancel={() => {
+          setIsDistillModalOpen(false);
+          setDistillPhase(1);
+        }}
+        width={840}
         destroyOnClose
+        footer={
+          distillPhase === 1 ? (
+            <Space>
+              <Button onClick={() => setIsDistillModalOpen(false)}>取消</Button>
+              <Button
+                type="primary"
+                icon={<RobotOutlined />}
+                loading={diagnosing}
+                style={{ backgroundColor: '#0284c7', borderColor: '#0284c7' }}
+                onClick={handleDiagnoseAndPlan}
+              >
+                AI 智能诊断并生成方案
+              </Button>
+            </Space>
+          ) : (
+            <Space>
+              <Button icon={<ArrowLeftOutlined />} onClick={() => setDistillPhase(1)}>
+                返回调整痛点与作品
+              </Button>
+              <Button
+                type="primary"
+                icon={<CheckCircleOutlined />}
+                loading={distillLoading}
+                style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}
+                onClick={handleExecuteDistillPlan}
+              >
+                确认方案，启动笔法提炼
+              </Button>
+            </Space>
+          )
+        }
       >
-        <Form form={distillForm} layout="vertical" initialValues={{ capabilities: ['dialogue', 'scene', 'pacing'], sampleCount: 10 }}>
-          <Form.Item label="分析目标作品与题材">
-            <Input value={`《${selectedNovel?.title}》（${selectedNovel?.genre}） · 当前书库共入库 ${selectedNovel?.totalChapters} 章`} disabled />
-          </Form.Item>
+        {distillPhase === 1 ? (
+          <div>
+            <Alert
+              message="第一阶段：选择参考范本与自述当前创作痛点"
+              description="请提供参考小说范本，并用自然语言描述你在写作中遇到的具体困境（如对话生硬、配角无动机、白描流水账等）。AI 将深度解构病理，自主在范本中挑选戏眼教学章节与定制提炼维度。"
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
 
-          <Form.Item
-            name="capabilities"
-            label="提炼重点维度（支持多选融合提炼）"
-            rules={[{ required: true, message: '请至少选择一个提炼维度' }]}
-          >
-            <Checkbox.Group style={{ width: '100%' }}>
-              <Space direction="vertical" style={{ width: '100%' }} size="middle">
-                <Checkbox value="dialogue" style={{ marginLeft: 0 }}>
-                  <Text strong>一、对话机锋与潜台词点透</Text>
-                  <Text type="secondary" style={{ display: 'block', fontSize: 12, marginLeft: 24, marginTop: 2 }}>
-                    重点逆向破解上位者含蓄施压、下位者程序留痕与逢三必解的说话玄机
-                  </Text>
-                </Checkbox>
-                <Checkbox value="scene" style={{ marginLeft: 0 }}>
-                  <Text strong>二、场景白描与客观事实推演</Text>
-                  <Text type="secondary" style={{ display: 'block', fontSize: 12, marginLeft: 24, marginTop: 2 }}>
-                    动词主导、砍掉流水账形容词，讲究空间站位与物理事务动作
-                  </Text>
-                </Checkbox>
-                <Checkbox value="pacing" style={{ marginLeft: 0 }}>
-                  <Text strong>三、因果动机与留白克制</Text>
-                  <Text type="secondary" style={{ display: 'block', fontSize: 12, marginLeft: 24, marginTop: 2 }}>
-                    凡反常举动必交代前置恩怨与利益诱因，杜绝突兀送小抄与机械降神
-                  </Text>
-                </Checkbox>
-                <Checkbox value="subtext" style={{ marginLeft: 0 }}>
-                  <Text strong>四、制度逻辑与利益博弈暗线</Text>
-                  <Text type="secondary" style={{ display: 'block', fontSize: 12, marginLeft: 24, marginTop: 2 }}>
-                    深入推导权责归属、公文流转合规、回避制度与多方心理暗流
-                  </Text>
-                </Checkbox>
-              </Space>
-            </Checkbox.Group>
-          </Form.Item>
+            {/* 参考作品来源切换 */}
+            <div style={{ marginBottom: 16 }}>
+              <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                📚 参考作品来源：
+              </Text>
+              <Radio.Group
+                value={refSourceType}
+                onChange={(e) => setRefSourceType(e.target.value)}
+                buttonStyle="solid"
+                style={{ width: '100%', marginBottom: 12 }}
+              >
+                <Radio.Button value="existing" style={{ width: '33.3%', textAlign: 'center' }}>
+                  <BookOutlined /> 已入库作品 ({groupedNovels.length})
+                </Radio.Button>
+                <Radio.Button value="online" style={{ width: '33.3%', textAlign: 'center' }}>
+                  <GlobalOutlined /> 全网搜索参考小说
+                </Radio.Button>
+                <Radio.Button value="txt" style={{ width: '33.3%', textAlign: 'center' }}>
+                  <FileTextOutlined /> 上传本地 TXT 小说
+                </Radio.Button>
+              </Radio.Group>
 
-          <Form.Item
-            name="sampleCount"
-            label="参与分析的章节数"
-            extra="💡 说明：章节数不等于切片数。单章节长文本将按自然段落智能切分为多段文本切片深入分析。"
-            rules={[{ required: true, message: '请选择分析章节数' }]}
-          >
-            <Select style={{ width: '100%' }}>
-              {[
-                { value: 3, label: '3 章 · 快速测试 (极速验证笔法)', desc: '极速验证' },
-                { value: 5, label: '5 章 · 小样本分析 (兼顾速度与基础规律)', desc: '小样本' },
-                { value: 10, label: '10 章 · 标准蒸馏 (推荐，充分交叉印证)', desc: '标准蒸馏' },
-                { value: 20, label: '20 章 · 深度蒸馏 (全景覆盖长线伏笔)', desc: '深度蒸馏' },
-                { value: 30, label: '30 章 · 大样本蒸馏 (最大上限，严密去AI味)', desc: '大样本' },
-              ].map(opt => {
-                const total = selectedNovel?.totalChapters || 1;
-                const isExceeded = opt.value > total;
-                return (
-                  <Option
-                    key={opt.value}
-                    value={opt.value}
-                    disabled={isExceeded}
+              {/* 来源 A: 已入库书库选择 */}
+              {refSourceType === 'existing' && (
+                <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <Text strong style={{ display: 'block', marginBottom: 8 }}>选择参考范本小说：</Text>
+                  <Select
+                    style={{ width: '100%' }}
+                    value={selectedNovel?.key}
+                    placeholder="请选择已入库的小说"
+                    onChange={(val) => {
+                      const found = groupedNovels.find(n => n.key === val);
+                      if (found) setSelectedNovel(found);
+                    }}
                   >
-                    <span>{opt.label}</span>
-                    {isExceeded && (
-                      <span style={{ color: '#ef4444', fontSize: 12, marginLeft: 8 }}>
-                        (当前书库仅有 {total} 章，超出上限)
-                      </span>
-                    )}
-                  </Option>
-                );
-              })}
-            </Select>
-          </Form.Item>
-        </Form>
+                    {groupedNovels.map(novel => (
+                      <Option key={novel.key} value={novel.key}>
+                        <Space>
+                          <Text strong>《{novel.title}》</Text>
+                          <Tag color="cyan">{novel.genre}</Tag>
+                          <Text type="secondary" style={{ fontSize: 12 }}>作者: {novel.author} · 已入库 {novel.totalChapters} 章</Text>
+                        </Space>
+                      </Option>
+                    ))}
+                  </Select>
+                </div>
+              )}
+
+              {/* 来源 B: 全网小说搜索 */}
+              {refSourceType === 'online' && (
+                <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <Text strong style={{ display: 'block', marginBottom: 8 }}>全网搜索参考作品：</Text>
+                  <Space.Compact style={{ width: '100%' }}>
+                    <Input
+                      placeholder="输入参考小说书名或作者（如：官神、侯卫东官场笔记、大医凌然...）"
+                      value={onlineSearchKw}
+                      onChange={(e) => setOnlineSearchKw(e.target.value)}
+                      onPressEnter={handleSearchOnlineBooks}
+                      allowClear
+                    />
+                    <Button
+                      type="primary"
+                      icon={<SearchOutlined />}
+                      loading={onlineSearching}
+                      onClick={handleSearchOnlineBooks}
+                      style={{ backgroundColor: '#7c3aed', borderColor: '#7c3aed' }}
+                    >
+                      搜索全网
+                    </Button>
+                  </Space.Compact>
+
+                  {selectedOnlineBook && (
+                    <div style={{ marginTop: 12, padding: '10px 14px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 6 }}>
+                      <Space>
+                        <BookOutlined style={{ color: '#059669', fontSize: 16 }} />
+                        <Text strong>已选参考小说：</Text>
+                        <Text strong style={{ color: '#047857', fontSize: 15 }}>《{selectedOnlineBook.title}》</Text>
+                        <Text type="secondary">作者: {selectedOnlineBook.author || '佚名'}</Text>
+                        <Tag color="cyan">{selectedOnlineBook.genre || '体制官场'}</Tag>
+                      </Space>
+                    </div>
+                  )}
+
+                  {onlineResults.length > 0 && !selectedOnlineBook && (
+                    <div style={{ maxHeight: 200, overflowY: 'auto', marginTop: 12, border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff' }}>
+                      <List
+                        size="small"
+                        dataSource={onlineResults.slice(0, 8)}
+                        renderItem={(item) => (
+                          <List.Item
+                            style={{ cursor: 'pointer', padding: '8px 12px' }}
+                            onClick={() => setSelectedOnlineBook(item)}
+                          >
+                            <Space style={{ flex: 1 }}>
+                              <Text strong>《{item.title}》</Text>
+                              <Text type="secondary">{item.author}</Text>
+                              <Tag color="purple">{item.genre || '网络小说'}</Tag>
+                            </Space>
+                            <Button size="small" type="primary" ghost>选择该书</Button>
+                          </List.Item>
+                        )}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 来源 C: 本地 TXT 上传 */}
+              {refSourceType === 'txt' && (
+                <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <Upload.Dragger
+                    accept=".txt"
+                    showUploadList={false}
+                    beforeUpload={handleTxtFileSelect}
+                    style={{ padding: '12px 0' }}
+                  >
+                    <p className="ant-upload-drag-icon"><InboxOutlined style={{ color: '#059669' }} /></p>
+                    <p className="ant-upload-text">点击或拖拽本地参考小说 TXT 文件至此处</p>
+                  </Upload.Dragger>
+                  {txtFileMeta && (
+                    <Alert
+                      type="success"
+                      showIcon
+                      style={{ marginTop: 10 }}
+                      message={`已就绪: 《${txtFileMeta.fileName}》 (${txtFileMeta.fileSize}, 约 ${txtFileMeta.charCount} 字)`}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 写作痛点描述 */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <Text strong style={{ fontSize: 14 }}>
+                  📝 描述你当前的写作瓶颈或想重点攻克的技巧：
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  AI 将根据你描述的痛点在参考书中定向精准选章
+                </Text>
+              </div>
+              <TextArea
+                rows={4}
+                placeholder="详细描述你在小说创作中遇到的瓶颈。例如：主角在体制内对话太生硬、像在背文件，没有暗线机锋与潜台词试探；或者配角总是突兀送小抄送人头，因果动机不足；或者场景白描流水账严重..."
+                value={userProblemText}
+                onChange={(e) => setUserProblemText(e.target.value)}
+                maxLength={500}
+                showCount
+              />
+              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>💡 快捷痛点预设:</Text>
+                {QUICK_PROBLEM_CHIPS.map((chip, idx) => (
+                  <Tag
+                    key={idx}
+                    color="blue"
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                    onClick={() => {
+                      setUserProblemText((prev) => (prev ? `${prev}；${chip.text}` : chip.text));
+                    }}
+                  >
+                    {chip.label}
+                  </Tag>
+                ))}
+              </div>
+            </div>
+
+            {/* 分析模式 */}
+            <div>
+              <Text strong style={{ display: 'block', marginBottom: 8 }}>🎯 分析模式：</Text>
+              <Radio.Group
+                value={analysisMode}
+                onChange={(e) => setAnalysisMode(e.target.value)}
+              >
+                <Radio value="targeted">
+                  <Space direction="vertical" size={2}>
+                    <Text strong>针对性提升 (推荐)</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      聚焦当前自述痛点，AI 自主诊断核心成因，精选 3~8 个高张力教学章节定向攻坚
+                    </Text>
+                  </Space>
+                </Radio>
+                <Radio value="comprehensive" style={{ marginTop: 10 }}>
+                  <Space direction="vertical" size={2}>
+                    <Text strong>全面能力分析</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      综合解构参考作品，覆盖对话、白描、因果、暗线制度多维系统性规约
+                    </Text>
+                  </Space>
+                </Radio>
+              </Radio.Group>
+            </div>
+          </div>
+        ) : (
+          /* ==================== 第二阶段：方案确认与执行 ==================== */
+          diagnosisPlan && (
+            <div>
+              <Alert
+                message={`第二阶段：方案确认 · 参考范本《${diagnosisPlan.workTitle}》（${diagnosisPlan.genre}）`}
+                description="AI 已完成病理诊断，并从目录中精准锁定教学戏眼章节与定制维度。请查阅下方方案，确认无误后点击下方按钮启动提炼。"
+                type="success"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+
+              {/* AI 病理诊断卡片 */}
+              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
+                <Space align="center" style={{ marginBottom: 6 }}>
+                  <RobotOutlined style={{ color: '#16a34a', fontSize: 16 }} />
+                  <Text strong style={{ color: '#166534', fontSize: 14 }}>AI 写作瓶颈病理诊断与破局策略</Text>
+                </Space>
+                <Paragraph style={{ margin: 0, color: '#14532d', fontSize: 13, lineHeight: '1.6' }}>
+                  {diagnosisPlan.problemDiagnosis}
+                </Paragraph>
+              </div>
+
+              {/* 动态分析维度 */}
+              <div style={{ marginBottom: 16 }}>
+                <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                  🎯 动态分析维度 ({diagnosisPlan.dynamicDimensions.length} 项)：
+                </Text>
+                <Row gutter={[12, 12]}>
+                  {diagnosisPlan.dynamicDimensions.map((dim, idx) => (
+                    <Col span={12} key={idx}>
+                      <div style={{ padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                          <Text strong style={{ color: '#0f172a' }}>{dim.name}</Text>
+                          <Tag color="cyan">{dim.primaryCapability}</Tag>
+                        </div>
+                        <Text type="secondary" style={{ fontSize: 12 }}>{dim.focus}</Text>
+                      </div>
+                    </Col>
+                  ))}
+                </Row>
+              </div>
+
+              {/* AI 精选教学章节 */}
+              <div style={{ marginBottom: 16 }}>
+                <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                  📚 AI 精选实战教学章节 ({diagnosisPlan.selectedChapters.length} 章)：
+                </Text>
+                <List
+                  size="small"
+                  bordered
+                  style={{ background: '#fff', maxHeight: 220, overflowY: 'auto' }}
+                  dataSource={diagnosisPlan.selectedChapters}
+                  renderItem={(item) => (
+                    <List.Item>
+                      <div style={{ width: '100%' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                          <Space>
+                            <Tag color="blue">第 {item.chapterNumber} 章</Tag>
+                            <Text strong>{item.chapterTitle}</Text>
+                          </Space>
+                        </div>
+                        <div style={{ fontSize: 12, color: '#475569', marginBottom: 2 }}>
+                          <span style={{ color: '#0284c7', fontWeight: 600 }}>[甄选依据] </span>{item.reason}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#475569' }}>
+                          <span style={{ color: '#166534', fontWeight: 600 }}>[预期收益] </span>{item.expectedValue}
+                        </div>
+                      </div>
+                    </List.Item>
+                  )}
+                />
+              </div>
+
+              {/* 预算与质检说明 */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '10px 14px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                <Space size="middle">
+                  <span>📖 分析章节: <b>{diagnosisPlan.analysisBudget.chapterCount}</b> 章</span>
+                  <span>🧩 预计段落切片: <b>{diagnosisPlan.analysisBudget.estimatedSliceCount}</b> 个</span>
+                  <span>⚡ 预估 Token: <b>~{diagnosisPlan.analysisBudget.estimatedTokens}</b></span>
+                </Space>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  💡 {diagnosisPlan.uncertaintyNote || '自动执行原文证据回溯与冲突质检'}
+                </Text>
+              </div>
+            </div>
+          )
+        )}
       </Modal>
 
       {/* 查看章节详情抽屉 */}
@@ -865,408 +1028,6 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
             )}
           />
         )}
-      </Drawer>
-
-      {/* 全网搜书采编与阅读器书架导入弹窗 */}
-      <Modal
-        title={
-          <Space>
-            <GlobalOutlined style={{ color: '#7c3aed' }} />
-            <span>全网搜书采编与阅读器书架引入</span>
-          </Space>
-        }
-        open={isOnlineModalOpen}
-        onCancel={() => setIsOnlineModalOpen(false)}
-        footer={null}
-        width={780}
-        destroyOnClose
-      >
-        <Tabs
-          defaultActiveKey="search"
-          items={[
-            {
-              key: 'search',
-              label: (
-                <Space>
-                  <SearchOutlined />
-                  <span>全网搜书采编</span>
-                </Space>
-              ),
-              children: (
-                <div>
-                  <Alert
-                    message="即搜即采：一键将全网精品同类小说切片纳入语料库"
-                    description="输入书名或作者进行全网搜索，选中作品后后台将直接抓取前 3~5 章高质量正文切片入库，免手动下载与繁琐复制。"
-                    type="info"
-                    showIcon
-                    style={{ marginBottom: 16 }}
-                  />
-                  <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
-                    <Input
-                      placeholder="输入书名或作者，如：侯卫东官场笔记、大医凌然、宿命之环..."
-                      value={onlineSearchKeyword}
-                      onChange={(e) => setOnlineSearchKeyword(e.target.value)}
-                      onPressEnter={() => handleSearchOnline()}
-                      allowClear
-                    />
-                    <Button
-                      type="primary"
-                      icon={<SearchOutlined />}
-                      onClick={() => handleSearchOnline()}
-                      loading={onlineSearchLoading}
-                      style={{ backgroundColor: '#7c3aed', borderColor: '#7c3aed' }}
-                    >
-                      搜索全网
-                    </Button>
-                  </Space.Compact>
-
-                  <List
-                    loading={onlineSearchLoading}
-                    dataSource={onlineSearchResults}
-                    locale={{ emptyText: '输入关键词搜索全网小说' }}
-                    renderItem={(item: any) => {
-                      const bookUrl = item.url || item.sourceUrl;
-                      const isImporting = onlineImportLoadingUrl === bookUrl;
-                      const selectedGenre = onlineGenreMap[bookUrl] || '体制官场';
-                      const selectedCount = onlineChapterCountMap[bookUrl] || 3;
-
-                      return (
-                        <List.Item
-                          actions={[
-                            <Space key="action">
-                              <Select
-                                size="small"
-                                style={{ width: 105 }}
-                                value={selectedGenre}
-                                onChange={(val) =>
-                                  setOnlineGenreMap((prev) => ({ ...prev, [bookUrl]: val }))
-                                }
-                                options={GENRE_OPTIONS}
-                              />
-                              <Select
-                                size="small"
-                                style={{ width: 140 }}
-                                value={onlineModeMap[bookUrl] || 'ai_climax'}
-                                onChange={(val) =>
-                                  setOnlineModeMap((prev) => ({ ...prev, [bookUrl]: val }))
-                                }
-                                options={MODE_OPTIONS}
-                              />
-                              <Select
-                                size="small"
-                                style={{ width: 105 }}
-                                value={selectedCount}
-                                onChange={(val) =>
-                                  setOnlineChapterCountMap((prev) => ({ ...prev, [bookUrl]: val }))
-                                }
-                                options={CHAPTER_COUNT_OPTIONS}
-                              />
-                              <Button
-                                size="small"
-                                icon={<UnorderedListOutlined />}
-                                onClick={() => handleOpenPicker(item)}
-                              >
-                                挑选目录
-                              </Button>
-                              <Button
-                                type="primary"
-                                size="small"
-                                icon={<CloudDownloadOutlined />}
-                                loading={isImporting}
-                                onClick={() => handleImportOnlineBook(item)}
-                                style={{ backgroundColor: '#0284c7', borderColor: '#0284c7' }}
-                              >
-                                快速采编
-                              </Button>
-                            </Space>,
-                          ]}
-                        >
-                          <List.Item.Meta
-                            avatar={
-                              item.cover ? (
-                                <img
-                                  src={item.cover}
-                                  alt="cover"
-                                  style={{ width: 44, height: 58, objectFit: 'cover', borderRadius: 4 }}
-                                />
-                              ) : (
-                                <Avatar shape="square" size={48} style={{ backgroundColor: '#8b5cf6' }}>
-                                  {item.title ? item.title.slice(0, 2) : '书'}
-                                </Avatar>
-                              )
-                            }
-                            title={
-                              <Space>
-                                <Text strong style={{ fontSize: 14 }}>{item.title}</Text>
-                                {item.author && <Tag color="default">{item.author}</Tag>}
-                              </Space>
-                            }
-                            description={
-                              <Space direction="vertical" size={2}>
-                                {item.latestChapter && (
-                                  <Text type="secondary" style={{ fontSize: 12 }}>
-                                    最新: {item.latestChapter}
-                                  </Text>
-                                )}
-                                {item.intro && (
-                                  <Paragraph ellipsis={{ rows: 2 }} style={{ fontSize: 12, color: '#64748b', margin: 0 }}>
-                                    {item.intro}
-                                  </Paragraph>
-                                )}
-                              </Space>
-                            }
-                          />
-                        </List.Item>
-                      );
-                    }}
-                  />
-                </div>
-              ),
-            },
-            {
-              key: 'shelf',
-              label: (
-                <Space>
-                  <BookOutlined />
-                  <span>我的阅读书架 ({bookshelfBooks.length})</span>
-                </Space>
-              ),
-              children: (
-                <div>
-                  <Alert
-                    message="我的阅读书架直通车"
-                    description="你在系统内置【电子书阅读器】中收藏的书架小说，均可一键转为语料库切片，用于逆向提炼写作笔法。"
-                    type="success"
-                    showIcon
-                    style={{ marginBottom: 16 }}
-                  />
-                  <List
-                    dataSource={bookshelfBooks}
-                    locale={{ emptyText: '当前阅读器书架暂无书籍，可先在阅读器中添加书籍或使用“全网搜书采编”' }}
-                    renderItem={(item: any) => {
-                      const bookUrl = item.url || item.sourceUrl || item.id;
-                      const isImporting = onlineImportLoadingUrl === bookUrl;
-                      const selectedGenre = onlineGenreMap[bookUrl] || '体制官场';
-                      const selectedCount = onlineChapterCountMap[bookUrl] || 3;
-
-                      return (
-                        <List.Item
-                          actions={[
-                            <Space key="action">
-                              <Select
-                                size="small"
-                                style={{ width: 105 }}
-                                value={selectedGenre}
-                                onChange={(val) =>
-                                  setOnlineGenreMap((prev) => ({ ...prev, [bookUrl]: val }))
-                                }
-                                options={GENRE_OPTIONS}
-                              />
-                              <Select
-                                size="small"
-                                style={{ width: 140 }}
-                                value={onlineModeMap[bookUrl] || 'ai_climax'}
-                                onChange={(val) =>
-                                  setOnlineModeMap((prev) => ({ ...prev, [bookUrl]: val }))
-                                }
-                                options={MODE_OPTIONS}
-                              />
-                              <Select
-                                size="small"
-                                style={{ width: 105 }}
-                                value={selectedCount}
-                                onChange={(val) =>
-                                  setOnlineChapterCountMap((prev) => ({ ...prev, [bookUrl]: val }))
-                                }
-                                options={CHAPTER_COUNT_OPTIONS}
-                              />
-                              <Button
-                                size="small"
-                                icon={<UnorderedListOutlined />}
-                                onClick={() => handleOpenPicker(item)}
-                              >
-                                挑选目录
-                              </Button>
-                              <Button
-                                type="primary"
-                                size="small"
-                                icon={<CloudDownloadOutlined />}
-                                loading={isImporting}
-                                onClick={() => handleImportOnlineBook(item)}
-                                style={{ backgroundColor: '#0284c7', borderColor: '#0284c7' }}
-                              >
-                                导入语料库
-                              </Button>
-                            </Space>,
-                          ]}
-                        >
-                          <List.Item.Meta
-                            avatar={
-                              item.cover ? (
-                                <img
-                                  src={item.cover}
-                                  alt="cover"
-                                  style={{ width: 44, height: 58, objectFit: 'cover', borderRadius: 4 }}
-                                />
-                              ) : (
-                                <Avatar shape="square" size={48} style={{ backgroundColor: '#059669' }}>
-                                  {item.title ? item.title.slice(0, 2) : '书'}
-                                </Avatar>
-                              )
-                            }
-                            title={
-                              <Space>
-                                <Text strong style={{ fontSize: 14 }}>{item.title}</Text>
-                                {item.author && <Tag color="default">{item.author}</Tag>}
-                              </Space>
-                            }
-                            description={
-                              <Space direction="vertical" size={2}>
-                                {item.lastReadChapter && (
-                                  <Text type="secondary" style={{ fontSize: 12 }}>
-                                    读至: {item.lastReadChapter}
-                                  </Text>
-                                )}
-                              </Space>
-                            }
-                          />
-                        </List.Item>
-                      );
-                    }}
-                  />
-                </div>
-              ),
-            },
-          ]}
-        />
-      </Modal>
-
-      {/* 章节目录挑选与 AI 戏眼推荐 Drawer */}
-      <Drawer
-        title={
-          <Space>
-            <UnorderedListOutlined style={{ color: '#7c3aed' }} />
-            <span>《{pickerBook?.title || '作品'}》章节目录挑选与 AI 戏眼甄选</span>
-            {pickerChapters.length > 0 && <Tag color="purple">共 {pickerChapters.length} 正文章节</Tag>}
-          </Space>
-        }
-        width={720}
-        open={isPickerDrawerOpen}
-        onClose={() => setIsPickerDrawerOpen(false)}
-        extra={
-          <Space>
-            <Button onClick={() => setIsPickerDrawerOpen(false)}>取消</Button>
-            <Button
-              type="primary"
-              loading={pickerImportLoading}
-              disabled={selectedChapterUrls.length === 0}
-              onClick={handleConfirmPickerImport}
-              style={{ backgroundColor: '#0284c7', borderColor: '#0284c7' }}
-            >
-              确认采编所选 ({selectedChapterUrls.length}) 章入库
-            </Button>
-          </Space>
-        }
-      >
-        <Spin spinning={pickerLoading}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Alert
-              message="AI 章节甄选与自由切片工具"
-              description="可直接点击下方【🤖 AI 甄选戏眼】，系统将自动通读并理解全部章节标题语义，挑选最具冲突博弈与叙事深度的戏眼章；也可手动勾选任意章节切片入库。"
-              type="info"
-              showIcon
-            />
-
-            <Space wrap>
-              <Button
-                type="primary"
-                icon={<RobotOutlined />}
-                loading={aiPickingLoading}
-                onClick={() => handleAiPickInDrawer(3)}
-                style={{ backgroundColor: '#7c3aed', borderColor: '#7c3aed' }}
-              >
-                🤖 AI 甄选 3 个高潮戏眼章
-              </Button>
-              <Button
-                icon={<RobotOutlined />}
-                loading={aiPickingLoading}
-                onClick={() => handleAiPickInDrawer(5)}
-              >
-                AI 甄选 5 个戏眼章
-              </Button>
-              <Button onClick={() => handleSelectOpeningInDrawer(3)}>
-                📖 勾选开篇前 3 章
-              </Button>
-              <Button onClick={() => handleSelectOpeningInDrawer(5)}>
-                开篇前 5 章
-              </Button>
-              <Button onClick={() => setSelectedChapterUrls([])}>
-                清空选择
-              </Button>
-            </Space>
-
-            {aiSelectionRationale && (
-              <Alert
-                message="🧠 AI 责编推荐点评"
-                description={aiSelectionRationale}
-                type="success"
-                showIcon
-              />
-            )}
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-              <Input.Search
-                placeholder="在目录中搜索章节关键词，如：常委、交锋、查封..."
-                style={{ width: 280 }}
-                value={chapterSearchKw}
-                onChange={e => setChapterSearchKw(e.target.value)}
-                allowClear
-              />
-              <Text type="secondary">
-                已选中 <Text strong style={{ color: '#0284c7' }}>{selectedChapterUrls.length}</Text> 章（建议 3~5 章以保证蒸馏速度与精度）
-              </Text>
-            </div>
-
-            <div style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12 }}>
-              <List
-                size="small"
-                dataSource={pickerChapters.filter(c => !chapterSearchKw || c.title.toLowerCase().includes(chapterSearchKw.toLowerCase()))}
-                renderItem={(chap) => {
-                  const isChecked = selectedChapterUrls.includes(chap.sourceUrl);
-                  const isAiPick = aiClimaxUrls.includes(chap.sourceUrl);
-                  return (
-                    <List.Item
-                      key={chap.sourceUrl}
-                      style={{
-                        padding: '6px 12px',
-                        cursor: 'pointer',
-                        backgroundColor: isChecked ? '#f0f9ff' : 'transparent',
-                        borderRadius: 4,
-                        marginBottom: 4,
-                      }}
-                      onClick={() => handleToggleSelectChapter(chap.sourceUrl)}
-                    >
-                      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                        <Space>
-                          <Checkbox checked={isChecked} />
-                          <Text strong={isChecked}>{chap.title}</Text>
-                        </Space>
-                        <Space>
-                          {isAiPick && (
-                            <Tag color="purple" icon={<StarOutlined />}>
-                              🌟 AI推荐戏眼
-                            </Tag>
-                          )}
-                          <Text type="secondary" style={{ fontSize: 12 }}>第 {chap.chapterNumber} 节</Text>
-                        </Space>
-                      </Space>
-                    </List.Item>
-                  );
-                }}
-              />
-            </div>
-          </div>
-        </Spin>
       </Drawer>
     </div>
   );

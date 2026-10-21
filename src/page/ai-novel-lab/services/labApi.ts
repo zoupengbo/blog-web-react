@@ -70,6 +70,9 @@ export interface DistillTaskItem {
     verifiedRuleCount?: number;
     unverifiedRuleCount?: number;
     conflictRuleCount?: number;
+    userProblem?: string;
+    analysisMode?: string;
+    dynamicDimensions?: any;
     executionTimeMs?: number;
   };
   logs?: DistillTaskLog[];
@@ -277,6 +280,50 @@ export const getDistillTaskDetail = async (id: number): Promise<{ code: number; 
 
 export const retryDistillTask = async (id: number): Promise<{ code: number; data: DistillTaskItem; message: string }> => {
   return httpService.post(`/ai-novel/lab/tasks/${id}/retry`, {}) as any;
+};
+
+export interface DiagnosisPlanItem {
+  workId?: number | null;
+  sourceId?: number | null;
+  workTitle: string;
+  genre: string;
+  userProblem: string;
+  analysisMode: 'targeted' | 'comprehensive';
+  problemDiagnosis: string;
+  dynamicDimensions: Array<{
+    name: string;
+    primaryCapability: string;
+    focus: string;
+  }>;
+  primaryCapabilities: string[];
+  selectedChapters: Array<{
+    chapterNumber: number;
+    chapterTitle: string;
+    reason: string;
+    expectedValue: string;
+    id?: number;
+    sourceUrl?: string;
+  }>;
+  selectedChapterNumbers: number[];
+  analysisBudget: {
+    chapterCount: number;
+    estimatedSliceCount: number;
+    estimatedTokens: number;
+  };
+  uncertaintyNote?: string;
+}
+
+export const diagnoseAndPlanTask = async (data: {
+  workId?: number;
+  sourceId?: number;
+  workTitle?: string;
+  novelUrl?: string;
+  customChapters?: any[];
+  genre?: string;
+  userProblem?: string;
+  analysisMode?: 'targeted' | 'comprehensive';
+}): Promise<{ code: number; data: DiagnosisPlanItem; message: string }> => {
+  return httpService.post('/ai-novel/lab/tasks/diagnose-and-plan', data) as any;
 };
 
 export const cancelDistillTask = async (id: number): Promise<{ code: number; data: DistillTaskItem; message: string }> => {

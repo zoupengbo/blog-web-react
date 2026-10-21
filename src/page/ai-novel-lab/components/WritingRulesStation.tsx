@@ -378,6 +378,23 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                     {rule.confidenceScore && (
                       <Tag color="purple">置信度: {(Number(rule.confidenceScore) * 100).toFixed(0)}%</Tag>
                     )}
+                    {(() => {
+                      const snap: any = Array.isArray(rule.contextSnapshots)
+                        ? rule.contextSnapshots[0]
+                        : rule.contextSnapshots;
+                      return (
+                        <>
+                          {snap?.dynamicDimension && snap.dynamicDimension !== rule.targetDimension && (
+                            <Tag color="geekblue">{snap.dynamicDimension}</Tag>
+                          )}
+                          {snap?.solvedProblem && (
+                            <Tag color="volcano" icon={<FireOutlined />}>
+                              🎯 攻克痛点: {snap.solvedProblem}
+                            </Tag>
+                          )}
+                        </>
+                      );
+                    })()}
                   </Space>
                   <Space>
                     <Tooltip title={isVerified ? '当前正在生效，正文生成将严格注入此规约' : '已暂停，点击开启即可生效'}>
