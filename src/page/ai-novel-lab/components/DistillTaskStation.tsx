@@ -91,14 +91,14 @@ export const DistillTaskStation: React.FC<DistillTaskStationProps> = ({
       const values = await createForm.validateFields();
       setCreateLoading(true);
       const res = await createDistillTask(values);
-      if (res.code === 200) {
+      if (res && res.code === 200) {
         message.success('蒸馏任务已创建并启动异步流水线');
         onCloseCreateModal();
         createForm.resetFields();
         fetchTasks();
       }
     } catch (e: any) {
-      message.error(e.message || '创建任务失败');
+      // 统一由全局 request.ts 拦截器弹出错误通知，此处保持弹窗开启以便用户修改入参
     } finally {
       setCreateLoading(false);
     }

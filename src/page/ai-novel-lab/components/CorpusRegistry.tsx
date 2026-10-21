@@ -31,6 +31,7 @@ import {
   createCorpusSource,
   updateCorpusSource,
   deleteCorpusSource,
+  verifyCorpusSource,
   getCorpusWorks,
   importCorpusWork,
   deleteCorpusWork,
@@ -100,14 +101,27 @@ export const CorpusRegistry: React.FC = () => {
         message.success('语料来源修改成功');
       } else {
         await createCorpusSource(values);
-        message.success('语料来源登记成功');
+        message.success('语料来源登记成功（默认进入待审核状态）');
       }
       setIsSourceModalOpen(false);
       sourceForm.resetFields();
       setEditingSource(null);
       fetchSources();
     } catch (e: any) {
-      if (e.message) message.error(e.message);
+      // 业务错误已被 request.ts 全局拦截弹窗，此处保持表单打开状态供用户修改
+    }
+  };
+
+  const handleVerifySource = async (id: number, isApproved: boolean) => {
+    try {
+      await verifyCorpusSource(id, {
+        isApproved,
+        verificationNotes: isApproved ? '人工核准授权合规通过' : '人工撤销授权',
+      });
+      message.success(isApproved ? '来源授权核准通过' : '来源授权已撤销');
+      fetchSources();
+    } catch (e: any) {
+      // 统一由全局拦截弹窗
     }
   };
 
@@ -199,10 +213,60 @@ export const CorpusRegistry: React.FC = () => {
       ),
     },
     {
+      title: '审核状态',
+      key: 'status',
+      render: (_: any, record: CorpusSourceItem) => {
+        if (record.status === 'active') {
+          return (
+            <Tooltip title={record.verificationNotes ? `核验意见: ${record.verificationNotes}` : '已核准授权入库'}>
+              <Tag color="success">已核准授权</Tag>
+            </Tooltip>
+          );
+        }
+        if (record.status === 'pending_verification') {
+          return <Tag color="warning">待授权核验</Tag>;
+        }
+        if (record.status === 'revoked') {
+          return (
+            <Tooltip title={record.verificationNotes || '已撤销授权'}>
+              <Tag color="error">已撤销授权</Tag>
+            </Tooltip>
+          );
+        }
+        return <Tag>{record.status}</Tag>;
+      },
+    },
+    {
       title: '操作',
       key: 'action',
       render: (_: any, record: CorpusSourceItem) => (
         <Space direction="horizontal" size="small">
+          {record.status !== 'active' ? (
+            <Popconfirm
+              title="确定审核通过并授权激活该来源吗？"
+              description="审核通过后，该来源名下的切片语料将允许被蒸馏流水线调用采样。"
+              onConfirm={() => handleVerifySource(record.id, true)}
+              okText="核准通过"
+              cancelText="取消"
+            >
+              <Button type="text" style={{ color: '#16a34a' }} size="small" icon={<CheckCircleOutlined />}>
+                核准通过
+              </Button>
+            </Popconfirm>
+          ) : (
+            <Popconfirm
+              title="确定撤销该来源授权吗？"
+              description="撤销后，该来源名下的语料切片将立即被蒸馏流水线物理阻断！"
+              onConfirm={() => handleVerifySource(record.id, false)}
+              okText="确认撤销"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="text" danger size="small">
+                撤销授权
+              </Button>
+            </Popconfirm>
+          )}
           <Button
             type="text"
             icon={<EditOutlined />}

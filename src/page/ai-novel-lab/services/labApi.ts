@@ -7,7 +7,9 @@ export interface CorpusSourceItem {
   licenseProof?: string;
   targetUse: 'research' | 'training' | 'commercial';
   genre: string;
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'pending_verification' | 'revoked' | 'disabled';
+  verificationNotes?: string;
+  verifiedAt?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -139,6 +141,10 @@ export const updateCorpusSource = async (id: number, data: Partial<CorpusSourceI
 
 export const deleteCorpusSource = async (id: number): Promise<{ code: number; message: string }> => {
   return httpService.delete(`/ai-novel/lab/sources/${id}`) as any;
+};
+
+export const verifyCorpusSource = async (id: number, data: { isApproved: boolean; verificationNotes?: string }): Promise<{ code: number; data: CorpusSourceItem; message: string }> => {
+  return httpService.post(`/ai-novel/lab/sources/${id}/verify`, data) as any;
 };
 
 // 语料作品与切片

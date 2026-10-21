@@ -87,7 +87,17 @@ httpService.interceptors.response.use(
   (response: AxiosResponse) => {
     // 对响应数据做点什么
     if (response.status === 200) {
-      return response.data;
+      const data = response.data;
+      // 统一业务错误兜底拦截：当接口返回非 200 业务错误码时，自动触发 message.error 弹窗并转入 reject
+      if (data && typeof data.code === 'number' && data.code !== 200) {
+        const errorMessage = data.message || data.msg || '操作异常';
+        const isLoginRequest = response.config?.url?.includes('/login');
+        if (!isLoginRequest) {
+          message.error(errorMessage);
+        }
+        return Promise.reject(new Error(errorMessage));
+      }
+      return data;
     }
     return response;
   },
