@@ -22,6 +22,7 @@ export interface CorpusWorkItem {
   chapterNumber: number;
   chapterTitle: string;
   wordCount: number;
+  content?: string;
   cleanStatus: 'raw' | 'cleaned' | 'flagged';
   qualityMetrics?: {
     totalChars?: number;
