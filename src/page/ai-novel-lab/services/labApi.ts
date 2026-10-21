@@ -147,6 +147,10 @@ export const verifyCorpusSource = async (id: number, data: { isApproved: boolean
   return httpService.post(`/ai-novel/lab/sources/${id}/verify`, data) as any;
 };
 
+export const seedBenchmarkCorpus = async (): Promise<{ code: number; data: any; message: string }> => {
+  return httpService.post('/ai-novel/lab/corpus/seed-benchmark', {}) as any;
+};
+
 // 语料作品与切片
 export const getCorpusWorks = async (params: any = {}): Promise<{ code: number; data: { total: number; items: CorpusWorkItem[] } }> => {
   return httpService.get('/ai-novel/lab/works', { params }) as any;
@@ -154,6 +158,17 @@ export const getCorpusWorks = async (params: any = {}): Promise<{ code: number; 
 
 export const importCorpusWork = async (data: { sourceId: number; title: string; author?: string; rawText: string }): Promise<{ code: number; data: any; message: string }> => {
   return httpService.post('/ai-novel/lab/works/import', data) as any;
+};
+
+export const importTxtCorpusWork = async (data: {
+  title?: string;
+  author?: string;
+  genre?: string;
+  rawText: string;
+  sourceId?: number;
+  sourceName?: string;
+}): Promise<{ code: number; data: any; message: string }> => {
+  return httpService.post('/ai-novel/lab/works/import-txt', data) as any;
 };
 
 export const deleteCorpusWork = async (id: number): Promise<{ code: number; message: string }> => {

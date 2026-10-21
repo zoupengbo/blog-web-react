@@ -15,6 +15,11 @@ import {
   Typography,
   Alert,
   Tooltip,
+  Upload,
+  Radio,
+  Divider,
+  Row,
+  Col,
 } from 'antd';
 import {
   PlusOutlined,
@@ -25,6 +30,9 @@ import {
   DeleteOutlined,
   EditOutlined,
   CheckCircleOutlined,
+  ThunderboltOutlined,
+  FileTextOutlined,
+  InboxOutlined,
 } from '@ant-design/icons';
 import {
   getCorpusSources,
@@ -32,8 +40,10 @@ import {
   updateCorpusSource,
   deleteCorpusSource,
   verifyCorpusSource,
+  seedBenchmarkCorpus,
   getCorpusWorks,
   importCorpusWork,
+  importTxtCorpusWork,
   deleteCorpusWork,
   CorpusSourceItem,
   CorpusWorkItem,
@@ -59,6 +69,20 @@ export const CorpusRegistry: React.FC = () => {
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
   const [importForm] = Form.useForm();
   const [importLoading, setImportLoading] = useState<boolean>(false);
+
+  // TXT 小说上传弹窗
+  const [isTxtModalOpen, setIsTxtModalOpen] = useState<boolean>(false);
+  const [txtForm] = Form.useForm();
+  const [txtLoading, setTxtLoading] = useState<boolean>(false);
+  const [txtSourceMode, setTxtSourceMode] = useState<'auto' | 'existing'>('auto');
+  const [txtFileMeta, setTxtFileMeta] = useState<{
+    fileName: string;
+    fileSize: string;
+    charCount: number;
+    chapterEstimate: number;
+    preview: string;
+  } | null>(null);
+  const [seedLoading, setSeedLoading] = useState<boolean>(false);
 
   const fetchSources = async () => {
     setSourcesLoading(true);
@@ -151,6 +175,94 @@ export const CorpusRegistry: React.FC = () => {
       message.error(e.message || '入库失败');
     } finally {
       setImportLoading(false);
+    }
+  };
+
+  const handleSeedBenchmark = async () => {
+    setSeedLoading(true);
+    try {
+      const res = await seedBenchmarkCorpus();
+      if (res.code === 200) {
+        message.success(res.message || '标杆示范语料初始化成功！');
+        fetchSources();
+        fetchWorks();
+      }
+    } catch (e: any) {
+      message.error(e.message || '初始化标杆语料失败');
+    } finally {
+      setSeedLoading(false);
+    }
+  };
+
+  const handleTxtFileSelect = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = (e.target?.result as string) || '';
+      if (!content.trim()) {
+        message.error('文件内容为空');
+        return;
+      }
+      const defaultTitle = file.name.replace(/\.[^/.]+$/, '');
+      const chapterMatches = content.match(/^\s*(?:第\s*[0-9一二三四五六七八九十百千两]+\s*[章卷回节篇话]|Chapter\s*\d+|楔子|序章)/gim) || [];
+      const charCount = content.replace(/\s+/g, '').length;
+      const estChapters = chapterMatches.length > 0 ? chapterMatches.length : (charCount > 5000 ? Math.ceil(charCount / 3500) : 1);
+
+      setTxtFileMeta({
+        fileName: file.name,
+        fileSize: (file.size / 1024).toFixed(1) + ' KB',
+        charCount,
+        chapterEstimate: estChapters,
+        preview: content.slice(0, 300) + (content.length > 300 ? '...' : ''),
+      });
+
+      txtForm.setFieldsValue({
+        title: defaultTitle,
+        rawText: content,
+        author: '',
+        genre: '体制官场',
+      });
+      message.success(`成功读取《${file.name}》，检测到约 ${charCount} 字、${estChapters} 个章节切片`);
+    };
+    reader.onerror = () => {
+      message.error('读取 TXT 文件失败，请检查文件编码');
+    };
+    reader.readAsText(file, 'utf-8');
+    return false;
+  };
+
+  const handleImportTxtSubmit = async () => {
+    try {
+      const values = await txtForm.validateFields();
+      if (!values.rawText) {
+        message.error('请先选择或拖拽上传 TXT 小说文件');
+        return;
+      }
+      setTxtLoading(true);
+      const payload: any = {
+        title: values.title,
+        author: values.author,
+        genre: values.genre,
+        rawText: values.rawText,
+      };
+      if (txtSourceMode === 'existing' && values.sourceId) {
+        payload.sourceId = values.sourceId;
+      } else {
+        payload.sourceName = `${values.title}·个人语料库`;
+      }
+
+      const res = await importTxtCorpusWork(payload);
+      if (res.code === 200) {
+        message.success(res.message || `成功入库作品《${values.title}》！`);
+        setIsTxtModalOpen(false);
+        txtForm.resetFields();
+        setTxtFileMeta(null);
+        fetchWorks();
+        fetchSources();
+      }
+    } catch (e: any) {
+      message.error(e.message || 'TXT小说入库失败');
+    } finally {
+      setTxtLoading(false);
     }
   };
 
@@ -389,6 +501,35 @@ export const CorpusRegistry: React.FC = () => {
               <Button icon={<ReloadOutlined />} onClick={() => { fetchSources(); fetchWorks(); }}>
                 刷新
               </Button>
+              <Popconfirm
+                title="一键初始化标杆示范语料库？"
+                description="将自动创建并激活体制官场、都市职场、玄幻修真三大高质量标杆语料库及示范章节，可直接开启蒸馏！"
+                onConfirm={handleSeedBenchmark}
+                okText="立即初始化"
+                cancelText="取消"
+              >
+                <Button
+                  type="dashed"
+                  icon={<ThunderboltOutlined style={{ color: '#f59e0b' }} />}
+                  loading={seedLoading}
+                  style={{ borderColor: '#f59e0b', color: '#b45309' }}
+                >
+                  一键初始化标杆语料
+                </Button>
+              </Popconfirm>
+              <Button
+                type="primary"
+                icon={<FileTextOutlined />}
+                style={{ backgroundColor: '#059669', borderColor: '#059669' }}
+                onClick={() => {
+                  txtForm.resetFields();
+                  setTxtFileMeta(null);
+                  setTxtSourceMode('auto');
+                  setIsTxtModalOpen(true);
+                }}
+              >
+                上传 TXT 小说
+              </Button>
               {activeTab === 'sources' ? (
                 <Button
                   type="primary"
@@ -403,14 +544,13 @@ export const CorpusRegistry: React.FC = () => {
                 </Button>
               ) : (
                 <Button
-                  type="primary"
                   icon={<UploadOutlined />}
                   onClick={() => {
                     importForm.resetFields();
                     setIsImportModalOpen(true);
                   }}
                 >
-                  导入语料作品切片
+                  粘贴导入章节
                 </Button>
               )}
             </Space>
@@ -525,6 +665,147 @@ export const CorpusRegistry: React.FC = () => {
               placeholder="请粘贴一段或多章小说文本。系统将自动按‘第X章’切片，计算对白密度、标点健康度并计算唯一SHA-256防重..."
             />
           </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* TXT 小说文件快速上传入库弹窗 */}
+      <Modal
+        title={
+          <Space>
+            <FileTextOutlined style={{ color: '#059669' }} />
+            <span>上传 TXT 小说自动入库与切片</span>
+          </Space>
+        }
+        open={isTxtModalOpen}
+        onOk={handleImportTxtSubmit}
+        confirmLoading={txtLoading}
+        onCancel={() => {
+          setIsTxtModalOpen(false);
+          setTxtFileMeta(null);
+        }}
+        width={720}
+        destroyOnClose
+        okText="立即解析并入库"
+        cancelText="取消"
+      >
+        <Alert
+          message="免手动审核·个人自用小说极速入库"
+          description="支持直接拖拽本地 .txt 小说文件。系统使用浏览器前端毫秒级读取，自动提取作品名、按“第X章”智能切片入库并自动激活，可直接开启笔法蒸馏！"
+          type="success"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+
+        <div style={{ marginBottom: 16 }}>
+          <Upload.Dragger
+            accept=".txt,.md"
+            showUploadList={false}
+            beforeUpload={handleTxtFileSelect}
+            style={{ padding: '16px 0', background: '#f8fafc', border: '1px dashed #cbd5e1' }}
+          >
+            <p className="ant-upload-drag-icon" style={{ marginBottom: 8 }}>
+              <InboxOutlined style={{ color: '#059669', fontSize: 36 }} />
+            </p>
+            <p className="ant-upload-text" style={{ fontSize: 15, fontWeight: 500 }}>
+              点击或将 .txt 小说文件拖拽到此区域
+            </p>
+            <p className="ant-upload-hint" style={{ color: '#64748b' }}>
+              支持全本小说或多章文本，客户端秒级解析，无上传大小限制
+            </p>
+          </Upload.Dragger>
+        </div>
+
+        {txtFileMeta && (
+          <Card
+            size="small"
+            style={{ marginBottom: 16, backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}
+          >
+            <Space size="middle" wrap>
+              <Tag color="success">已加载: {txtFileMeta.fileName}</Tag>
+              <Text type="secondary">大小: {txtFileMeta.fileSize}</Text>
+              <Text type="secondary">总字数: {txtFileMeta.charCount} 字</Text>
+              <Tag color="blue">预估章节: 约 {txtFileMeta.chapterEstimate} 章</Tag>
+            </Space>
+            {txtFileMeta.preview && (
+              <Paragraph
+                ellipsis={{ rows: 2 }}
+                style={{ marginTop: 8, fontSize: 12, color: '#475569', marginBottom: 0 }}
+              >
+                文本前瞻: {txtFileMeta.preview}
+              </Paragraph>
+            )}
+          </Card>
+        )}
+
+        <Form form={txtForm} layout="vertical">
+          <Form.Item name="rawText" hidden>
+            <Input />
+          </Form.Item>
+
+          <Row gutter={16}>
+            <Col span={14}>
+              <Form.Item
+                name="title"
+                label="作品名称"
+                rules={[{ required: true, message: '请输入作品名称' }]}
+              >
+                <Input placeholder="自动提取自文件名，可自定义修改" />
+              </Form.Item>
+            </Col>
+            <Col span={10}>
+              <Form.Item name="author" label="作者署名（可选）">
+                <Input placeholder="默认：佚名" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="genre"
+                label="所属题材类别"
+                rules={[{ required: true, message: '请选择题材' }]}
+                initialValue="体制官场"
+              >
+                <Select>
+                  <Option value="体制官场">体制官场</Option>
+                  <Option value="都市职场">都市职场</Option>
+                  <Option value="社会现实">社会现实</Option>
+                  <Option value="悬疑刑侦">悬疑刑侦</Option>
+                  <Option value="玄幻修真">玄幻修真</Option>
+                  <Option value="科幻未来">科幻未来</Option>
+                  <Option value="历史演义">历史演义</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="语料来源归属">
+                <Radio.Group
+                  value={txtSourceMode}
+                  onChange={(e) => setTxtSourceMode(e.target.value)}
+                >
+                  <Radio value="auto">自动创建并激活（推荐）</Radio>
+                  <Radio value="existing">归属已有来源</Radio>
+                </Radio.Group>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          {txtSourceMode === 'existing' && (
+            <Form.Item
+              name="sourceId"
+              label="选择已有语料来源"
+              rules={[{ required: true, message: '请选择归属来源' }]}
+            >
+              <Select placeholder="选择要追加归属的语料来源">
+                {sources.map((s) => (
+                  <Option key={s.id} value={s.id}>
+                    {s.sourceName} ({s.genre} - {s.status === 'active' ? '已激活' : '待审核'})
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          )}
         </Form>
       </Modal>
     </div>
