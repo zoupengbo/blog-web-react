@@ -172,6 +172,21 @@ export const importTxtCorpusWork = async (data: {
   return httpService.post('/ai-novel/lab/works/import-txt', data) as any;
 };
 
+// 全网小说搜索与在线抓取切片
+export const searchOnlineNovels = async (keyword: string): Promise<{ code: number; data: { searchResults: any[] }; msg?: string }> => {
+  return httpService.post('/novel/search', { keyword }) as any;
+};
+
+export const importOnlineNovel = async (data: {
+  novelUrl: string;
+  title: string;
+  author?: string;
+  genre?: string;
+  chapterCount?: number;
+}): Promise<{ code: number; data: any; message: string }> => {
+  return httpService.post('/ai-novel/lab/works/import-online', data) as any;
+};
+
 export const deleteCorpusWork = async (id: number): Promise<{ code: number; message: string }> => {
   return httpService.delete(`/ai-novel/lab/works/${id}`) as any;
 };

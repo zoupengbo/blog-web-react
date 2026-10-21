@@ -19,6 +19,9 @@ import {
   Col,
   Drawer,
   List,
+  Tabs,
+  Spin,
+  Avatar,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -28,6 +31,9 @@ import {
   BookOutlined,
   DeleteOutlined,
   EyeOutlined,
+  GlobalOutlined,
+  SearchOutlined,
+  CloudDownloadOutlined,
 } from '@ant-design/icons';
 import {
   getCorpusWorks,
@@ -35,8 +41,11 @@ import {
   deleteCorpusWork,
   seedBenchmarkCorpus,
   createDistillTask,
+  searchOnlineNovels,
+  importOnlineNovel,
   CorpusWorkItem,
 } from '../services/labApi';
+import { StorageUtil } from '../../entertainment/ebookReader/utils/storage';
 
 const { Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -82,6 +91,79 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
   // 查看章节抽屉
   const [viewNovel, setViewNovel] = useState<GroupedNovelItem | null>(null);
   const [seedLoading, setSeedLoading] = useState<boolean>(false);
+
+  // 全网在线小说检索与采编弹窗
+  const [isOnlineModalOpen, setIsOnlineModalOpen] = useState<boolean>(false);
+  const [onlineSearchKeyword, setOnlineSearchKeyword] = useState<string>('');
+  const [onlineSearchResults, setOnlineSearchResults] = useState<any[]>([]);
+  const [onlineSearchLoading, setOnlineSearchLoading] = useState<boolean>(false);
+  const [onlineImportLoadingUrl, setOnlineImportLoadingUrl] = useState<string | null>(null);
+  const [onlineGenreMap, setOnlineGenreMap] = useState<Record<string, string>>({});
+  const [onlineChapterCountMap, setOnlineChapterCountMap] = useState<Record<string, number>>({});
+  const [bookshelfBooks, setBookshelfBooks] = useState<any[]>([]);
+
+  const openOnlineModal = () => {
+    try {
+      const shelf = StorageUtil.getBookshelf() || [];
+      setBookshelfBooks(shelf);
+    } catch (e) {
+      console.warn('获取阅读器书架失败:', e);
+    }
+    setIsOnlineModalOpen(true);
+  };
+
+  const handleSearchOnline = async (kw?: string) => {
+    const keyword = (kw !== undefined ? kw : onlineSearchKeyword).trim();
+    if (!keyword) {
+      message.warning('请输入搜索书名或作者关键词');
+      return;
+    }
+    setOnlineSearchLoading(true);
+    try {
+      const res = await searchOnlineNovels(keyword);
+      if (res.code === 200) {
+        const results = res.data?.searchResults || [];
+        setOnlineSearchResults(results);
+        if (results.length === 0) {
+          message.info('未在全网检索到相关小说，可更换关键词重试');
+        }
+      }
+    } catch (e: any) {
+      // 全局拦截
+    } finally {
+      setOnlineSearchLoading(false);
+    }
+  };
+
+  const handleImportOnlineBook = async (bookItem: any) => {
+    const bookUrl = bookItem.url || bookItem.sourceUrl;
+    if (!bookUrl) {
+      message.error('该书籍缺少在线网络链接，无法抓取');
+      return;
+    }
+    setOnlineImportLoadingUrl(bookUrl);
+    try {
+      const genre = onlineGenreMap[bookUrl] || '体制官场';
+      const count = onlineChapterCountMap[bookUrl] || 3;
+
+      const res = await importOnlineNovel({
+        novelUrl: bookUrl,
+        title: bookItem.title,
+        author: bookItem.author,
+        genre,
+        chapterCount: count,
+      });
+
+      if (res.code === 200) {
+        message.success(res.message || `成功入库《${bookItem.title}》！`);
+        fetchWorks();
+      }
+    } catch (e: any) {
+      // 全局拦截
+    } finally {
+      setOnlineImportLoadingUrl(null);
+    }
+  };
 
   const fetchWorks = async () => {
     setLoading(true);
@@ -367,6 +449,14 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
             </Popconfirm>
             <Button
               type="primary"
+              icon={<GlobalOutlined />}
+              style={{ backgroundColor: '#7c3aed', borderColor: '#7c3aed' }}
+              onClick={openOnlineModal}
+            >
+              全网搜书采编
+            </Button>
+            <Button
+              type="primary"
               icon={<FileTextOutlined />}
               style={{ backgroundColor: '#059669', borderColor: '#059669' }}
               onClick={() => {
@@ -591,6 +681,266 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
           />
         )}
       </Drawer>
+
+      {/* 全网搜书采编与阅读器书架导入弹窗 */}
+      <Modal
+        title={
+          <Space>
+            <GlobalOutlined style={{ color: '#7c3aed' }} />
+            <span>全网搜书采编与阅读器书架引入</span>
+          </Space>
+        }
+        open={isOnlineModalOpen}
+        onCancel={() => setIsOnlineModalOpen(false)}
+        footer={null}
+        width={780}
+        destroyOnClose
+      >
+        <Tabs
+          defaultActiveKey="search"
+          items={[
+            {
+              key: 'search',
+              label: (
+                <Space>
+                  <SearchOutlined />
+                  <span>全网搜书采编</span>
+                </Space>
+              ),
+              children: (
+                <div>
+                  <Alert
+                    message="即搜即采：一键将全网精品同类小说切片纳入语料库"
+                    description="输入书名或作者进行全网搜索，选中作品后后台将直接抓取前 3~5 章高质量正文切片入库，免手动下载与繁琐复制。"
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                  />
+                  <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
+                    <Input
+                      placeholder="输入书名或作者，如：侯卫东官场笔记、大医凌然、宿命之环..."
+                      value={onlineSearchKeyword}
+                      onChange={(e) => setOnlineSearchKeyword(e.target.value)}
+                      onPressEnter={() => handleSearchOnline()}
+                      allowClear
+                    />
+                    <Button
+                      type="primary"
+                      icon={<SearchOutlined />}
+                      onClick={() => handleSearchOnline()}
+                      loading={onlineSearchLoading}
+                      style={{ backgroundColor: '#7c3aed', borderColor: '#7c3aed' }}
+                    >
+                      搜索全网
+                    </Button>
+                  </Space.Compact>
+
+                  <List
+                    loading={onlineSearchLoading}
+                    dataSource={onlineSearchResults}
+                    locale={{ emptyText: '输入关键词搜索全网小说' }}
+                    renderItem={(item: any) => {
+                      const bookUrl = item.url || item.sourceUrl;
+                      const isImporting = onlineImportLoadingUrl === bookUrl;
+                      const selectedGenre = onlineGenreMap[bookUrl] || '体制官场';
+                      const selectedCount = onlineChapterCountMap[bookUrl] || 3;
+
+                      return (
+                        <List.Item
+                          actions={[
+                            <Space key="action">
+                              <Select
+                                size="small"
+                                style={{ width: 105 }}
+                                value={selectedGenre}
+                                onChange={(val) =>
+                                  setOnlineGenreMap((prev) => ({ ...prev, [bookUrl]: val }))
+                                }
+                              >
+                                <Option value="体制官场">体制官场</Option>
+                                <Option value="都市职场">都市职场</Option>
+                                <Option value="社会现实">社会现实</Option>
+                                <Option value="悬疑刑侦">悬疑刑侦</Option>
+                                <Option value="玄幻修真">玄幻修真</Option>
+                                <Option value="科幻未来">科幻未来</Option>
+                              </Select>
+                              <Select
+                                size="small"
+                                style={{ width: 90 }}
+                                value={selectedCount}
+                                onChange={(val) =>
+                                  setOnlineChapterCountMap((prev) => ({ ...prev, [bookUrl]: val }))
+                                }
+                              >
+                                <Option value={1}>采编 1 章</Option>
+                                <Option value={3}>采编 3 章</Option>
+                                <Option value={5}>采编 5 章</Option>
+                              </Select>
+                              <Button
+                                type="primary"
+                                size="small"
+                                icon={<CloudDownloadOutlined />}
+                                loading={isImporting}
+                                onClick={() => handleImportOnlineBook(item)}
+                                style={{ backgroundColor: '#0284c7', borderColor: '#0284c7' }}
+                              >
+                                采编入库
+                              </Button>
+                            </Space>,
+                          ]}
+                        >
+                          <List.Item.Meta
+                            avatar={
+                              item.cover ? (
+                                <img
+                                  src={item.cover}
+                                  alt="cover"
+                                  style={{ width: 44, height: 58, objectFit: 'cover', borderRadius: 4 }}
+                                />
+                              ) : (
+                                <Avatar shape="square" size={48} style={{ backgroundColor: '#8b5cf6' }}>
+                                  {item.title ? item.title.slice(0, 2) : '书'}
+                                </Avatar>
+                              )
+                            }
+                            title={
+                              <Space>
+                                <Text strong style={{ fontSize: 14 }}>{item.title}</Text>
+                                {item.author && <Tag color="default">{item.author}</Tag>}
+                              </Space>
+                            }
+                            description={
+                              <Space direction="vertical" size={2}>
+                                {item.latestChapter && (
+                                  <Text type="secondary" style={{ fontSize: 12 }}>
+                                    最新: {item.latestChapter}
+                                  </Text>
+                                )}
+                                {item.intro && (
+                                  <Paragraph ellipsis={{ rows: 2 }} style={{ fontSize: 12, color: '#64748b', margin: 0 }}>
+                                    {item.intro}
+                                  </Paragraph>
+                                )}
+                              </Space>
+                            }
+                          />
+                        </List.Item>
+                      );
+                    }}
+                  />
+                </div>
+              ),
+            },
+            {
+              key: 'shelf',
+              label: (
+                <Space>
+                  <BookOutlined />
+                  <span>我的阅读书架 ({bookshelfBooks.length})</span>
+                </Space>
+              ),
+              children: (
+                <div>
+                  <Alert
+                    message="我的阅读书架直通车"
+                    description="你在系统内置【电子书阅读器】中收藏的书架小说，均可一键转为语料库切片，用于逆向提炼写作笔法。"
+                    type="success"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                  />
+                  <List
+                    dataSource={bookshelfBooks}
+                    locale={{ emptyText: '当前阅读器书架暂无书籍，可先在阅读器中添加书籍或使用“全网搜书采编”' }}
+                    renderItem={(item: any) => {
+                      const bookUrl = item.url || item.sourceUrl || item.id;
+                      const isImporting = onlineImportLoadingUrl === bookUrl;
+                      const selectedGenre = onlineGenreMap[bookUrl] || '体制官场';
+                      const selectedCount = onlineChapterCountMap[bookUrl] || 3;
+
+                      return (
+                        <List.Item
+                          actions={[
+                            <Space key="action">
+                              <Select
+                                size="small"
+                                style={{ width: 105 }}
+                                value={selectedGenre}
+                                onChange={(val) =>
+                                  setOnlineGenreMap((prev) => ({ ...prev, [bookUrl]: val }))
+                                }
+                              >
+                                <Option value="体制官场">体制官场</Option>
+                                <Option value="都市职场">都市职场</Option>
+                                <Option value="社会现实">社会现实</Option>
+                                <Option value="悬疑刑侦">悬疑刑侦</Option>
+                                <Option value="玄幻修真">玄幻修真</Option>
+                                <Option value="科幻未来">科幻未来</Option>
+                              </Select>
+                              <Select
+                                size="small"
+                                style={{ width: 90 }}
+                                value={selectedCount}
+                                onChange={(val) =>
+                                  setOnlineChapterCountMap((prev) => ({ ...prev, [bookUrl]: val }))
+                                }
+                              >
+                                <Option value={1}>采编 1 章</Option>
+                                <Option value={3}>采编 3 章</Option>
+                                <Option value={5}>采编 5 章</Option>
+                              </Select>
+                              <Button
+                                type="primary"
+                                size="small"
+                                icon={<CloudDownloadOutlined />}
+                                loading={isImporting}
+                                onClick={() => handleImportOnlineBook(item)}
+                                style={{ backgroundColor: '#0284c7', borderColor: '#0284c7' }}
+                              >
+                                导入语料库
+                              </Button>
+                            </Space>,
+                          ]}
+                        >
+                          <List.Item.Meta
+                            avatar={
+                              item.cover ? (
+                                <img
+                                  src={item.cover}
+                                  alt="cover"
+                                  style={{ width: 44, height: 58, objectFit: 'cover', borderRadius: 4 }}
+                                />
+                              ) : (
+                                <Avatar shape="square" size={48} style={{ backgroundColor: '#059669' }}>
+                                  {item.title ? item.title.slice(0, 2) : '书'}
+                                </Avatar>
+                              )
+                            }
+                            title={
+                              <Space>
+                                <Text strong style={{ fontSize: 14 }}>{item.title}</Text>
+                                {item.author && <Tag color="default">{item.author}</Tag>}
+                              </Space>
+                            }
+                            description={
+                              <Space direction="vertical" size={2}>
+                                {item.lastReadChapter && (
+                                  <Text type="secondary" style={{ fontSize: 12 }}>
+                                    读至: {item.lastReadChapter}
+                                  </Text>
+                                )}
+                              </Space>
+                            }
+                          />
+                        </List.Item>
+                      );
+                    }}
+                  />
+                </div>
+              ),
+            },
+          ]}
+        />
+      </Modal>
     </div>
   );
 };
