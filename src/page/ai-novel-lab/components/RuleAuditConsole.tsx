@@ -37,7 +37,35 @@ const { Text, Paragraph } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
 
+const AUDIT_FILTER_KEY = 'ai_novel_rule_audit_filter';
+
+interface AuditFilterData {
+  genre: string;
+  status: string;
+  dimension: string;
+  keyword: string;
+}
+
+const getStoredAuditFilter = (): AuditFilterData => {
+  try {
+    const raw = localStorage.getItem(AUDIT_FILTER_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        genre: typeof parsed.genre === 'string' ? parsed.genre : 'all',
+        status: typeof parsed.status === 'string' ? parsed.status : 'all',
+        dimension: typeof parsed.dimension === 'string' ? parsed.dimension : 'all',
+        keyword: typeof parsed.keyword === 'string' ? parsed.keyword : '',
+      };
+    }
+  } catch (e) {
+    // ignore
+  }
+  return { genre: 'all', status: 'all', dimension: 'all', keyword: '' };
+};
+
 export const RuleAuditConsole: React.FC = () => {
+  const initialAuditFilter = getStoredAuditFilter();
   const [rules, setRules] = useState<DistillRuleItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedRule, setSelectedRule] = useState<DistillRuleItem | null>(null);
@@ -47,11 +75,27 @@ export const RuleAuditConsole: React.FC = () => {
   const [pageSize, setPageSize] = useState<number>(10);
   const [total, setTotal] = useState<number>(0);
 
-  // 筛选器
-  const [filterGenre, setFilterGenre] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [filterDimension, setFilterDimension] = useState<string>('all');
-  const [keyword, setKeyword] = useState<string>('');
+  // 筛选器（记忆持久化于 localStorage）
+  const [filterGenre, setFilterGenre] = useState<string>(initialAuditFilter.genre);
+  const [filterStatus, setFilterStatus] = useState<string>(initialAuditFilter.status);
+  const [filterDimension, setFilterDimension] = useState<string>(initialAuditFilter.dimension);
+  const [keyword, setKeyword] = useState<string>(initialAuditFilter.keyword);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        AUDIT_FILTER_KEY,
+        JSON.stringify({
+          genre: filterGenre,
+          status: filterStatus,
+          dimension: filterDimension,
+          keyword,
+        })
+      );
+    } catch (e) {
+      // ignore
+    }
+  }, [filterGenre, filterStatus, filterDimension, keyword]);
 
   const [editForm] = Form.useForm();
   const [saveLoading, setSaveLoading] = useState<boolean>(false);
@@ -205,6 +249,16 @@ export const RuleAuditConsole: React.FC = () => {
                 onClick={() => fetchRules(page, pageSize)}
                 loading={loading}
               />
+              <Button
+                onClick={() => {
+                  setFilterGenre('all');
+                  setFilterStatus('all');
+                  setFilterDimension('all');
+                  setKeyword('');
+                }}
+              >
+                重置
+              </Button>
             </Space>
           </Col>
         </Row>

@@ -45,15 +45,45 @@ interface WritingRulesStationProps {
   initialGenre?: string;
 }
 
+const WRITING_RULES_FILTER_KEY = 'ai_novel_writing_rules_filter';
+
+interface WritingRulesFilterData {
+  genre: string;
+  dimension: string;
+  status: 'all' | 'verified' | 'draft';
+  keyword: string;
+}
+
+const getStoredFilter = (): WritingRulesFilterData => {
+  try {
+    const raw = localStorage.getItem(WRITING_RULES_FILTER_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        genre: typeof parsed.genre === 'string' ? parsed.genre : 'all',
+        dimension: typeof parsed.dimension === 'string' ? parsed.dimension : 'all',
+        status: ['all', 'verified', 'draft'].includes(parsed.status) ? parsed.status : 'all',
+        keyword: typeof parsed.keyword === 'string' ? parsed.keyword : '',
+      };
+    }
+  } catch (e) {
+    // ignore
+  }
+  return { genre: 'all', dimension: 'all', status: 'all', keyword: '' };
+};
+
 export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initialGenre }) => {
+  const initialFilter = getStoredFilter();
   const [rules, setRules] = useState<DistillRuleItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // 筛选状态
-  const [selectedGenre, setSelectedGenre] = useState<string>(initialGenre || 'all');
-  const [selectedDimension, setSelectedDimension] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'draft'>('all');
-  const [searchKeyword, setSearchKeyword] = useState<string>('');
+  // 记忆筛选状态（持久化于 localStorage）
+  const [selectedGenre, setSelectedGenre] = useState<string>(
+    (initialGenre && initialGenre !== 'all') ? initialGenre : initialFilter.genre
+  );
+  const [selectedDimension, setSelectedDimension] = useState<string>(initialFilter.dimension);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'draft'>(initialFilter.status);
+  const [searchKeyword, setSearchKeyword] = useState<string>(initialFilter.keyword);
 
   // 分页状态
   const [page, setPage] = useState<number>(1);
@@ -86,6 +116,30 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
       setLoading(false);
     }
   };
+
+  // 记忆化持久保存到 localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        WRITING_RULES_FILTER_KEY,
+        JSON.stringify({
+          genre: selectedGenre,
+          dimension: selectedDimension,
+          status: statusFilter,
+          keyword: searchKeyword,
+        })
+      );
+    } catch (e) {
+      // ignore
+    }
+  }, [selectedGenre, selectedDimension, statusFilter, searchKeyword]);
+
+  // 当外部导航传入特定题材时动态切换
+  useEffect(() => {
+    if (initialGenre && initialGenre !== 'all') {
+      setSelectedGenre(initialGenre);
+    }
+  }, [initialGenre]);
 
   useEffect(() => {
     setPage(1);
@@ -281,6 +335,17 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
             style={{ width: 240 }}
             allowClear
           />
+
+          <Button
+            onClick={() => {
+              setSelectedGenre('all');
+              setSelectedDimension('all');
+              setStatusFilter('all');
+              setSearchKeyword('');
+            }}
+          >
+            重置筛选
+          </Button>
         </div>
 
         {/* 规则卡片流 */}
