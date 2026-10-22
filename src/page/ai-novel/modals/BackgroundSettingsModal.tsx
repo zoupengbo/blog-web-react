@@ -9,7 +9,7 @@ import {
 import { NovelOutline, Novel, CharacterRelationship, PaperTheme } from '../types';
 import { isPastCharacter } from '../utils/volumeParser';
 import { RelationshipGraph } from '../components/RelationshipGraph';
-import { areGenresCompatible, normalizeGenre } from '../utils/genreHelper';
+import { areGenresCompatible, normalizeGenre, getGrowthSystemConfig } from '../utils/genreHelper';
 
 const { TextArea } = Input;
 
@@ -152,6 +152,8 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
 }) => {
   const currentTone = selectedOutline?.toneStyle || (selectedNovel as any)?.toneStyle || 'humorous_hotblood';
   const relList = Array.isArray(selectedOutline?.characterRelationships) ? selectedOutline!.characterRelationships : [];
+  const novelGenre = (selectedNovel as any)?.category || (selectedNovel as any)?.genre || selectedOutline?.theme || '';
+  const growthConfig = getGrowthSystemConfig(novelGenre);
 
   const handleToneSelect = async (val: string) => {
     const defaultText = TONE_PRESETS[val]?.text || '';
@@ -885,11 +887,11 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
           },
           {
             key: 'sys_big',
-            label: '⚡ 修仙境界与金手指',
+            label: growthConfig.tabLabel,
             children: (
           <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 10 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: "#ffd666" }}>⚡ 主角突破修为轨迹 & 系统已解锁能力看板</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: "#ffd666" }}>{growthConfig.headerTitle}</span>
               <Space>
                 <Button
                   type="primary"
@@ -898,7 +900,7 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                   onClick={onAnalyzeSystemAndCultivation}
                   loading={isAnalyzingSys}
                 >
-                  分析本章境界与金手指
+                  {growthConfig.buttonAnalyzeSingle}
                 </Button>
                 <Button
                   type="default"
@@ -907,24 +909,24 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                   style={{ borderColor: '#ffd666', color: '#ffd666' }}
                   onClick={() => onOpenBatchAnalyzeModal('sys')}
                 >
-                  批量勾选章节分析
+                  {growthConfig.buttonAnalyzeBatch}
                 </Button>
               </Space>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 16, marginTop: 10, height: "calc(100vh - 300px)", minHeight: 450 }}>
-              <Card title="🌟 主角突破修为看板" size="small" style={{ borderRadius: 8 }}>
+              <Card title={growthConfig.levelCardTitle} size="small" style={{ borderRadius: 8 }}>
                 <div style={{ padding: "12px", border: "1px solid #383846", borderRadius: 6, marginBottom: 16 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
-                      <div style={{ fontSize: 12, color: "#a1a1aa", fontWeight: 600 }}>当前最新境界修为：</div>
+                      <div style={{ fontSize: 12, color: "#a1a1aa", fontWeight: 600 }}>{growthConfig.levelFieldLabel}</div>
                       <div style={{ fontSize: 18, fontWeight: 700, color: "#ffd666", marginTop: 4 }}>
-                        {selectedOutline?.systemAndCultivationState?.protagonistCultivation?.currentRealm || "暂未突破 / 练气期"}
+                        {selectedOutline?.systemAndCultivationState?.protagonistCultivation?.currentRealm || growthConfig.levelDefaultValue}
                       </div>
                     </div>
                     {selectedOutline?.systemAndCultivationState?.protagonistCultivation?.karmaPoints && (
                       <div style={{ textAlign: "right", border: "1px solid #785a06", padding: "4px 8px", borderRadius: 6 }}>
-                        <div style={{ fontSize: 11, color: "#ffd666", fontWeight: 600 }}>⚡ 当前剩余因缘值：</div>
+                        <div style={{ fontSize: 11, color: "#ffd666", fontWeight: 600 }}>{growthConfig.pointsLabel}</div>
                         <div style={{ fontSize: 16, fontWeight: 700, color: "#faad14", marginTop: 2 }}>
                           {selectedOutline.systemAndCultivationState.protagonistCultivation.karmaPoints}
                         </div>
@@ -933,22 +935,38 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                   </div>
                 </div>
 
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#cbd5e1", marginBottom: 8 }}>设定的修仙境界划分体系：</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {(selectedOutline?.systemAndCultivationState?.realmSystem || ["练气期", "筑基期", "金丹期", "元婴期", "化神期"]).map((realm, idx) => (
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#cbd5e1", marginBottom: 8 }}>{growthConfig.systemListTitle}</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+                  {(selectedOutline?.systemAndCultivationState?.realmSystem || growthConfig.defaultHierarchy).map((realm, idx) => (
                     <div key={idx} style={{ padding: "6px 10px", border: "1px solid #2e2e38", borderRadius: 4, fontSize: 12, display: "flex", alignItems: "center", gap: 8 }}>
                       <Badge count={idx + 1} style={{ backgroundColor: "#d4b106" }} />
                       <span style={{ fontWeight: 500 }}>{realm}</span>
                     </div>
                   ))}
                 </div>
+
+                {Array.isArray(selectedOutline?.systemAndCultivationState?.protagonistCultivation?.inventory) &&
+                  selectedOutline!.systemAndCultivationState!.protagonistCultivation!.inventory!.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#cbd5e1", marginBottom: 6 }}>
+                      {growthConfig.inventoryLabel}
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {selectedOutline!.systemAndCultivationState!.protagonistCultivation!.inventory!.map((item, idx) => (
+                        <Tag key={idx} color="gold" style={{ fontSize: 11 }}>
+                          {item}
+                        </Tag>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </Card>
 
-              <Card title="🔮 系统 / 金手指功能解锁看板" size="small" style={{ borderRadius: 8 }}>
+              <Card title={growthConfig.featuresCardTitle} size="small" style={{ borderRadius: 8 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: "calc(100vh - 380px)", overflowY: "auto" }}>
                   {(!selectedOutline?.systemAndCultivationState?.systemFeatures || selectedOutline.systemAndCultivationState.systemFeatures.length === 0) ? (
                     <div style={{ textAlign: "center", padding: "80px 10px", color: "#71717a", fontSize: 13 }}>
-                      暂无金手指解锁记载。生成正文后点击右上角按钮由 AI 自动提取更新。
+                      {growthConfig.featuresEmptyTip}
                     </div>
                   ) : (
                     selectedOutline.systemAndCultivationState.systemFeatures.map((feat, idx) => (

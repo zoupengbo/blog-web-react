@@ -1,7 +1,8 @@
 import React from 'react';
 import { Modal, Checkbox, Space, Button, Tag } from 'antd';
 import { CheckCircleFilled } from '@ant-design/icons';
-import { NovelOutline, ChapterOutline, PaperTheme } from '../types';
+import { NovelOutline, ChapterOutline, PaperTheme, Novel } from '../types';
+import { getGrowthSystemConfig } from '../utils/genreHelper';
 
 interface BatchAnalyzeModalProps {
   open: boolean;
@@ -13,6 +14,7 @@ interface BatchAnalyzeModalProps {
   batchAnalyzeTypes: string[];
   setBatchAnalyzeTypes: (types: string[]) => void;
   selectedOutline: NovelOutline | null;
+  selectedNovel?: Novel | null;
   paperTheme?: PaperTheme;
 }
 
@@ -26,8 +28,11 @@ export const BatchAnalyzeModal: React.FC<BatchAnalyzeModalProps> = ({
   batchAnalyzeTypes,
   setBatchAnalyzeTypes,
   selectedOutline,
+  selectedNovel,
   paperTheme = 'dark',
 }) => {
+  const currentGenre = (selectedNovel as any)?.category || (selectedNovel as any)?.genre || selectedOutline?.theme || '';
+  const growthConfig = getGrowthSystemConfig(currentGenre);
   const getChaptersList = (): ChapterOutline[] => {
     if (!selectedOutline?.chaptersOutline) return [];
     try {
@@ -61,7 +66,7 @@ export const BatchAnalyzeModal: React.FC<BatchAnalyzeModalProps> = ({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '4px 0' }}>
         <div className="modal-tip-banner" style={{ padding: '10px 14px', borderRadius: 6 }}>
           <div style={{ fontSize: 12 }}>
-            💡 <b>功能说明</b>：勾选你需要分析的章节，AI 将按顺序读取这些章节的正文内容，自动识别并提取主角修为突破、系统金手指解锁以及人物关系演进，并自动存库更新！
+            💡 <b>功能说明</b>：勾选你需要分析的章节，AI 将按顺序读取这些章节的正文内容，自动识别并提取主角{growthConfig.levelFieldLabel.replace(/：$/, '')}、{growthConfig.featuresCardTitle}以及人物关系演进，并自动存库更新！
           </div>
         </div>
 
@@ -72,7 +77,7 @@ export const BatchAnalyzeModal: React.FC<BatchAnalyzeModalProps> = ({
             onChange={(checkedValues) => setBatchAnalyzeTypes(checkedValues as string[])}
           >
             <Space size="large">
-              <Checkbox value="sys">⚡ 战力境界与系统金手指</Checkbox>
+              <Checkbox value="sys">{growthConfig.tabLabel}</Checkbox>
               <Checkbox value="rel">⛓️ 人物关系网演进</Checkbox>
             </Space>
           </Checkbox.Group>

@@ -17,6 +17,7 @@ import { parseVolumeStructure, getChapterVolume, isPastCharacter } from '../util
 import { PromptDetailModal } from '../modals/PromptDetailModal';
 import { MultiAgentModal } from '../modals/MultiAgentModal';
 import VirtualList from 'rc-virtual-list';
+import { getGrowthSystemConfig } from '../utils/genreHelper';
 
 const { TextArea } = Input;
 
@@ -561,6 +562,12 @@ export const EditorView: React.FC<EditorViewProps> = ({
     systemAndCultivationState: selectedOutline?.systemAndCultivationState || {},
     storyArcs: Array.isArray(selectedOutline?.storyArcs) ? selectedOutline!.storyArcs : []
   };
+
+  const editorGrowthConfig = useMemo(() => {
+    const genre = (selectedNovel as any)?.category || (selectedNovel as any)?.genre || safeOutline.theme || '';
+    return getGrowthSystemConfig(genre);
+  }, [selectedNovel, safeOutline.theme]);
+
   const currentChapter = (safeOutline.chaptersOutline || []).find((c: any) => parseInt(c.chapterNumber, 10) === parseInt(activeChapterNum as any, 10));
 
   const handleTextSelect = () => {
@@ -2053,11 +2060,11 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   },
                   {
                     key: 'sys',
-                    label: '修仙与金手指',
+                    label: editorGrowthConfig.tabLabel,
                     children: (
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: "#1890ff" }}>⚡ 战力境界与系统金手指看板</span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: "#1890ff" }}>{editorGrowthConfig.headerTitle}</span>
                           <Space size={4}>
                             <Button
                               size="small"
@@ -2065,7 +2072,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                               onClick={onAnalyzeSystemAndCultivation}
                               loading={isAnalyzingSys}
                             >
-                              分析本章
+                              {editorGrowthConfig.buttonAnalyzeSingle}
                             </Button>
                             <Button
                               size="small"
@@ -2074,7 +2081,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                               icon={<CheckCircleFilled />}
                               onClick={() => onOpenBatchAnalyzeModal('sys')}
                             >
-                              勾选多章分析
+                              {editorGrowthConfig.buttonAnalyzeBatch}
                             </Button>
                           </Space>
                         </div>
@@ -2083,14 +2090,14 @@ export const EditorView: React.FC<EditorViewProps> = ({
                           <Card size="small" style={{ background: "#e6f7ff", border: "1px solid #91d5ff", borderRadius: 6 }} bodyStyle={{ padding: 8 }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                               <div>
-                                <div style={{ fontSize: 11, color: "#0050b3", fontWeight: 600 }}>🌟 主角当前突破修为：</div>
+                                <div style={{ fontSize: 11, color: "#0050b3", fontWeight: 600 }}>{editorGrowthConfig.levelFieldLabel}</div>
                                 <div style={{ fontSize: 13, fontWeight: 700, color: "#096dd9", marginTop: 2 }}>
-                                  {selectedOutline?.systemAndCultivationState?.protagonistCultivation?.currentRealm || "暂未突破 / 练气期"}
+                                  {selectedOutline?.systemAndCultivationState?.protagonistCultivation?.currentRealm || editorGrowthConfig.levelDefaultValue}
                                 </div>
                               </div>
                               {selectedOutline?.systemAndCultivationState?.protagonistCultivation?.karmaPoints && (
                                 <div style={{ textAlign: "right" }}>
-                                  <div style={{ fontSize: 11, color: "#d48806", fontWeight: 600 }}>⚡ 剩余因缘值：</div>
+                                  <div style={{ fontSize: 11, color: "#d48806", fontWeight: 600 }}>{editorGrowthConfig.pointsLabel}</div>
                                   <div style={{ fontSize: 13, fontWeight: 700, color: "#d46b08", marginTop: 2 }}>
                                     {selectedOutline.systemAndCultivationState.protagonistCultivation.karmaPoints}
                                   </div>
@@ -2099,10 +2106,10 @@ export const EditorView: React.FC<EditorViewProps> = ({
                             </div>
                           </Card>
 
-                          {/* 随身关键道具/战利品 */}
+                          {/* 随身关键道具/战利品/政策抓手 */}
                           {Boolean(safeOutline.systemAndCultivationState?.protagonistCultivation?.inventory && safeOutline.systemAndCultivationState.protagonistCultivation.inventory.length > 0) && (
                             <div>
-                              <div style={{ fontSize: 11, fontWeight: 600, color: "#666", marginBottom: 4 }}>🎒 关键战利品与随身底牌：</div>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: "#666", marginBottom: 4 }}>{editorGrowthConfig.inventoryLabel}</div>
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                                 {(safeOutline.systemAndCultivationState?.protagonistCultivation?.inventory || []).map((item, idx) => (
                                   <Tag key={idx} color="gold" style={{ fontSize: 10, margin: 0 }}>
@@ -2113,10 +2120,10 @@ export const EditorView: React.FC<EditorViewProps> = ({
                             </div>
                           )}
 
-                          <div className="section-sub-title">已解锁金手指/系统功能：</div>
+                          <div className="section-sub-title">{editorGrowthConfig.featuresCardTitle}：</div>
                           {(!safeOutline.systemAndCultivationState?.systemFeatures || safeOutline.systemAndCultivationState.systemFeatures.length === 0) ? (
                             <div className="empty-sub-tip">
-                              暂无系统功能记载，可在正文生成后点击上方按钮 AI 分析提取。
+                              {editorGrowthConfig.featuresEmptyTip}
                             </div>
                           ) : (
                             (safeOutline.systemAndCultivationState.systemFeatures || []).map((feat, idx) => (

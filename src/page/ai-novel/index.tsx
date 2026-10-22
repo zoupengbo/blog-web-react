@@ -959,6 +959,7 @@ const AiNovelDashboard: React.FC = () => {
         batchAnalyzeTypes={modalsHook.batchAnalyzeTypes}
         setBatchAnalyzeTypes={modalsHook.setBatchAnalyzeTypes}
         selectedOutline={selectedOutline}
+        selectedNovel={selectedNovel}
         paperTheme={paperTheme}
       />
 
