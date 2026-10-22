@@ -90,6 +90,13 @@ export interface DistillRuleItem {
   antiAiPattern?: string;
   positiveExemplar?: string;
   negativeExemplar?: string;
+  originalFacts?: string;
+  mechanismExplanation?: string;
+  counterConditions?: string;
+  sideEffects?: string;
+  scopeType?: 'local' | 'cross_chapter' | 'unverified';
+  trialActive?: boolean;
+  generalizationWarnings?: string[];
   evidenceSnippets?: (string | { snippet: string; verified?: boolean })[];
   evidenceVerified: boolean;
   evidenceMatchRate?: number;
@@ -97,7 +104,7 @@ export interface DistillRuleItem {
   conflictNotes?: string;
   confidenceScore: number;
   riskLevel: 'low' | 'medium' | 'high';
-  status: 'draft' | 'verified' | 'rejected' | 'merged';
+  status: 'draft' | 'verified' | 'rejected' | 'merged' | 'needs_review';
   auditNotes?: string;
   contextSnapshots?: Array<{
     workId?: number;
@@ -331,15 +338,127 @@ export const cancelDistillTask = async (id: number): Promise<{ code: number; dat
 };
 
 // 规则管理
-export const getDistillRules = async (params: any = {}): Promise<{ code: number; data: { total: number; verifiedTotal?: number; items: DistillRuleItem[] } }> => {
+export interface ComparativeExperimentResult {
+  taskId?: number | null;
+  genre: string;
+  targetChapter: { chapterNumber?: number; title?: string; summary?: string };
+  experimentTimestamp: string;
+  groupA: {
+    name: string;
+    ruleCount: number;
+    ruleIds: number[];
+    ruleSnapshot?: Array<{
+      id: number;
+      ruleName: string;
+      targetDimension: string;
+      scopeType: string;
+      principle: string;
+      evidenceVerified: boolean;
+      isConflict: boolean;
+    }>;
+    sampleProse?: string;
+    promptPreview: string;
+    scores: {
+      characterConsistency: number;
+      causalMotivation: number;
+      dialogueNaturalness: number;
+      antiPreachiness: number;
+      sensoryRestraint: number;
+      noFormulaicRepetition: number;
+      contextAppropriateness: number;
+      compositeScore: number;
+    };
+  };
+  groupB: {
+    name: string;
+    ruleCount: number;
+    ruleIds: number[];
+    ruleSnapshot?: Array<{
+      id: number;
+      ruleName: string;
+      targetDimension: string;
+      scopeType: string;
+      principle: string;
+      evidenceVerified: boolean;
+      isConflict: boolean;
+    }>;
+    sampleProse?: string;
+    promptPreview: string;
+    scores: {
+      characterConsistency: number;
+      causalMotivation: number;
+      dialogueNaturalness: number;
+      antiPreachiness: number;
+      sensoryRestraint: number;
+      noFormulaicRepetition: number;
+      contextAppropriateness: number;
+      compositeScore: number;
+    };
+  };
+  groupC: {
+    name: string;
+    ruleCount: number;
+    ruleIds: number[];
+    ruleSnapshot?: Array<{
+      id: number;
+      ruleName: string;
+      targetDimension: string;
+      scopeType: string;
+      principle: string;
+      evidenceVerified: boolean;
+      isConflict: boolean;
+    }>;
+    sampleProse?: string;
+    promptPreview: string;
+    scores: {
+      characterConsistency: number;
+      causalMotivation: number;
+      dialogueNaturalness: number;
+      antiPreachiness: number;
+      sensoryRestraint: number;
+      noFormulaicRepetition: number;
+      contextAppropriateness: number;
+      compositeScore: number;
+    };
+  };
+  conclusion: string;
+}
+
+export const getDistillRules = async (params: any = {}): Promise<{
+  code: number;
+  data: {
+    total: number;
+    verifiedTotal?: number;
+    trialTotal?: number;
+    needsReviewTotal?: number;
+    draftTotal?: number;
+    items: DistillRuleItem[];
+  };
+}> => {
   return httpService.get('/ai-novel/lab/rules', { params }) as any;
+};
+
+export const runComparativeExperiment = async (data: {
+  taskId?: number;
+  genre?: string;
+  targetChapter?: { chapterNumber?: number; title?: string; summary?: string };
+  rules?: any[];
+}): Promise<{ code: number; data: ComparativeExperimentResult; message: string }> => {
+  return httpService.post('/ai-novel/lab/rules/experiment', data) as any;
 };
 
 export const reviewDistillRule = async (id: number, data: Partial<DistillRuleItem> & { userOverride?: boolean; force?: boolean }): Promise<{ code: number; data: DistillRuleItem; message: string }> => {
   return httpService.put(`/ai-novel/lab/rules/${id}`, data) as any;
 };
 
-export const batchReviewDistillRules = async (data: { ruleIds: number[]; status: string; auditNotes?: string; userOverride?: boolean; force?: boolean }): Promise<{ code: number; data: any; message: string }> => {
+export const batchReviewDistillRules = async (data: {
+  ruleIds: number[];
+  status?: string;
+  trialActive?: boolean;
+  auditNotes?: string;
+  userOverride?: boolean;
+  force?: boolean;
+}): Promise<{ code: number; data: any; message: string }> => {
   return httpService.post('/ai-novel/lab/rules/batch-review', data) as any;
 };
 
