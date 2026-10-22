@@ -335,11 +335,11 @@ export const getDistillRules = async (params: any = {}): Promise<{ code: number;
   return httpService.get('/ai-novel/lab/rules', { params }) as any;
 };
 
-export const reviewDistillRule = async (id: number, data: Partial<DistillRuleItem>): Promise<{ code: number; data: DistillRuleItem; message: string }> => {
+export const reviewDistillRule = async (id: number, data: Partial<DistillRuleItem> & { userOverride?: boolean; force?: boolean }): Promise<{ code: number; data: DistillRuleItem; message: string }> => {
   return httpService.put(`/ai-novel/lab/rules/${id}`, data) as any;
 };
 
-export const batchReviewDistillRules = async (data: { ruleIds: number[]; status: string; auditNotes?: string }): Promise<{ code: number; data: any; message: string }> => {
+export const batchReviewDistillRules = async (data: { ruleIds: number[]; status: string; auditNotes?: string; userOverride?: boolean; force?: boolean }): Promise<{ code: number; data: any; message: string }> => {
   return httpService.post('/ai-novel/lab/rules/batch-review', data) as any;
 };
 

@@ -152,6 +152,8 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
       const res = await reviewDistillRule(ruleId, {
         status: newStatus,
         auditNotes: active ? '用户自用写作启用' : '用户暂停使用',
+        userOverride: true,
+        force: true,
       });
       if (res.code === 200) {
         message.success(`规则已${active ? '启用，小说正文写作将自动加载！' : '停用'}`);
@@ -175,6 +177,8 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
         ruleIds: targetRules.map((r) => r.id),
         status: targetStatus,
         auditNotes: `批量${targetStatus === 'verified' ? '启用' : '停用'}`,
+        userOverride: true,
+        force: true,
       });
       if (res.code === 200) {
         message.success(`已批量${targetStatus === 'verified' ? '启用' : '停用'} ${targetRules.length} 条规则`);
@@ -213,10 +217,10 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
       const values = await editForm.validateFields();
       setSaveLoading(true);
       if (editingRule) {
-        await reviewDistillRule(editingRule.id, values);
+        await reviewDistillRule(editingRule.id, { ...values, userOverride: true, force: true });
         message.success('规则修改已保存');
       } else {
-        await reviewDistillRule(0, { ...values, status: 'verified' });
+        await reviewDistillRule(0, { ...values, status: 'verified', userOverride: true, force: true });
         message.success('新规则已录入并默认生效');
       }
       setIsEditModalOpen(false);
