@@ -10,6 +10,7 @@ import { NovelOutline, Novel, CharacterRelationship, PaperTheme } from '../types
 import { isPastCharacter } from '../utils/volumeParser';
 import { RelationshipGraph } from '../components/RelationshipGraph';
 import { areGenresCompatible, normalizeGenre, getGrowthSystemConfig } from '../utils/genreHelper';
+import { useTheme } from '../../../context/themeContext';
 
 const { TextArea } = Input;
 
@@ -150,6 +151,7 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
   onDeleteRelationship,
   paperTheme = 'dark',
 }) => {
+  const { isDark } = useTheme();
   const currentTone = selectedOutline?.toneStyle || (selectedNovel as any)?.toneStyle || 'humorous_hotblood';
   const relList = Array.isArray(selectedOutline?.characterRelationships) ? selectedOutline!.characterRelationships : [];
   const novelGenre = (selectedNovel as any)?.category || (selectedNovel as any)?.genre || selectedOutline?.theme || '';
@@ -178,9 +180,10 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
     }
   };
 
-  // 🔬 蒸馏规则包单书级绑定与随时取消状态
+  // 🔥 写作笔法库与规则层直通挂载状态
   const [bundles, setBundles] = React.useState<any[]>([]);
-  const [loadingBundles, setLoadingBundles] = React.useState<boolean>(false);
+  const [effectiveRulesData, setEffectiveRulesData] = React.useState<any>(null);
+  const [loadingRules, setLoadingRules] = React.useState<boolean>(false);
   const [bundleMode, setBundleMode] = React.useState<'auto' | 'custom' | 'disabled'>(
     selectedOutline?.ruleBundleMode || 'auto'
   );
@@ -196,24 +199,33 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
     }
   }, [selectedOutline?.ruleBundleMode, selectedOutline?.ruleBundleId]);
 
-  const fetchBundles = React.useCallback(async () => {
-    setLoadingBundles(true);
+  const fetchEffectiveRules = React.useCallback(async () => {
+    if (!selectedNovel) return;
+    setLoadingRules(true);
     try {
-      const res = await httpService.get('/ai-novel/lab/bundles?pageSize=100');
-      const list = res.data?.data?.items || res.data?.items || [];
+      const g = (selectedNovel as any)?.category || (selectedNovel as any)?.genre || selectedOutline?.theme || '';
+      const [rulesRes, bundlesRes] = await Promise.all([
+        httpService.get(`/ai-novel/lab/effective-rules?novelId=${selectedNovel.id}&genre=${encodeURIComponent(g)}`),
+        httpService.get('/ai-novel/lab/bundles?pageSize=100').catch(() => ({ data: { items: [] } }))
+      ]);
+      const data = rulesRes?.data?.data || rulesRes?.data || rulesRes;
+      if (data && (data.rules || data.bundleContent !== undefined || data.ruleCount !== undefined)) {
+        setEffectiveRulesData(data);
+      }
+      const list = bundlesRes?.data?.data?.items || bundlesRes?.data?.items || bundlesRes?.items || [];
       setBundles(list);
     } catch (err: any) {
       // 软降级
     } finally {
-      setLoadingBundles(false);
+      setLoadingRules(false);
     }
-  }, [httpService]);
+  }, [selectedNovel, selectedOutline?.theme, httpService]);
 
   React.useEffect(() => {
     if (open) {
-      fetchBundles();
+      fetchEffectiveRules();
     }
-  }, [open, fetchBundles]);
+  }, [open, fetchEffectiveRules]);
 
   const handleSaveDistillBundle = async (mode: 'auto' | 'custom' | 'disabled', bundleId: number | null) => {
     if (!selectedNovel) return;
@@ -231,7 +243,8 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
           ruleBundleId: mode === 'custom' ? bundleId : null
         });
       }
-      message.success('蒸馏笔法包单书绑定配置已成功落盘！');
+      message.success('写作笔法库生效配置已成功落盘！');
+      fetchEffectiveRules();
     } catch (err: any) {
       message.error('保存失败: ' + err.message);
     } finally {
@@ -674,31 +687,38 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
             key: 'distill',
             label: (
               <Space>
-                <span>🔬 蒸馏笔法包</span>
+                <span>🔥 写作笔法库</span>
                 {bundleMode === 'disabled' && (
                   <Tag color="default" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0 }}>
-                    已禁用
+                    已停用
                   </Tag>
                 )}
                 {bundleMode === 'custom' && (
                   <Tag color="blue" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0 }}>
-                    单本绑定
+                    指定规则包
                   </Tag>
                 )}
                 {bundleMode === 'auto' && (
                   <Tag color="green" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0 }}>
-                    题材继承
+                    {effectiveRulesData?.ruleCount !== undefined
+                      ? `直通生效 (${effectiveRulesData.ruleCount}条)`
+                      : '题材直通'}
                   </Tag>
                 )}
               </Space>
             ),
             children: (() => {
-              const currentGenre = (selectedNovel as any)?.category || selectedOutline?.theme || '体制官场';
-              const activeAutoBundle = bundles.find(
-                b => areGenresCompatible(b.targetGenre || b.genre, currentGenre) && b.isActive
-              );
+              const currentGenre = (selectedNovel as any)?.category || (selectedNovel as any)?.genre || selectedOutline?.theme || '体制官场';
               const customSelectedBundle = bundles.find(b => b.id === selectedBundleId);
-              const effectiveBundle = bundleMode === 'custom' ? customSelectedBundle : activeAutoBundle;
+
+              // 笔法规则内容：优先以后端 effectiveRulesData (实时聚合的 prompt 文本) 为准，如果 custom 则也兼容 bundle 内容
+              const displayRuleContent = bundleMode === 'disabled'
+                ? ''
+                : (effectiveRulesData?.bundleContent || customSelectedBundle?.compiledRulesPrompt || customSelectedBundle?.bundleContent || '');
+              const displayRuleCount = bundleMode === 'disabled'
+                ? 0
+                : (effectiveRulesData?.ruleCount ?? (effectiveRulesData?.rules?.length || customSelectedBundle?.ruleCount || 0));
+              const displayRules = effectiveRulesData?.rules || [];
 
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 14 }}>
@@ -711,13 +731,13 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                       gap: 12,
                       padding: '12px 16px',
                       borderRadius: 8,
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)'
+                      background: isDark ? 'rgba(255, 255, 255, 0.03)' : '#f8fafc',
+                      border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e2e8f0'
                     }}
                   >
                     <Space size="middle" align="center" wrap>
                       <span style={{ fontSize: 14, fontWeight: 600, color: '#ffd666', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <ExperimentOutlined /> 蒸馏规则生效模式：
+                        <ExperimentOutlined /> 写作笔法生效模式：
                       </span>
                       <Radio.Group
                         value={bundleMode}
@@ -727,19 +747,19 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                         <Radio.Button value="auto">
                           <Space size={4}>
                             <SafetyCertificateOutlined style={{ color: '#52c41a' }} />
-                            <span>跟随题材自动继承</span>
+                            <span>题材笔法库直通 (推荐·即开即用)</span>
                           </Space>
                         </Radio.Button>
                         <Radio.Button value="custom">
                           <Space size={4}>
                             <BookOutlined style={{ color: '#1890ff' }} />
-                            <span>专属绑定指定规则包</span>
+                            <span>绑定历史编译包 (高级)</span>
                           </Space>
                         </Radio.Button>
                         <Radio.Button value="disabled">
                           <Space size={4}>
                             <StopOutlined style={{ color: '#ff4d4f' }} />
-                            <span>彻底禁用（随时取消）</span>
+                            <span>彻底停用 (纯净模式)</span>
                           </Space>
                         </Radio.Button>
                       </Radio.Group>
@@ -749,10 +769,10 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                       <Button
                         size="middle"
                         icon={<ReloadOutlined />}
-                        onClick={fetchBundles}
-                        loading={loadingBundles}
+                        onClick={fetchEffectiveRules}
+                        loading={loadingRules}
                       >
-                        刷新规则库
+                        刷新生效笔法
                       </Button>
                       <Button
                         type="primary"
@@ -761,46 +781,61 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                         loading={savingBundle}
                         onClick={() => handleSaveDistillBundle(bundleMode, selectedBundleId)}
                       >
-                        保存蒸馏包设定
+                        保存笔法设定
                       </Button>
                     </Space>
                   </div>
 
                   {bundleMode === 'auto' && (
-                    <Alert
-                      type="success"
-                      showIcon
-                      message={`当前小说题材为【${currentGenre}】· 采用题材级自动继承机制`}
-                      description={
-                        activeAutoBundle ? (
-                          <div>
-                            已匹配并自动挂载当前题材在能力实验室中激活的生效规则包：
-                            <strong style={{ color: '#52c41a', marginLeft: 6 }}>
-                              [{activeAutoBundle.bundleName}] ({activeAutoBundle.bundleVersion || 'v1.0.0'}) · 共 {activeAutoBundle.ruleCount || 0} 条蒸馏军规
-                            </strong>
-                            {(activeAutoBundle.targetGenre || activeAutoBundle.genre) !== currentGenre && (
-                              <Tag color="cyan" style={{ marginLeft: 8 }}>
-                                题材智能互通: {currentGenre} ➔ {activeAutoBundle.targetGenre || activeAutoBundle.genre}
-                              </Tag>
+                    displayRuleCount > 0 ? (
+                      <Alert
+                        type="success"
+                        showIcon
+                        message={
+                          <span style={{ fontWeight: 600 }}>
+                            当前小说题材为【{currentGenre}】· 笔法库直通生效中（共 {displayRuleCount} 条精选笔法）
+                          </span>
+                        }
+                        description={
+                          <div style={{ marginTop: 4 }}>
+                            <div style={{ fontSize: 13, color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#1f2937' }}>
+                              已自动汇聚当前题材在能力实验室中激活的精选笔法，<strong>无需手动编译规则包</strong>，正文生成时将动态注入以下写作军规：
+                            </div>
+                            {displayRules.length > 0 && (
+                              <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                {displayRules.map((r: any, idx: number) => (
+                                  <Tag key={r.id || idx} color="processing" style={{ borderRadius: 4, margin: 0, padding: '2px 8px' }}>
+                                    ✨ {r.ruleName} {r.targetGenre ? `[${r.targetGenre}]` : ''}
+                                  </Tag>
+                                ))}
+                              </div>
                             )}
-                            <div style={{ marginTop: 4, fontSize: 12, color: '#8c8c8c' }}>
-                              写手动笔生成正文时，将自动注入该包内经过真人标杆语料萃取的黄金笔法。若无需蒸馏包，可随时在上方向右切换为“彻底禁用”。
+                            <div style={{ marginTop: 6, fontSize: 12, color: isDark ? 'rgba(255, 255, 255, 0.45)' : '#6b7280' }}>
+                              💡 提示：如需新增或微调笔法，可前往“小说写作能力实验室 ➔ 写作笔法库”一键开启/停用规则，修改后此处即刻同步生效。
                             </div>
                           </div>
-                        ) : (
-                          <div>
-                            当前题材【{currentGenre}】在能力实验室中尚未手动激活规则包。系统正采用<strong>极简直通模式</strong>：动笔时将自动读取该题材所有已审核通过 (verified) 的精选规则。
+                        }
+                      />
+                    ) : (
+                      <Alert
+                        type="info"
+                        showIcon
+                        message={`当前题材【${currentGenre}】· 笔法直通模式已就绪`}
+                        description={
+                          <div style={{ fontSize: 13, color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#1f2937' }}>
+                            当前题材笔法库中暂无开启的精选规则（系统将以通用纯净军规动笔）。
+                            您可前往【小说写作能力实验室 ➔ 写作笔法库】，将提炼出的笔法规则设为“已启用”，无需编译打包，即可直通注入到本作品正文写作中！
                           </div>
-                        )
-                      }
-                    />
+                        }
+                      />
+                    )
                   )}
 
                   {bundleMode === 'custom' && (
-                    <Card size="small" style={{ borderRadius: 8, background: 'rgba(24, 144, 255, 0.04)', borderColor: 'rgba(24, 144, 255, 0.2)' }}>
+                    <Card size="small" style={{ borderRadius: 8, background: isDark ? 'rgba(24, 144, 255, 0.04)' : '#e6f7ff', borderColor: isDark ? 'rgba(24, 144, 255, 0.2)' : '#91d5ff' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 600, color: '#1890ff' }}>
-                          🎯 选择要为《{selectedNovel?.title}》专属绑定的蒸馏规则包：
+                          🎯 选择要为《{selectedNovel?.title}》专属绑定的历史规则包：
                         </span>
                         <Select
                           style={{ minWidth: 420 }}
@@ -809,11 +844,11 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                           onChange={(val) => setSelectedBundleId(val)}
                           options={bundles.map((b) => ({
                             value: b.id,
-                            label: `[${b.targetGenre || b.genre || '通用'}] ${b.bundleName} (${b.bundleVersion || 'v1.0.0'}) · ${b.ruleCount || 0}条规则 ${b.isActive ? '★题材当前激活' : ''}`
+                            label: `[${b.targetGenre || b.genre || '通用'}] ${b.bundleName} (${b.bundleVersion || 'v1.0.0'}) · ${b.ruleCount || 0}条规则 ${b.isActive ? '★当前激活' : ''}`
                           }))}
                         />
-                        <span style={{ fontSize: 12, color: '#8c8c8c' }}>
-                          （已突破题材限制，可任意指定历史版本或特定名家风格蒸馏包）
+                        <span style={{ fontSize: 12, color: isDark ? 'rgba(255, 255, 255, 0.45)' : '#6b7280' }}>
+                          （用于回退或绑定特定历史版本）
                         </span>
                       </div>
                     </Card>
@@ -823,8 +858,8 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                     <Alert
                       type="warning"
                       showIcon
-                      message="已针对本小说彻底禁用蒸馏规则层（随时取消）"
-                      description={`当前《${selectedNovel?.title || '本作品'}》已单独切断蒸馏规则包注入。正文写手动笔时将严格保持纯净的通用写作军规与题材基础设定，不加载任何实验室提炼规则。`}
+                      message="已针对本小说彻底停用笔法规则注入（纯净模式）"
+                      description={`当前《${selectedNovel?.title || '本作品'}》已切断笔法库注入。正文写手动笔时将严格保持纯净的通用写作军规与题材基础设定，不加载任何实验室提炼笔法。`}
                     />
                   )}
 
@@ -832,12 +867,12 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                     title={
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: 13, fontWeight: 600 }}>
-                          📜 注入正文写手的蒸馏笔法预览
-                          {bundleMode === 'disabled' && ' (当前已禁用，动笔不生效)'}
+                          📜 注入正文写手的笔法军规实时预览
+                          {bundleMode === 'disabled' && ' (当前已停用，动笔不生效)'}
                         </span>
-                        {effectiveBundle && (
+                        {bundleMode !== 'disabled' && (
                           <Tag color="cyan">
-                            {effectiveBundle.bundleName} · {effectiveBundle.ruleCount || 0} 条规则
+                            {effectiveRulesData?.bundleName || (bundleMode === 'auto' ? '实时题材直通' : '历史规则包')} · 共 {displayRuleCount} 条生效规则
                           </Tag>
                         )}
                       </div>
@@ -850,13 +885,13 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                       <div style={{ padding: '40px 0', textAlign: 'center' }}>
                         <Empty
                           image={Empty.PRESENTED_IMAGE_SIMPLE}
-                          description="当前小说已处于【彻底禁用】状态，写作时不注入任何蒸馏规则包"
+                          description="当前小说处于【彻底停用】状态，正文生成时不注入任何实验室笔法"
                         />
                       </div>
-                    ) : effectiveBundle ? (
+                    ) : displayRuleContent ? (
                       <TextArea
                         readOnly
-                        value={effectiveBundle.compiledRulesPrompt || effectiveBundle.bundleContent || '暂无编译文本'}
+                        value={displayRuleContent}
                         style={{
                           flex: 1,
                           height: 'calc(100vh - 430px)',
@@ -865,7 +900,9 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                           fontFamily: 'monospace, sans-serif',
                           fontSize: 12.5,
                           lineHeight: 1.6,
-                          background: 'rgba(0, 0, 0, 0.2)'
+                          background: isDark ? 'rgba(0, 0, 0, 0.25)' : '#f8fafc',
+                          color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#111827',
+                          border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e5e7eb'
                         }}
                       />
                     ) : (
@@ -875,7 +912,7 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                           description={
                             bundleMode === 'custom'
                               ? '请在上方下拉列表中挑选要绑定的规则包'
-                              : '能力实验室中暂无已编译的规则包，系统动笔时将自动读取已审核精选规则直通生效'
+                              : '当前题材笔法库中暂无已启用的规则。前往【写作笔法库】开启规则即可实时生效！'
                           }
                         />
                       </div>
