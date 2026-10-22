@@ -9,6 +9,7 @@ import {
 import { NovelOutline, Novel, CharacterRelationship, PaperTheme } from '../types';
 import { isPastCharacter } from '../utils/volumeParser';
 import { RelationshipGraph } from '../components/RelationshipGraph';
+import { areGenresCompatible, normalizeGenre } from '../utils/genreHelper';
 
 const { TextArea } = Input;
 
@@ -692,7 +693,7 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
             children: (() => {
               const currentGenre = (selectedNovel as any)?.category || selectedOutline?.theme || '体制官场';
               const activeAutoBundle = bundles.find(
-                b => (b.targetGenre === currentGenre || b.genre === currentGenre) && b.isActive
+                b => areGenresCompatible(b.targetGenre || b.genre, currentGenre) && b.isActive
               );
               const customSelectedBundle = bundles.find(b => b.id === selectedBundleId);
               const effectiveBundle = bundleMode === 'custom' ? customSelectedBundle : activeAutoBundle;
@@ -775,6 +776,11 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                             <strong style={{ color: '#52c41a', marginLeft: 6 }}>
                               [{activeAutoBundle.bundleName}] ({activeAutoBundle.bundleVersion || 'v1.0.0'}) · 共 {activeAutoBundle.ruleCount || 0} 条蒸馏军规
                             </strong>
+                            {(activeAutoBundle.targetGenre || activeAutoBundle.genre) !== currentGenre && (
+                              <Tag color="cyan" style={{ marginLeft: 8 }}>
+                                题材智能互通: {currentGenre} ➔ {activeAutoBundle.targetGenre || activeAutoBundle.genre}
+                              </Tag>
+                            )}
                             <div style={{ marginTop: 4, fontSize: 12, color: '#8c8c8c' }}>
                               写手动笔生成正文时，将自动注入该包内经过真人标杆语料萃取的黄金笔法。若无需蒸馏包，可随时在上方向右切换为“彻底禁用”。
                             </div>
