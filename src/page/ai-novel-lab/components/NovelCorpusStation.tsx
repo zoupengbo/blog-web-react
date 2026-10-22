@@ -48,6 +48,7 @@ import {
   DiagnosisPlanItem,
   CorpusWorkItem,
 } from '../services/labApi';
+import { useTheme } from '../../../context/themeContext';
 
 const { Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -87,6 +88,25 @@ interface NovelCorpusStationProps {
 }
 
 export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRules }) => {
+  const { isDark } = useTheme();
+
+  const themeStyles = {
+    cardBg: isDark ? '#1e293b' : '#f8fafc',
+    cardBorder: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
+    textPrimary: isDark ? '#f8fafc' : '#0f172a',
+    textSecondary: isDark ? '#94a3b8' : '#64748b',
+    diagnosisBg: isDark ? 'rgba(22, 101, 52, 0.25)' : '#f0fdf4',
+    diagnosisBorder: isDark ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid #bbf7d0',
+    diagnosisTitle: isDark ? '#4ade80' : '#166534',
+    diagnosisText: isDark ? '#bbf7d0' : '#14532d',
+    selectedBookBg: isDark ? 'rgba(16, 185, 129, 0.2)' : '#ecfdf5',
+    selectedBookBorder: isDark ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid #a7f3d0',
+    listBg: isDark ? '#1e293b' : '#ffffff',
+    listItemBg: isDark ? '#0f172a' : '#ffffff',
+    listBorder: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
+    metaText: isDark ? '#cbd5e1' : '#475569',
+  };
+
   const [works, setWorks] = useState<CorpusWorkItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -736,8 +756,8 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
 
               {/* 来源 A: 已入库书库选择 */}
               {refSourceType === 'existing' && (
-                <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                  <Text strong style={{ display: 'block', marginBottom: 8 }}>选择参考范本小说：</Text>
+                <div className="distill-source-box" style={{ background: themeStyles.cardBg, padding: '12px 16px', borderRadius: 8, border: themeStyles.cardBorder }}>
+                  <Text strong style={{ display: 'block', marginBottom: 8, color: themeStyles.textPrimary }}>选择参考范本小说：</Text>
                   <Select
                     style={{ width: '100%' }}
                     value={selectedNovel?.key}
@@ -762,8 +782,8 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
 
               {/* 来源 B: 全网小说搜索 */}
               {refSourceType === 'online' && (
-                <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                  <Text strong style={{ display: 'block', marginBottom: 8 }}>全网搜索参考作品：</Text>
+                <div className="distill-source-box" style={{ background: themeStyles.cardBg, padding: '12px 16px', borderRadius: 8, border: themeStyles.cardBorder }}>
+                  <Text strong style={{ display: 'block', marginBottom: 8, color: themeStyles.textPrimary }}>全网搜索参考作品：</Text>
                   <Space.Compact style={{ width: '100%' }}>
                     <Input
                       placeholder="输入参考小说书名或作者（如：官神、侯卫东官场笔记、大医凌然...）"
@@ -784,19 +804,19 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
                   </Space.Compact>
 
                   {selectedOnlineBook && (
-                    <div style={{ marginTop: 12, padding: '10px 14px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 6 }}>
+                    <div style={{ marginTop: 12, padding: '10px 14px', background: themeStyles.selectedBookBg, border: themeStyles.selectedBookBorder, borderRadius: 6 }}>
                       <Space>
                         <BookOutlined style={{ color: '#059669', fontSize: 16 }} />
-                        <Text strong>已选参考小说：</Text>
-                        <Text strong style={{ color: '#047857', fontSize: 15 }}>《{selectedOnlineBook.title}》</Text>
-                        <Text type="secondary">作者: {selectedOnlineBook.author || '佚名'}</Text>
+                        <span style={{ fontWeight: 600, color: themeStyles.textPrimary }}>已选参考小说：</span>
+                        <span style={{ fontWeight: 600, color: '#059669', fontSize: 15 }}>《{selectedOnlineBook.title}》</span>
+                        <span style={{ color: themeStyles.textSecondary, fontSize: 12 }}>作者: {selectedOnlineBook.author || '佚名'}</span>
                         <Tag color="cyan">{selectedOnlineBook.genre || '体制官场'}</Tag>
                       </Space>
                     </div>
                   )}
 
                   {onlineResults.length > 0 && !selectedOnlineBook && (
-                    <div style={{ maxHeight: 200, overflowY: 'auto', marginTop: 12, border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff' }}>
+                    <div style={{ maxHeight: 200, overflowY: 'auto', marginTop: 12, border: themeStyles.cardBorder, borderRadius: 6, background: themeStyles.listBg }}>
                       <List
                         size="small"
                         dataSource={onlineResults.slice(0, 8)}
@@ -821,7 +841,7 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
 
               {/* 来源 C: 本地 TXT 上传 */}
               {refSourceType === 'txt' && (
-                <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                <div className="distill-source-box" style={{ background: themeStyles.cardBg, padding: '12px 16px', borderRadius: 8, border: themeStyles.cardBorder }}>
                   <Upload.Dragger
                     accept=".txt"
                     showUploadList={false}
@@ -846,12 +866,12 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
             {/* 写作痛点描述 */}
             <div style={{ marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <Text strong style={{ fontSize: 14 }}>
+                <Text strong style={{ fontSize: 14, color: themeStyles.textPrimary }}>
                   📝 描述你当前的写作瓶颈或想重点攻克的技巧：
                 </Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <span style={{ fontSize: 12, color: themeStyles.textSecondary }}>
                   AI 将根据你描述的痛点在参考书中定向精准选章
-                </Text>
+                </span>
               </div>
               <TextArea
                 rows={4}
@@ -862,7 +882,7 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
                 showCount
               />
               <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>💡 快捷痛点预设:</Text>
+                <span style={{ fontSize: 12, color: themeStyles.textSecondary }}>💡 快捷痛点预设:</span>
                 {QUICK_PROBLEM_CHIPS.map((chip, idx) => (
                   <Tag
                     key={idx}
@@ -880,7 +900,7 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
 
             {/* 分析模式 */}
             <div>
-              <Text strong style={{ display: 'block', marginBottom: 8 }}>🎯 分析模式：</Text>
+              <Text strong style={{ display: 'block', marginBottom: 8, color: themeStyles.textPrimary }}>🎯 分析模式：</Text>
               <Radio.Group
                 value={analysisMode}
                 onChange={(e) => setAnalysisMode(e.target.value)}
@@ -888,17 +908,17 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
                 <Radio value="targeted">
                   <Space direction="vertical" size={2}>
                     <Text strong>针对性提升 (推荐)</Text>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
+                    <span style={{ fontSize: 12, color: themeStyles.textSecondary }}>
                       聚焦当前自述痛点，AI 自主诊断核心成因，精选 3~8 个高张力教学章节定向攻坚
-                    </Text>
+                    </span>
                   </Space>
                 </Radio>
                 <Radio value="comprehensive" style={{ marginTop: 10 }}>
                   <Space direction="vertical" size={2}>
                     <Text strong>全面能力分析</Text>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
+                    <span style={{ fontSize: 12, color: themeStyles.textSecondary }}>
                       综合解构参考作品，覆盖对话、白描、因果、暗线制度多维系统性规约
-                    </Text>
+                    </span>
                   </Space>
                 </Radio>
               </Radio.Group>
@@ -917,30 +937,51 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
               />
 
               {/* AI 病理诊断卡片 */}
-              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
+              <div
+                className="distill-diagnosis-card"
+                style={{
+                  background: themeStyles.diagnosisBg,
+                  border: themeStyles.diagnosisBorder,
+                  borderRadius: 8,
+                  padding: '12px 16px',
+                  marginBottom: 16,
+                }}
+              >
                 <Space align="center" style={{ marginBottom: 6 }}>
-                  <RobotOutlined style={{ color: '#16a34a', fontSize: 16 }} />
-                  <Text strong style={{ color: '#166534', fontSize: 14 }}>AI 写作瓶颈病理诊断与破局策略</Text>
+                  <RobotOutlined style={{ color: themeStyles.diagnosisTitle, fontSize: 16 }} />
+                  <span style={{ fontWeight: 600, color: themeStyles.diagnosisTitle, fontSize: 14 }}>
+                    AI 写作瓶颈病理诊断与破局策略
+                  </span>
                 </Space>
-                <Paragraph style={{ margin: 0, color: '#14532d', fontSize: 13, lineHeight: '1.6' }}>
+                <Paragraph style={{ margin: 0, color: themeStyles.diagnosisText, fontSize: 13, lineHeight: '1.6' }}>
                   {diagnosisPlan.problemDiagnosis}
                 </Paragraph>
               </div>
 
               {/* 动态分析维度 */}
               <div style={{ marginBottom: 16 }}>
-                <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                <Text strong style={{ display: 'block', marginBottom: 8, color: themeStyles.textPrimary }}>
                   🎯 动态分析维度 ({diagnosisPlan.dynamicDimensions.length} 项)：
                 </Text>
                 <Row gutter={[12, 12]}>
                   {diagnosisPlan.dynamicDimensions.map((dim, idx) => (
                     <Col span={12} key={idx}>
-                      <div style={{ padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                          <Text strong style={{ color: '#0f172a' }}>{dim.name}</Text>
+                      <div
+                        className="distill-dimension-card"
+                        style={{
+                          padding: '10px 14px',
+                          background: themeStyles.cardBg,
+                          border: themeStyles.cardBorder,
+                          borderRadius: 8,
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <span style={{ fontWeight: 600, fontSize: 14, color: themeStyles.textPrimary }}>{dim.name}</span>
                           <Tag color="cyan">{dim.primaryCapability}</Tag>
                         </div>
-                        <Text type="secondary" style={{ fontSize: 12 }}>{dim.focus}</Text>
+                        <span style={{ fontSize: 12, color: themeStyles.textSecondary, lineHeight: 1.5, display: 'block' }}>
+                          {dim.focus}
+                        </span>
                       </div>
                     </Col>
                   ))}
@@ -949,28 +990,35 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
 
               {/* AI 精选教学章节 */}
               <div style={{ marginBottom: 16 }}>
-                <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                <Text strong style={{ display: 'block', marginBottom: 8, color: themeStyles.textPrimary }}>
                   📚 AI 精选实战教学章节 ({diagnosisPlan.selectedChapters.length} 章)：
                 </Text>
                 <List
                   size="small"
                   bordered
-                  style={{ background: '#fff', maxHeight: 220, overflowY: 'auto' }}
+                  className="distill-chapters-list"
+                  style={{
+                    background: themeStyles.listBg,
+                    border: themeStyles.cardBorder,
+                    maxHeight: 220,
+                    overflowY: 'auto',
+                    borderRadius: 8,
+                  }}
                   dataSource={diagnosisPlan.selectedChapters}
                   renderItem={(item) => (
-                    <List.Item>
+                    <List.Item style={{ background: themeStyles.listItemBg, borderBottom: themeStyles.cardBorder }}>
                       <div style={{ width: '100%' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                           <Space>
                             <Tag color="blue">第 {item.chapterNumber} 章</Tag>
-                            <Text strong>{item.chapterTitle}</Text>
+                            <span style={{ fontWeight: 600, color: themeStyles.textPrimary }}>{item.chapterTitle}</span>
                           </Space>
                         </div>
-                        <div style={{ fontSize: 12, color: '#475569', marginBottom: 2 }}>
+                        <div style={{ fontSize: 12, color: themeStyles.metaText, marginBottom: 2 }}>
                           <span style={{ color: '#0284c7', fontWeight: 600 }}>[甄选依据] </span>{item.reason}
                         </div>
-                        <div style={{ fontSize: 12, color: '#475569' }}>
-                          <span style={{ color: '#166534', fontWeight: 600 }}>[预期收益] </span>{item.expectedValue}
+                        <div style={{ fontSize: 12, color: themeStyles.metaText }}>
+                          <span style={{ color: '#16a34a', fontWeight: 600 }}>[预期收益] </span>{item.expectedValue}
                         </div>
                       </div>
                     </List.Item>
@@ -979,15 +1027,27 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
               </div>
 
               {/* 预算与质检说明 */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '10px 14px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+              <div
+                className="distill-budget-bar"
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  background: themeStyles.cardBg,
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  border: themeStyles.cardBorder,
+                  color: themeStyles.textPrimary,
+                }}
+              >
                 <Space size="middle">
                   <span>📖 分析章节: <b>{diagnosisPlan.analysisBudget.chapterCount}</b> 章</span>
                   <span>🧩 预计段落切片: <b>{diagnosisPlan.analysisBudget.estimatedSliceCount}</b> 个</span>
                   <span>⚡ 预估 Token: <b>~{diagnosisPlan.analysisBudget.estimatedTokens}</b></span>
                 </Space>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <span style={{ fontSize: 12, color: themeStyles.textSecondary }}>
                   💡 {diagnosisPlan.uncertaintyNote || '自动执行原文证据回溯与冲突质检'}
-                </Text>
+                </span>
               </div>
             </div>
           )

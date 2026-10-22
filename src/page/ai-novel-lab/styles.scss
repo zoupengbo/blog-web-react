@@ -335,4 +335,46 @@
       }
     }
   }
+
+  // 🌑 弹窗与抽屉等挂载在 Body 下的 Portal 容器深度暗黑适配
+  .distill-diagnosis-card {
+    background: rgba(22, 101, 52, 0.25) !important;
+    border: 1px solid rgba(34, 197, 94, 0.4) !important;
+    .ant-typography,
+    span {
+      color: #bbf7d0 !important;
+    }
+  }
+
+  .distill-dimension-card {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    color: #f8fafc !important;
+
+    .ant-typography-secondary {
+      color: #94a3b8 !important;
+    }
+  }
+
+  .distill-chapters-list {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+
+    .ant-list-item {
+      background: #0f172a !important;
+      border-bottom: 1px solid #334155 !important;
+    }
+  }
+
+  .distill-budget-bar {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    color: #f8fafc !important;
+  }
+
+  .distill-source-box {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+  }
 }
+

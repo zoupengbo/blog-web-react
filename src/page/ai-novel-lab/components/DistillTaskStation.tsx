@@ -41,6 +41,7 @@ import {
   cancelDistillTask,
   DistillTaskItem,
 } from '../services/labApi';
+import { useTheme } from '../../../context/themeContext';
 
 const { Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -57,6 +58,20 @@ export const DistillTaskStation: React.FC<DistillTaskStationProps> = ({
   onCloseCreateModal,
   onNavigateTab,
 }) => {
+  const { isDark } = useTheme();
+
+  const themeStyles = {
+    cardBg: isDark ? '#1e293b' : '#f8fafc',
+    cardBorder: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
+    itemBg: isDark ? '#0f172a' : '#ffffff',
+    textPrimary: isDark ? '#f8fafc' : '#0f172a',
+    textSecondary: isDark ? '#94a3b8' : '#64748b',
+    diagnosisBg: isDark ? 'rgba(22, 101, 52, 0.25)' : '#f0fdf4',
+    diagnosisBorder: isDark ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid #bbf7d0',
+    diagnosisTitle: isDark ? '#4ade80' : '#166534',
+    diagnosisText: isDark ? '#bbf7d0' : '#14532d',
+  };
+
   const [tasks, setTasks] = useState<DistillTaskItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [createForm] = Form.useForm();
@@ -415,48 +430,63 @@ export const DistillTaskStation: React.FC<DistillTaskStationProps> = ({
             </Card>
 
             {selectedTask.resultSummary?.userProblem && (
-              <Card size="small" style={{ marginBottom: 16, background: '#f0fdf4', borderColor: '#bbf7d0' }}>
-                <Text strong style={{ color: '#166534', fontSize: 13, display: 'block', marginBottom: 4 }}>
+              <Card
+                size="small"
+                style={{
+                  marginBottom: 16,
+                  background: themeStyles.diagnosisBg,
+                  borderColor: themeStyles.diagnosisBorder,
+                }}
+              >
+                <span style={{ color: themeStyles.diagnosisTitle, fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
                   🎯 攻克创作痛点目标：
-                </Text>
-                <Paragraph style={{ margin: 0, fontSize: 13, color: '#14532d' }}>
+                </span>
+                <Paragraph style={{ margin: 0, fontSize: 13, color: themeStyles.diagnosisText }}>
                   {selectedTask.resultSummary.userProblem}
                 </Paragraph>
               </Card>
             )}
 
             {/* 四项核心统计指标看板 */}
-            <Card size="small" title="分析指标与质检全链路看板" style={{ marginBottom: 16, background: '#f8fafc' }}>
+            <Card
+              size="small"
+              title={<span style={{ color: themeStyles.textPrimary }}>分析指标与质检全链路看板</span>}
+              style={{
+                marginBottom: 16,
+                background: themeStyles.cardBg,
+                borderColor: themeStyles.cardBorder,
+              }}
+            >
               <Row gutter={[12, 12]}>
                 <Col span={12}>
-                  <div style={{ padding: '8px 12px', background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>请求章节 / 实际匹配</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginTop: 2 }}>
+                  <div style={{ padding: '8px 12px', background: themeStyles.itemBg, borderRadius: 6, border: themeStyles.cardBorder }}>
+                    <div style={{ fontSize: 12, color: themeStyles.textSecondary }}>请求章节 / 实际匹配</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: themeStyles.textPrimary, marginTop: 2 }}>
                       {selectedTask.resultSummary?.requestedChapterCount ?? selectedTask.sampleCount} 章 / {selectedTask.resultSummary?.actualChapterCount ?? selectedTask.sampleCount} 章
                     </div>
                   </div>
                 </Col>
                 <Col span={12}>
-                  <div style={{ padding: '8px 12px', background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>切片总数 / 送模切片</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginTop: 2 }}>
+                  <div style={{ padding: '8px 12px', background: themeStyles.itemBg, borderRadius: 6, border: themeStyles.cardBorder }}>
+                    <div style={{ fontSize: 12, color: themeStyles.textSecondary }}>切片总数 / 送模切片</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: themeStyles.textPrimary, marginTop: 2 }}>
                       {selectedTask.resultSummary?.actualSliceCount ?? '-'} 个 / {selectedTask.resultSummary?.analyzedSliceCount ?? '-'} 个
                     </div>
                   </div>
                 </Col>
                 <Col span={12}>
-                  <div style={{ padding: '8px 12px', background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>候选提取 / 归纳去重</div>
+                  <div style={{ padding: '8px 12px', background: themeStyles.itemBg, borderRadius: 6, border: themeStyles.cardBorder }}>
+                    <div style={{ fontSize: 12, color: themeStyles.textSecondary }}>候选提取 / 归纳去重</div>
                     <div style={{ fontSize: 16, fontWeight: 700, color: '#0284c7', marginTop: 2 }}>
                       {selectedTask.resultSummary?.candidateRuleCount ?? selectedTask.extractedRulesCount ?? 0} 条 / {selectedTask.resultSummary?.deduplicatedRuleCount ?? selectedTask.extractedRulesCount ?? 0} 条
                     </div>
                   </div>
                 </Col>
                 <Col span={12}>
-                  <div style={{ padding: '8px 12px', background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>实证通过 / 语义冲突</div>
+                  <div style={{ padding: '8px 12px', background: themeStyles.itemBg, borderRadius: 6, border: themeStyles.cardBorder }}>
+                    <div style={{ fontSize: 12, color: themeStyles.textSecondary }}>实证通过 / 语义冲突</div>
                     <div style={{ fontSize: 16, fontWeight: 700, color: '#16a34a', marginTop: 2 }}>
-                      {selectedTask.resultSummary?.verifiedRuleCount ?? selectedTask.verifiedRulesCount ?? 0} 条 / <span style={{ color: (selectedTask.resultSummary?.conflictRuleCount ?? selectedTask.conflictCount ?? 0) > 0 ? '#dc2626' : '#64748b' }}>{selectedTask.resultSummary?.conflictRuleCount ?? selectedTask.conflictCount ?? 0} 处</span>
+                      {selectedTask.resultSummary?.verifiedRuleCount ?? selectedTask.verifiedRulesCount ?? 0} 条 / <span style={{ color: (selectedTask.resultSummary?.conflictRuleCount ?? selectedTask.conflictCount ?? 0) > 0 ? '#dc2626' : themeStyles.textSecondary }}>{selectedTask.resultSummary?.conflictRuleCount ?? selectedTask.conflictCount ?? 0} 处</span>
                     </div>
                   </div>
                 </Col>
