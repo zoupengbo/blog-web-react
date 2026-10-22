@@ -180,40 +180,30 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
     }
   };
 
-  // 🔥 写作笔法库与规则层直通挂载状态
-  const [bundles, setBundles] = React.useState<any[]>([]);
+  // 🔥 写作笔法库直通挂载状态
   const [effectiveRulesData, setEffectiveRulesData] = React.useState<any>(null);
   const [loadingRules, setLoadingRules] = React.useState<boolean>(false);
-  const [bundleMode, setBundleMode] = React.useState<'auto' | 'custom' | 'disabled'>(
-    selectedOutline?.ruleBundleMode || 'auto'
-  );
-  const [selectedBundleId, setSelectedBundleId] = React.useState<number | null>(
-    selectedOutline?.ruleBundleId || null
+  const [bundleMode, setBundleMode] = React.useState<'auto' | 'disabled'>(
+    (selectedOutline?.ruleBundleMode as any) === 'disabled' ? 'disabled' : 'auto'
   );
   const [savingBundle, setSavingBundle] = React.useState<boolean>(false);
 
   React.useEffect(() => {
     if (selectedOutline) {
-      setBundleMode(selectedOutline.ruleBundleMode || 'auto');
-      setSelectedBundleId(selectedOutline.ruleBundleId || null);
+      setBundleMode((selectedOutline.ruleBundleMode as any) === 'disabled' ? 'disabled' : 'auto');
     }
-  }, [selectedOutline?.ruleBundleMode, selectedOutline?.ruleBundleId]);
+  }, [selectedOutline?.ruleBundleMode]);
 
   const fetchEffectiveRules = React.useCallback(async () => {
     if (!selectedNovel) return;
     setLoadingRules(true);
     try {
       const g = (selectedNovel as any)?.category || (selectedNovel as any)?.genre || selectedOutline?.theme || '';
-      const [rulesRes, bundlesRes] = await Promise.all([
-        httpService.get(`/ai-novel/lab/effective-rules?novelId=${selectedNovel.id}&genre=${encodeURIComponent(g)}`),
-        httpService.get('/ai-novel/lab/bundles?pageSize=100').catch(() => ({ data: { items: [] } }))
-      ]);
+      const rulesRes: any = await httpService.get(`/ai-novel/lab/effective-rules?novelId=${selectedNovel.id}&genre=${encodeURIComponent(g)}`);
       const data = rulesRes?.data?.data || rulesRes?.data || rulesRes;
       if (data && (data.rules || data.bundleContent !== undefined || data.ruleCount !== undefined)) {
         setEffectiveRulesData(data);
       }
-      const list = bundlesRes?.data?.data?.items || bundlesRes?.data?.items || bundlesRes?.items || [];
-      setBundles(list);
     } catch (err: any) {
       // 软降级
     } finally {
@@ -227,20 +217,20 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
     }
   }, [open, fetchEffectiveRules]);
 
-  const handleSaveDistillBundle = async (mode: 'auto' | 'custom' | 'disabled', bundleId: number | null) => {
+  const handleSaveDistillBundle = async (mode: 'auto' | 'disabled') => {
     if (!selectedNovel) return;
     setSavingBundle(true);
     try {
       await httpService.post('/ai-novel/save-outline', {
         novelId: selectedNovel.id,
         ruleBundleMode: mode,
-        ruleBundleId: mode === 'custom' ? bundleId : null
+        ruleBundleId: null
       });
       if (selectedOutline) {
         setSelectedOutline({
           ...selectedOutline,
           ruleBundleMode: mode,
-          ruleBundleId: mode === 'custom' ? bundleId : null
+          ruleBundleId: null
         });
       }
       message.success('写作笔法库生效配置已成功落盘！');
@@ -688,36 +678,23 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
             label: (
               <Space>
                 <span>🔥 写作笔法库</span>
-                {bundleMode === 'disabled' && (
+                {bundleMode === 'disabled' ? (
                   <Tag color="default" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0 }}>
                     已停用
                   </Tag>
-                )}
-                {bundleMode === 'custom' && (
-                  <Tag color="blue" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0 }}>
-                    指定规则包
-                  </Tag>
-                )}
-                {bundleMode === 'auto' && (
+                ) : (
                   <Tag color="green" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0 }}>
                     {effectiveRulesData?.ruleCount !== undefined
                       ? `直通生效 (${effectiveRulesData.ruleCount}条)`
-                      : '题材直通'}
+                      : '直通生效'}
                   </Tag>
                 )}
               </Space>
             ),
             children: (() => {
               const currentGenre = (selectedNovel as any)?.category || (selectedNovel as any)?.genre || selectedOutline?.theme || '体制官场';
-              const customSelectedBundle = bundles.find(b => b.id === selectedBundleId);
-
-              // 笔法规则内容：优先以后端 effectiveRulesData (实时聚合的 prompt 文本) 为准，如果 custom 则也兼容 bundle 内容
-              const displayRuleContent = bundleMode === 'disabled'
-                ? ''
-                : (effectiveRulesData?.bundleContent || customSelectedBundle?.compiledRulesPrompt || customSelectedBundle?.bundleContent || '');
-              const displayRuleCount = bundleMode === 'disabled'
-                ? 0
-                : (effectiveRulesData?.ruleCount ?? (effectiveRulesData?.rules?.length || customSelectedBundle?.ruleCount || 0));
+              const displayRuleContent = bundleMode === 'disabled' ? '' : (effectiveRulesData?.bundleContent || '');
+              const displayRuleCount = bundleMode === 'disabled' ? 0 : (effectiveRulesData?.ruleCount ?? (effectiveRulesData?.rules?.length || 0));
               const displayRules = effectiveRulesData?.rules || [];
 
               return (
@@ -747,13 +724,7 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                         <Radio.Button value="auto">
                           <Space size={4}>
                             <SafetyCertificateOutlined style={{ color: '#52c41a' }} />
-                            <span>题材笔法库直通 (推荐·即开即用)</span>
-                          </Space>
-                        </Radio.Button>
-                        <Radio.Button value="custom">
-                          <Space size={4}>
-                            <BookOutlined style={{ color: '#1890ff' }} />
-                            <span>绑定历史编译包 (高级)</span>
+                            <span>启用写作笔法 (直通生效)</span>
                           </Space>
                         </Radio.Button>
                         <Radio.Button value="disabled">
@@ -779,7 +750,7 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                         size="middle"
                         icon={<SaveOutlined />}
                         loading={savingBundle}
-                        onClick={() => handleSaveDistillBundle(bundleMode, selectedBundleId)}
+                        onClick={() => handleSaveDistillBundle(bundleMode)}
                       >
                         保存笔法设定
                       </Button>
@@ -799,7 +770,7 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                         description={
                           <div style={{ marginTop: 4 }}>
                             <div style={{ fontSize: 13, color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#1f2937' }}>
-                              已自动汇聚当前题材在能力实验室中激活的精选笔法，<strong>无需手动编译规则包</strong>，正文生成时将动态注入以下写作军规：
+                              已自动汇聚当前题材在能力实验室中激活的精选笔法，正文生成时将动态注入以下写作军规：
                             </div>
                             {displayRules.length > 0 && (
                               <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -831,29 +802,6 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                     )
                   )}
 
-                  {bundleMode === 'custom' && (
-                    <Card size="small" style={{ borderRadius: 8, background: isDark ? 'rgba(24, 144, 255, 0.04)' : '#e6f7ff', borderColor: isDark ? 'rgba(24, 144, 255, 0.2)' : '#91d5ff' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                        <span style={{ fontWeight: 600, color: '#1890ff' }}>
-                          🎯 选择要为《{selectedNovel?.title}》专属绑定的历史规则包：
-                        </span>
-                        <Select
-                          style={{ minWidth: 420 }}
-                          placeholder="请选择规则包（支持跨题材选择）"
-                          value={selectedBundleId || undefined}
-                          onChange={(val) => setSelectedBundleId(val)}
-                          options={bundles.map((b) => ({
-                            value: b.id,
-                            label: `[${b.targetGenre || b.genre || '通用'}] ${b.bundleName} (${b.bundleVersion || 'v1.0.0'}) · ${b.ruleCount || 0}条规则 ${b.isActive ? '★当前激活' : ''}`
-                          }))}
-                        />
-                        <span style={{ fontSize: 12, color: isDark ? 'rgba(255, 255, 255, 0.45)' : '#6b7280' }}>
-                          （用于回退或绑定特定历史版本）
-                        </span>
-                      </div>
-                    </Card>
-                  )}
-
                   {bundleMode === 'disabled' && (
                     <Alert
                       type="warning"
@@ -872,7 +820,7 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                         </span>
                         {bundleMode !== 'disabled' && (
                           <Tag color="cyan">
-                            {effectiveRulesData?.bundleName || (bundleMode === 'auto' ? '实时题材直通' : '历史规则包')} · 共 {displayRuleCount} 条生效规则
+                            共 {displayRuleCount} 条生效笔法
                           </Tag>
                         )}
                       </div>
@@ -909,11 +857,7 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
                       <div style={{ padding: '40px 0', textAlign: 'center' }}>
                         <Empty
                           image={Empty.PRESENTED_IMAGE_SIMPLE}
-                          description={
-                            bundleMode === 'custom'
-                              ? '请在上方下拉列表中挑选要绑定的规则包'
-                              : '当前题材笔法库中暂无已启用的规则。前往【写作笔法库】开启规则即可实时生效！'
-                          }
+                          description="当前题材笔法库中暂无已启用的规则。前往【写作笔法库】开启规则即可实时生效！"
                         />
                       </div>
                     )}
