@@ -87,10 +87,11 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
   const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'draft'>(initialFilter.status);
   const [searchKeyword, setSearchKeyword] = useState<string>(initialFilter.keyword);
 
-  // 分页状态
+  // 分页与统计状态
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [total, setTotal] = useState<number>(0);
+  const [verifiedTotal, setVerifiedTotal] = useState<number>(0);
 
   // 编辑规则弹窗
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
@@ -111,6 +112,9 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
       if (res.code === 200) {
         setRules(res.data.items || []);
         setTotal(res.data.total || 0);
+        if (typeof res.data.verifiedTotal === 'number') {
+          setVerifiedTotal(res.data.verifiedTotal);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -162,6 +166,7 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
         setRules((prev) =>
           prev.map((r) => (r.id === ruleId ? { ...r, status: newStatus } : r))
         );
+        setVerifiedTotal((prev) => (active ? prev + 1 : Math.max(0, prev - 1)));
       }
     } catch (e: any) {
       // 全局拦截
@@ -234,8 +239,6 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
     }
   };
 
-  const activeCount = rules.filter((r) => r.status === 'verified').length;
-
   return (
     <div>
       <Card
@@ -243,7 +246,7 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
           <Space>
             <FireOutlined style={{ color: '#ea580c' }} />
             <span style={{ fontSize: 16, fontWeight: 600 }}>写作笔法与因果规约库</span>
-            <Tag color="success">当前生效: {activeCount} 条</Tag>
+            <Tag color="success">当前生效: {verifiedTotal} 条</Tag>
             <Tag color="default">总库藏: {total} 条</Tag>
           </Space>
         }

@@ -331,7 +331,7 @@ export const cancelDistillTask = async (id: number): Promise<{ code: number; dat
 };
 
 // 规则管理
-export const getDistillRules = async (params: any = {}): Promise<{ code: number; data: { total: number; items: DistillRuleItem[] } }> => {
+export const getDistillRules = async (params: any = {}): Promise<{ code: number; data: { total: number; verifiedTotal?: number; items: DistillRuleItem[] } }> => {
   return httpService.get('/ai-novel/lab/rules', { params }) as any;
 };
 
