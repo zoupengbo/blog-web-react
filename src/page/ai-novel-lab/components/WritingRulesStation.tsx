@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTheme } from '../../../context/themeContext';
 import {
   Card,
   Button,
@@ -73,6 +74,7 @@ const getStoredFilter = (): WritingRulesFilterData => {
 };
 
 export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initialGenre }) => {
+  const { isDark } = useTheme();
   const initialFilter = getStoredFilter();
   const [rules, setRules] = useState<DistillRuleItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -354,7 +356,7 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
 
         {/* 规则卡片流 */}
         {rules.length === 0 && !loading && (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
+          <div style={{ textAlign: 'center', padding: '40px 0', color: isDark ? 'rgba(255, 255, 255, 0.45)' : '#94a3b8' }}>
             <InfoCircleOutlined style={{ fontSize: 36, marginBottom: 8, display: 'block' }} />
             暂未提炼或检索到符合条件的写作笔法，请前往【语料小说】选择作品点击【一键提炼笔法】！
           </div>
@@ -368,7 +370,7 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                 key={rule.id}
                 size="small"
                 style={{
-                  borderLeft: isVerified ? '4px solid #16a34a' : '4px solid #cbd5e1',
+                  borderLeft: isVerified ? '4px solid #16a34a' : (isDark ? '4px solid #475569' : '4px solid #cbd5e1'),
                   boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                 }}
               >
@@ -422,31 +424,41 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
 
                 <div style={{ marginBottom: 8 }}>
                   <Text type="secondary" style={{ fontSize: 13, marginRight: 8 }}>适用情境:</Text>
-                  <Text style={{ fontSize: 13, color: '#334155' }}>{rule.conditionPattern || '通用场景'}</Text>
+                  <Text style={{ fontSize: 13, color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#334155' }}>{rule.conditionPattern || '通用场景'}</Text>
                 </div>
 
                 <div style={{ marginBottom: 12 }}>
                   <Text type="secondary" style={{ fontSize: 13, marginRight: 8 }}>核心规约:</Text>
-                  <Text style={{ fontSize: 13, color: '#0f172a', fontWeight: 500 }}>{rule.ruleText}</Text>
+                  <Text style={{ fontSize: 13, color: isDark ? '#ffd666' : '#0f172a', fontWeight: 500 }}>{rule.ruleText}</Text>
                 </div>
 
                 <Row gutter={16}>
                   <Col span={12}>
-                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '8px 12px' }}>
-                      <Text strong style={{ color: '#166534', fontSize: 12, display: 'block', marginBottom: 4 }}>
+                    <div style={{
+                      background: isDark ? 'rgba(82, 196, 26, 0.12)' : '#f0fdf4',
+                      border: isDark ? '1px solid rgba(82, 196, 26, 0.35)' : '1px solid #bbf7d0',
+                      borderRadius: 6,
+                      padding: '8px 12px'
+                    }}>
+                      <Text strong style={{ color: isDark ? '#73d13d' : '#166534', fontSize: 12, display: 'block', marginBottom: 4 }}>
                         真人名家克制示范 (Positive Exemplar)
                       </Text>
-                      <Paragraph style={{ margin: 0, fontSize: 12, color: '#14532d' }}>
+                      <Paragraph style={{ margin: 0, fontSize: 12, color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#14532d' }}>
                         {rule.positiveExemplar || '未指定示范语句'}
                       </Paragraph>
                     </div>
                   </Col>
                   <Col span={12}>
-                    <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, padding: '8px 12px' }}>
-                      <Text strong style={{ color: '#991b1b', fontSize: 12, display: 'block', marginBottom: 4 }}>
+                    <div style={{
+                      background: isDark ? 'rgba(255, 77, 79, 0.12)' : '#fef2f2',
+                      border: isDark ? '1px solid rgba(255, 77, 79, 0.35)' : '1px solid #fecaca',
+                      borderRadius: 6,
+                      padding: '8px 12px'
+                    }}>
+                      <Text strong style={{ color: isDark ? '#ff7875' : '#991b1b', fontSize: 12, display: 'block', marginBottom: 4 }}>
                         AI 烂套路避坑规约 (Anti-AI Rule)
                       </Text>
-                      <Paragraph style={{ margin: 0, fontSize: 12, color: '#7f1d1d' }}>
+                      <Paragraph style={{ margin: 0, fontSize: 12, color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#7f1d1d' }}>
                         {rule.antiAiPattern || rule.negativeExemplar || '避免假大空煽情或作者视角提前泄题'}
                       </Paragraph>
                     </div>
