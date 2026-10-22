@@ -563,10 +563,9 @@ export const EditorView: React.FC<EditorViewProps> = ({
     storyArcs: Array.isArray(selectedOutline?.storyArcs) ? selectedOutline!.storyArcs : []
   };
 
-  const editorGrowthConfig = useMemo(() => {
-    const genre = (selectedNovel as any)?.category || (selectedNovel as any)?.genre || safeOutline.theme || '';
-    return getGrowthSystemConfig(genre);
-  }, [selectedNovel, safeOutline.theme]);
+  const editorGrowthConfig = getGrowthSystemConfig(
+    (selectedNovel as any)?.category || (selectedNovel as any)?.genre || safeOutline.theme || ''
+  );
 
   const currentChapter = (safeOutline.chaptersOutline || []).find((c: any) => parseInt(c.chapterNumber, 10) === parseInt(activeChapterNum as any, 10));
 
