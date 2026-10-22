@@ -32,6 +32,7 @@ import {
   PlusOutlined,
   ExperimentOutlined,
   SafetyCertificateOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import {
   getDistillRules,
@@ -311,20 +312,25 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
   const handleOpenExperiment = async () => {
     setIsExperimentModalOpen(true);
     if (!experimentResult) {
-      await handleRunExperiment();
+      await handleRunExperiment('demo');
     }
   };
 
-  const handleRunExperiment = async () => {
+  const handleRunExperiment = async (mode: 'demo' | 'live' = 'demo') => {
     setExperimentLoading(true);
     try {
       const res = await runComparativeExperiment({
         genre: selectedGenre !== 'all' ? selectedGenre : '体制官场',
         targetChapter: { chapterNumber: 1, title: '初入省委办', summary: '面对复杂的股室关系与文书交接' },
+        mode,
       });
       if (res.code === 200) {
         setExperimentResult(res.data);
-        message.success('写作效果A/B/C对照实验执行成功');
+        if (mode === 'live') {
+          message.success('真实大模型 A/B/C 三路端到端盲测生成与客观特征质检执行成功！');
+        } else {
+          message.success('已加载演示性特征基准对照数据');
+        }
       }
     } catch (e) {
       // 全局拦截
@@ -340,8 +346,8 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
           <Space wrap>
             <FireOutlined style={{ color: '#ea580c' }} />
             <span style={{ fontSize: 16, fontWeight: 600 }}>写作笔法与因果规约库</span>
-            <Tag color="success">实证生效: {verifiedTotal} 条</Tag>
-            {trialTotal > 0 && <Tag color="orange">创作者试用: {trialTotal} 条</Tag>}
+            <Tag color="success">正式实证: {verifiedTotal} 条</Tag>
+            {trialTotal > 0 && <Tag color="orange">额外试用: {trialTotal} 条</Tag>}
             {needsReviewTotal > 0 && <Tag color="gold">待复核: {needsReviewTotal} 条</Tag>}
             <Tag color="default">总库藏: {total} 条</Tag>
           </Space>
@@ -828,7 +834,7 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
 
       {/* 写作效果 A/B/C 对照实验弹窗 */}
       <Modal
-        title="写作效果 A/B/C 对照实验与八维量化盲测"
+        title="写作效果 A/B/C 对照实验与量化盲测"
         open={isExperimentModalOpen}
         onCancel={() => setIsExperimentModalOpen(false)}
         footer={[
@@ -836,47 +842,64 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
             关闭
           </Button>,
           <Button
-            key="re-run"
-            type="primary"
-            icon={<ExperimentOutlined />}
+            key="demo-run"
+            icon={<ReloadOutlined />}
             loading={experimentLoading}
-            onClick={handleRunExperiment}
-            style={{ backgroundColor: '#7c3aed', borderColor: '#7c3aed' }}
+            onClick={() => handleRunExperiment('demo')}
           >
-            重新运行对照实验
+            刷新基准演示
+          </Button>,
+          <Button
+            key="live-run"
+            type="primary"
+            icon={<ThunderboltOutlined />}
+            loading={experimentLoading}
+            onClick={() => handleRunExperiment('live')}
+            style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}
+          >
+            发起真实 AI 正文盲测生成 (3路模型实测)
           </Button>,
         ]}
-        width={960}
+        width={980}
         destroyOnClose
       >
-        <Alert
-          message="三组对照实验方法论"
-          description="A组（基线组）：未注入任何蒸馏规约，依赖底层基础底模；B组（全量未过滤组）：注入全部原始提炼项，包含未经验证或可能存在语义互斥的规则；C组（严格实证规约组）：仅注入通过 100% 原文证据链闭环与冲突一票否决的成熟规约。"
-          type="info"
-          showIcon
-          style={{ marginBottom: 16 }}
-        />
-
         {experimentLoading && (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
             <ExperimentOutlined style={{ fontSize: 36, color: '#7c3aed', marginBottom: 12, display: 'block' }} />
-            <Text type="secondary">正在执行 A/B/C 三组盲测评估与八维指标打分...</Text>
+            <Text type="secondary">正在执行 A/B/C 三组盲测推理生成与客观文本指标打分...</Text>
           </div>
         )}
 
         {!experimentLoading && experimentResult && (
           <div>
-            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Space>
+            <div style={{ marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <Space wrap>
                 <Tag color="cyan">测试题材: {experimentResult.genre}</Tag>
                 <Tag color="blue">
                   测试章节: 第 {experimentResult.targetChapter?.chapterNumber || 1} 章 · {experimentResult.targetChapter?.title || '初入省委办'}
                 </Tag>
+                {experimentResult.isLiveModel ? (
+                  <Tag color="green">⚡ 真实大模型实时现场推理</Tag>
+                ) : (
+                  <Tag color="purple">📋 演示性理论基准对照</Tag>
+                )}
               </Space>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 实验时间: {new Date(experimentResult.experimentTimestamp).toLocaleString()}
               </Text>
             </div>
+
+            <Alert
+              message={experimentResult.isLiveModel ? "真实大模型端到端推理对比已就绪" : "当前为演示性基准模式 (Demo Benchmark)"}
+              description={
+                experimentResult.isLiveModel
+                  ? "当前三组正文段落均为大模型针对该场景现场生成的真实文本；维度评分均由代码分析生成文本的物理特征（AI套路词频、说教词频、动作白描、对话交锋度）客观量化计算所得。"
+                  : "当前展示的样章段落与评分为典型特征基准演示，用于直观理解三组规则的边界差异。点击下方【发起真实 AI 正文盲测生成】即可调用写作底模进行真正的三路现场推理与客观质检！"
+              }
+              type={experimentResult.isLiveModel ? "success" : "info"}
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
 
             <Row gutter={16} style={{ marginBottom: 16 }}>
               {/* A组 */}

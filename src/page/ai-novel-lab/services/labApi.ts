@@ -421,6 +421,8 @@ export interface ComparativeExperimentResult {
       compositeScore: number;
     };
   };
+  mode?: 'demo' | 'live';
+  isLiveModel?: boolean;
   conclusion: string;
 }
 
@@ -443,6 +445,7 @@ export const runComparativeExperiment = async (data: {
   genre?: string;
   targetChapter?: { chapterNumber?: number; title?: string; summary?: string };
   rules?: any[];
+  mode?: 'demo' | 'live';
 }): Promise<{ code: number; data: ComparativeExperimentResult; message: string }> => {
   return httpService.post('/ai-novel/lab/rules/experiment', data) as any;
 };
