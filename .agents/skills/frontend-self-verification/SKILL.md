@@ -39,6 +39,7 @@ Immediately after modifying code, check:
 - [ ] Are all imported components/icons present in `import` statements?
 - [ ] Are prop types aligned between parent and child components?
 - [ ] Are data mutations backed by persistence calls (API / localStorage / database)?
+- [ ] **Dark Mode & Contrast Immunity**: Are there any hardcoded `#fff` / `#f8fafc` light backgrounds? Does it adapt via `useTheme()` / `isDark` and declare explicit text colors to prevent "white text on white background" in dark mode? Are Portal elements (Modal/Drawer) covered globally under `.dark-theme`?
 
 ### Step 2: Automated Verification Command (运行编译与类型指令)
 Execute the project's build/test script in the terminal:

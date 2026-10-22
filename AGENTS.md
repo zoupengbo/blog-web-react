@@ -40,6 +40,13 @@
   4. 验证通过后，**必须立即自动执行暂存、规范提交并推送到远端 master 分支 (`git push origin master`)**，严禁未提交推送直接结束任务！
   5. 向用户完工汇报时必须完整展示本次 Git Commit Hash、推送远程分支状态与提交信息。
 
+## 前端暗黑模式与对比度防反白铁律 (Dark Mode & Contrast Immunity Rule)
+- 涉及任何前端 UI、卡片、列表、弹窗（Modal/Drawer/Popover/Tooltip）的编写与重构时：
+  1. **严禁硬编码亮色浅背景**：严禁直接写死 `background: '#fff'`、`'#ffffff'`、`'#f8fafc'`、`'#f0fdf4'` 等静态浅色背景！凡涉及容器底色，必须统一引入全局 `useTheme()` 钩子，通过 `isDark ? darkColor : lightColor` 做动态主题适配；
+  2. **防白底白字（反白死局）**：在 Ant Design 暗黑主题下，`<Text type="secondary">` 等文本组件颜色会被自动染为浅灰白色（`rgba(255, 255, 255, 0.45)`）。一旦置于浅色背景上将造成灾难性的“白底白字”不可见现象；因此内联声明背景色时，**必须显式配套声明文本颜色**或直接使用主题自适应色卡；
+  3. **Portal 容器隔离穿透认知**：Ant Design 的 `Modal`、`Drawer`、`Dropdown`、`Tooltip` 均挂载在 `document.body` 下，脱离了页面主容器（如 `.ai-novel-lab-container`）。若在 SCSS 中编写暗黑样式，必须在根级 `.dark-theme, [data-theme="dark"]` 下编写，严禁仅嵌套在页面局部 Class 内导致弹窗样式穿透失效。
+
+
 
 
 
