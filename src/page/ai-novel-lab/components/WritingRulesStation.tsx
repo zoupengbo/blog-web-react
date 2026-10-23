@@ -39,6 +39,8 @@ import {
   getDistillRules,
   reviewDistillRule,
   batchReviewDistillRules,
+  deleteDistillRule,
+  batchDeleteDistillRules,
   runComparativeExperiment,
   ComparativeExperimentResult,
   EvidenceBreakdown,
@@ -327,6 +329,35 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
     }
   };
 
+  const handleDeleteRule = async (ruleId: number) => {
+    try {
+      const res = await deleteDistillRule(ruleId);
+      if (res.code === 200) {
+        message.success('规约已成功彻底删除，后续自动写正文时将不再加载');
+        fetchRules(page, pageSize);
+      } else {
+        message.error(res.message || '删除失败');
+      }
+    } catch (e: any) {
+      message.error(e.message || '网络异常');
+    }
+  };
+
+  const handleBatchDeleteCurrentPage = async () => {
+    if (rules.length === 0) return;
+    try {
+      const res = await batchDeleteDistillRules(rules.map((r) => r.id));
+      if (res.code === 200) {
+        message.success(`已彻底删除当前页 ${rules.length} 条规约，后续自动写正文时将不再加载`);
+        fetchRules(1, pageSize);
+      } else {
+        message.error(res.message || '批量删除失败');
+      }
+    } catch (e: any) {
+      message.error(e.message || '网络异常');
+    }
+  };
+
   const handleOpenEdit = (rule: DistillRuleItem | null) => {
     setEditingRule(rule);
     if (rule) {
@@ -442,6 +473,19 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
             >
               一键停用当前页试用
             </Button>
+            <Popconfirm
+              title={`确定彻底删除当前页展示的全部 ${rules.length} 条规约吗？`}
+              description="删除后这些规约将从物理数据库中完全移除，自动生成正文时将不再加载。"
+              onConfirm={handleBatchDeleteCurrentPage}
+              okText="确认全部删除"
+              okType="danger"
+              cancelText="取消"
+              disabled={rules.length === 0}
+            >
+              <Button danger icon={<DeleteOutlined />} disabled={rules.length === 0}>
+                批量删除当前页
+              </Button>
+            </Popconfirm>
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -693,6 +737,23 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                     >
                       编辑
                     </Button>
+                    <Popconfirm
+                      title="确定彻底删除此条写作笔法吗？"
+                      description="删除后该规则将从物理数据库中移除，后续小说自动生成正文时将不再加载生效。"
+                      onConfirm={() => handleDeleteRule(rule.id)}
+                      okText="确认删除"
+                      okType="danger"
+                      cancelText="取消"
+                    >
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        size="small"
+                      >
+                        删除
+                      </Button>
+                    </Popconfirm>
                   </Space>
                 </div>
 

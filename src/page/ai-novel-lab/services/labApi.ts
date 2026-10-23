@@ -556,6 +556,10 @@ export const reviewDistillRule = async (id: number, data: Partial<DistillRuleIte
   return httpService.put(`/ai-novel/lab/rules/${id}`, data) as any;
 };
 
+export const deleteDistillRule = async (id: number): Promise<{ code: number; data: any; message: string }> => {
+  return httpService.delete(`/ai-novel/lab/rules/${id}`) as any;
+};
+
 export const batchReviewDistillRules = async (data: {
   ruleIds: number[];
   status?: string;
@@ -565,6 +569,10 @@ export const batchReviewDistillRules = async (data: {
   force?: boolean;
 }): Promise<{ code: number; data: any; message: string }> => {
   return httpService.post('/ai-novel/lab/rules/batch-review', data) as any;
+};
+
+export const batchDeleteDistillRules = async (ruleIds: number[]): Promise<{ code: number; data: any; message: string }> => {
+  return httpService.post('/ai-novel/lab/rules/batch-delete', { ruleIds }) as any;
 };
 
 // 规则包管理
