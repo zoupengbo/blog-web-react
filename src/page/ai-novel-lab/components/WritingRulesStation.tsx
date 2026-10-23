@@ -124,8 +124,7 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
   const [isSingleExpModalOpen, setIsSingleExpModalOpen] = useState<boolean>(false);
   const [singleExpRule, setSingleExpRule] = useState<DistillRuleItem | null>(null);
   const [singleExpScene, setSingleExpScene] = useState<'dialogue' | 'conflict' | 'daily'>('dialogue');
-  const [singleExpSampleCount, setSingleExpSampleCount] = useState<number>(3);
-  const [singleExpMode, setSingleExpMode] = useState<'demo' | 'live'>('demo');
+  const [singleExpSampleCount, setSingleExpSampleCount] = useState<number>(1);
   const [singleExpLoading, setSingleExpLoading] = useState<boolean>(false);
   const [singleExpResult, setSingleExpResult] = useState<any | null>(null);
 
@@ -197,25 +196,25 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
     setIsSingleExpModalOpen(true);
   };
 
-  const handleExecuteSingleExperiment = async (mode: 'demo' | 'live' = 'demo') => {
+  const handleExecuteSingleExperiment = async () => {
     if (!singleExpRule) return;
     setSingleExpLoading(true);
     try {
       const res = await verifyRuleEffect(singleExpRule.id, {
         sceneType: singleExpScene,
         sampleCount: singleExpSampleCount,
-        mode,
+        mode: 'live',
         genre: selectedGenre !== 'all' ? selectedGenre : singleExpRule.genre,
       });
       if (res.code === 200) {
         setSingleExpResult(res.data);
-        message.success('单条规约配对盲测完成，效果档案已自动保存落盘！');
+        message.success('大模型真实配对盲测完成，生成样章已就绪，效果档案已落盘！');
         fetchRules(page, pageSize);
       } else {
         message.error(res.message || '实验执行失败');
       }
     } catch (e: any) {
-      message.error(e.message || '网络异常');
+      message.error(e.message || '大模型网络请求异常');
     } finally {
       setSingleExpLoading(false);
     }
@@ -1649,33 +1648,36 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                   <Select
                     value={singleExpSampleCount}
                     onChange={(val) => setSingleExpSampleCount(val)}
-                    style={{ width: 110 }}
+                    style={{ width: 140 }}
                   >
-                    <Option value={3}>3 组配对</Option>
-                    <Option value={5}>5 组配对</Option>
-                    <Option value={10}>10 组配对</Option>
+                    <Option value={1}>1 组配对 (生成2篇)</Option>
+                    <Option value={2}>2 组配对 (生成4篇)</Option>
+                    <Option value={3}>3 组配对 (生成6篇)</Option>
                   </Select>
                 </Space>
 
-                <Space>
-                  <Button
-                    type="primary"
-                    icon={<ThunderboltOutlined />}
-                    loading={singleExpLoading}
-                    onClick={() => handleExecuteSingleExperiment('demo')}
-                  >
-                    执行 A/B 配对盲测
-                  </Button>
-                  <Button
-                    icon={<ExperimentOutlined />}
-                    loading={singleExpLoading}
-                    onClick={() => handleExecuteSingleExperiment('live')}
-                  >
-                    实景模型盲测
-                  </Button>
-                </Space>
+                <Button
+                  type="primary"
+                  icon={<ThunderboltOutlined />}
+                  loading={singleExpLoading}
+                  onClick={handleExecuteSingleExperiment}
+                  style={{ fontWeight: 500 }}
+                >
+                  {singleExpLoading ? '大模型正在推理创作中...' : '启动大模型真实配对盲测'}
+                </Button>
               </div>
             </Card>
+
+            {/* 真实大模型推理中的骨架/提示 */}
+            {singleExpLoading && (
+              <Alert
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+                message="🤖 正在调用大模型进行实时创作推理..."
+                description="系统正在向本地大模型发起成对并发创作：同时生成 Group A（原生基线）与 Group B（仅注入本笔法）两篇小说正文片段，并由质检引擎进行实时客观物理指标分析，约需 5~15 秒，请稍候。"
+              />
+            )}
 
             {/* 实测结果档案展示 */}
             {singleExpResult && (
@@ -1710,6 +1712,9 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                         <Tag color="purple">
                           样本: {singleExpResult.sampleCount} 组配对盲评
                         </Tag>
+                        {singleExpResult.mode === 'live' && (
+                          <Tag color="geekblue">大模型真实端到端生成</Tag>
+                        )}
                       </Space>
                     </div>
                   }
@@ -1754,7 +1759,165 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                   }
                 />
 
-                {/* 收益与副作用对照两栏 */}
+                {/* 1. 真实大模型生成正文盲评对决（完整可见，左右对比） */}
+                {(() => {
+                  const sampleList = singleExpResult.samples || singleExpResult.samplePairs || [];
+                  if (!Array.isArray(sampleList) || sampleList.length === 0) return null;
+
+                  return (
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <Space align="center">
+                          <Text strong style={{ fontSize: 14, color: isDark ? '#93c5fd' : '#1e40af' }}>
+                            📖 大模型真实生成样章现场对决
+                          </Text>
+                          <Tag color="blue">{sampleList.length} 组配对</Tag>
+                        </Space>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          同一情境同种子：左栏原生自然基线 vs 右栏引入笔法约束
+                        </Text>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {sampleList.map((sample: any, sIdx: number) => {
+                          const deltaComp = sample.scoresA && sample.scoresB
+                            ? parseFloat((sample.scoresB.compositeScore - sample.scoresA.compositeScore).toFixed(2))
+                            : null;
+
+                          return (
+                            <Card
+                              key={sIdx}
+                              size="small"
+                              style={{
+                                background: isDark ? '#1a2234' : '#fafafa',
+                                border: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
+                              }}
+                              title={
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <Space>
+                                    <Tag color="geekblue" style={{ fontSize: 12 }}>配对样本 #{sample.pairIndex || sIdx + 1}</Tag>
+                                    <Text strong style={{ fontSize: 13 }}>
+                                      情境：{singleExpResult.sceneName || '基准情境'}
+                                    </Text>
+                                  </Space>
+                                  <Space size={12}>
+                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                      A基线分: <Text strong style={{ color: isDark ? '#cbd5e1' : '#334155' }}>{sample.scoresA?.compositeScore ?? '-'}</Text>
+                                    </Text>
+                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                      B单规分: <Text strong style={{ color: isDark ? '#86efac' : '#15803d' }}>{sample.scoresB?.compositeScore ?? '-'}</Text>
+                                    </Text>
+                                    {deltaComp !== null && (
+                                      <Tag color={deltaComp >= 0 ? 'green' : 'red'}>
+                                        净差值: {deltaComp >= 0 ? '+' : ''}{deltaComp}
+                                      </Tag>
+                                    )}
+                                  </Space>
+                                </div>
+                              }
+                            >
+                              <Row gutter={16}>
+                                {/* Group A: 原生基线 */}
+                                <Col span={12}>
+                                  <div
+                                    style={{
+                                      borderRadius: 6,
+                                      background: isDark ? '#1e293b' : '#ffffff',
+                                      border: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
+                                      overflow: 'hidden',
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        padding: '8px 12px',
+                                        background: isDark ? '#273549' : '#f1f5f9',
+                                        borderBottom: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                      }}
+                                    >
+                                      <Space>
+                                        <Tag color="default">Group A</Tag>
+                                        <Text strong style={{ fontSize: 13, color: isDark ? '#cbd5e1' : '#475569' }}>
+                                          原生自然基线 (未注入任何规则)
+                                        </Text>
+                                      </Space>
+                                      <Text type="secondary" style={{ fontSize: 11 }}>
+                                        {sample.wordCountA || sample.textA?.length} 字
+                                      </Text>
+                                    </div>
+                                    <div
+                                      style={{
+                                        padding: '12px 14px',
+                                        fontSize: 13.5,
+                                        lineHeight: '1.8',
+                                        color: isDark ? '#e2e8f0' : '#1e293b',
+                                        whiteSpace: 'pre-wrap',
+                                        maxHeight: 450,
+                                        overflowY: 'auto',
+                                      }}
+                                    >
+                                      {sample.textA}
+                                    </div>
+                                  </div>
+                                </Col>
+
+                                {/* Group B: 引入本条规约 */}
+                                <Col span={12}>
+                                  <div
+                                    style={{
+                                      borderRadius: 6,
+                                      background: isDark ? '#142a20' : '#f0fdf4',
+                                      border: isDark ? '1px solid #166534' : '1px solid #bbf7d0',
+                                      overflow: 'hidden',
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        padding: '8px 12px',
+                                        background: isDark ? '#1b3b2c' : '#dcfce7',
+                                        borderBottom: isDark ? '1px solid #166534' : '1px solid #bbf7d0',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                      }}
+                                    >
+                                      <Space>
+                                        <Tag color="green">Group B</Tag>
+                                        <Text strong style={{ fontSize: 13, color: isDark ? '#86efac' : '#166534' }}>
+                                          引入【{singleExpRule.ruleName}】约束
+                                        </Text>
+                                      </Space>
+                                      <Text type="secondary" style={{ fontSize: 11 }}>
+                                        {sample.wordCountB || sample.textB?.length} 字
+                                      </Text>
+                                    </div>
+                                    <div
+                                      style={{
+                                        padding: '12px 14px',
+                                        fontSize: 13.5,
+                                        lineHeight: '1.8',
+                                        color: isDark ? '#f0fdf4' : '#14532d',
+                                        whiteSpace: 'pre-wrap',
+                                        maxHeight: 450,
+                                        overflowY: 'auto',
+                                      }}
+                                    >
+                                      {sample.textB}
+                                    </div>
+                                  </div>
+                                </Col>
+                              </Row>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* 2. 收益与副作用对照两栏 */}
                 <Row gutter={16} style={{ marginBottom: 16 }}>
                   <Col span={12}>
                     <Card
@@ -1817,7 +1980,7 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                   </Col>
                 </Row>
 
-                {/* 8 维度均值与差值 Δ 对比网格 */}
+                {/* 3. 8 维度均值与差值 Δ 对比网格 */}
                 {singleExpResult.dimensionDeltas && singleExpResult.metricAverages && (
                   <Card
                     size="small"
@@ -1877,78 +2040,6 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                         );
                       })}
                     </Row>
-                  </Card>
-                )}
-
-                {/* 配对样本明细折叠面板 */}
-                {Array.isArray(singleExpResult.samples) && singleExpResult.samples.length > 0 && (
-                  <Card size="small" title="配对生成样本逐一盲评对照">
-                    <Collapse
-                      defaultActiveKey={['sample-0']}
-                      items={singleExpResult.samples.map((s: any, idx: number) => ({
-                        key: `sample-${idx}`,
-                        label: (
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Space>
-                              <Text strong>配对样本 #{idx + 1}</Text>
-                              <Tag color="cyan">种子一致盲测</Tag>
-                            </Space>
-                            <Space size={8}>
-                              <Text type="secondary" style={{ fontSize: 12 }}>
-                                A基线总分: {s.scoresA?.overall ?? '-'}
-                              </Text>
-                              <Text type="secondary" style={{ fontSize: 12 }}>
-                                B引入规约总分: {s.scoresB?.overall ?? '-'}
-                              </Text>
-                            </Space>
-                          </div>
-                        ),
-                        children: (
-                          <Row gutter={16}>
-                            <Col span={12}>
-                              <div
-                                style={{
-                                  padding: '8px 12px',
-                                  borderRadius: 6,
-                                  background: isDark ? '#1e293b' : '#f8fafc',
-                                  border: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
-                                }}
-                              >
-                                <Text strong style={{ display: 'block', marginBottom: 4, color: isDark ? '#94a3b8' : '#475569' }}>
-                                  【Group A: 无本规约自然基线】
-                                </Text>
-                                <Paragraph
-                                  ellipsis={{ rows: 8, expandable: true, symbol: '展开全文' }}
-                                  style={{ whiteSpace: 'pre-wrap', fontSize: 12, margin: 0, color: isDark ? '#cbd5e1' : '#334155' }}
-                                >
-                                  {s.textA}
-                                </Paragraph>
-                              </div>
-                            </Col>
-                            <Col span={12}>
-                              <div
-                                style={{
-                                  padding: '8px 12px',
-                                  borderRadius: 6,
-                                  background: isDark ? '#1e293b' : '#f0fdf4',
-                                  border: isDark ? '1px solid #334155' : '1px solid #bbf7d0',
-                                }}
-                              >
-                                <Text strong style={{ display: 'block', marginBottom: 4, color: isDark ? '#86efac' : '#166534' }}>
-                                  【Group B: 引入【{singleExpRule.ruleName}】约束】
-                                </Text>
-                                <Paragraph
-                                  ellipsis={{ rows: 8, expandable: true, symbol: '展开全文' }}
-                                  style={{ whiteSpace: 'pre-wrap', fontSize: 12, margin: 0, color: isDark ? '#cbd5e1' : '#14532d' }}
-                                >
-                                  {s.textB}
-                                </Paragraph>
-                              </div>
-                            </Col>
-                          </Row>
-                        ),
-                      }))}
-                    />
                   </Card>
                 )}
               </div>
