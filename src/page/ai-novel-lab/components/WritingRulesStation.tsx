@@ -19,6 +19,7 @@ import {
   Tooltip,
   Divider,
   Pagination,
+  Collapse,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -40,6 +41,7 @@ import {
   batchReviewDistillRules,
   runComparativeExperiment,
   ComparativeExperimentResult,
+  EvidenceBreakdown,
   DistillRuleItem,
 } from '../services/labApi';
 
@@ -860,7 +862,7 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
             发起真实 AI 正文盲测生成 (3路模型实测)
           </Button>,
         ]}
-        width={980}
+        width={1060}
         destroyOnClose
       >
         {experimentLoading && (
@@ -957,6 +959,76 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                       </Paragraph>
                     </div>
                   )}
+
+                  {experimentResult.groupA?.evidenceBreakdown && (
+                    <Collapse
+                      ghost
+                      size="small"
+                      style={{ marginTop: 10, background: isDark ? 'rgba(0,0,0,0.2)' : '#f8fafc', borderRadius: 6 }}
+                      items={[
+                        {
+                          key: 'evidence-a',
+                          label: (
+                            <Text style={{ fontSize: 11, color: isDark ? '#93c5fd' : '#2563eb' }}>
+                              🔍 展开评分依据与文本特征溯源
+                            </Text>
+                          ),
+                          children: (
+                            <div style={{ fontSize: 11, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <div>
+                                <Text type="secondary" style={{ marginRight: 4 }}>套路词检出:</Text>
+                                {experimentResult.groupA.evidenceBreakdown.clicheMatches?.length > 0 ? (
+                                  experimentResult.groupA.evidenceBreakdown.clicheMatches.map((w, idx) => (
+                                    <Tag key={idx} color="error" style={{ fontSize: 10, margin: '1px 2px', padding: '0 4px' }}>{w}</Tag>
+                                  ))
+                                ) : (
+                                  <Tag color="success" style={{ fontSize: 10, margin: '1px 2px', padding: '0 4px' }}>零套路词 (0)</Tag>
+                                )}
+                              </div>
+                              <div>
+                                <Text type="secondary" style={{ marginRight: 4 }}>说教/点透词:</Text>
+                                {experimentResult.groupA.evidenceBreakdown.preachyMatches?.length > 0 ? (
+                                  experimentResult.groupA.evidenceBreakdown.preachyMatches.map((w, idx) => (
+                                    <Tag key={idx} color="warning" style={{ fontSize: 10, margin: '1px 2px', padding: '0 4px' }}>{w}</Tag>
+                                  ))
+                                ) : (
+                                  <Tag color="success" style={{ fontSize: 10, margin: '1px 2px', padding: '0 4px' }}>无说教灌输 (0)</Tag>
+                                )}
+                              </div>
+                              <div>
+                                <Text type="secondary" style={{ marginRight: 4 }}>动作物理支点:</Text>
+                                {experimentResult.groupA.evidenceBreakdown.actionMatches?.length > 0 ? (
+                                  experimentResult.groupA.evidenceBreakdown.actionMatches.slice(0, 6).map((w, idx) => (
+                                    <Tag key={idx} color="processing" style={{ fontSize: 10, margin: '1px 2px', padding: '0 4px' }}>{w}</Tag>
+                                  ))
+                                ) : (
+                                  <Tag color="default" style={{ fontSize: 10, margin: '1px 2px', padding: '0 4px' }}>动作偏少</Tag>
+                                )}
+                              </div>
+                              <Divider style={{ margin: '4px 0' }} />
+                              <div>
+                                <div style={{ color: isDark ? '#94a3b8' : '#64748b', fontWeight: 600, marginBottom: 2 }}>维度打分理由:</div>
+                                {Object.entries(experimentResult.groupA.evidenceBreakdown.scoreReasons || {}).map(([dim, data]: [string, any]) => {
+                                  if (!data || !data.factors || data.factors.length === 0) return null;
+                                  const dimLabel = dim === 'causalMotivation' ? '因果动机' :
+                                                   dim === 'dialogueNaturalness' ? '对话自然' :
+                                                   dim === 'antiPreachiness' ? '反机械说教' :
+                                                   dim === 'sensoryRestraint' ? '感官克制' :
+                                                   dim === 'contextAppropriateness' ? '场景得体' : dim;
+                                  return (
+                                    <div key={dim} style={{ lineHeight: 1.4, marginBottom: 3 }}>
+                                      <Text strong style={{ color: isDark ? '#e2e8f0' : '#1e293b' }}>[{dimLabel} {data.score}]: </Text>
+                                      <Text type="secondary" style={{ fontSize: 11 }}>{data.factors.join('；')}</Text>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ),
+                        },
+                      ]}
+                    />
+                  )}
                 </Card>
               </Col>
 
@@ -1014,6 +1086,76 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                         {experimentResult.groupB.sampleProse}
                       </Paragraph>
                     </div>
+                  )}
+
+                  {experimentResult.groupB?.evidenceBreakdown && (
+                    <Collapse
+                      ghost
+                      size="small"
+                      style={{ marginTop: 10, background: isDark ? 'rgba(0,0,0,0.2)' : '#fef3c7', borderRadius: 6 }}
+                      items={[
+                        {
+                          key: 'evidence-b',
+                          label: (
+                            <Text style={{ fontSize: 11, color: isDark ? '#f59e0b' : '#b45309' }}>
+                              🔍 展开评分依据与文本特征溯源
+                            </Text>
+                          ),
+                          children: (
+                            <div style={{ fontSize: 11, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <div>
+                                <Text type="secondary" style={{ marginRight: 4 }}>套路词检出:</Text>
+                                {experimentResult.groupB.evidenceBreakdown.clicheMatches?.length > 0 ? (
+                                  experimentResult.groupB.evidenceBreakdown.clicheMatches.map((w, idx) => (
+                                    <Tag key={idx} color="error" style={{ fontSize: 10, margin: '1px 2px', padding: '0 4px' }}>{w}</Tag>
+                                  ))
+                                ) : (
+                                  <Tag color="success" style={{ fontSize: 10, margin: '1px 2px', padding: '0 4px' }}>零套路词 (0)</Tag>
+                                )}
+                              </div>
+                              <div>
+                                <Text type="secondary" style={{ marginRight: 4 }}>说教/点透词:</Text>
+                                {experimentResult.groupB.evidenceBreakdown.preachyMatches?.length > 0 ? (
+                                  experimentResult.groupB.evidenceBreakdown.preachyMatches.map((w, idx) => (
+                                    <Tag key={idx} color="warning" style={{ fontSize: 10, margin: '1px 2px', padding: '0 4px' }}>{w}</Tag>
+                                  ))
+                                ) : (
+                                  <Tag color="success" style={{ fontSize: 10, margin: '1px 2px', padding: '0 4px' }}>无说教灌输 (0)</Tag>
+                                )}
+                              </div>
+                              <div>
+                                <Text type="secondary" style={{ marginRight: 4 }}>动作物理支点:</Text>
+                                {experimentResult.groupB.evidenceBreakdown.actionMatches?.length > 0 ? (
+                                  experimentResult.groupB.evidenceBreakdown.actionMatches.slice(0, 6).map((w, idx) => (
+                                    <Tag key={idx} color="processing" style={{ fontSize: 10, margin: '1px 2px', padding: '0 4px' }}>{w}</Tag>
+                                  ))
+                                ) : (
+                                  <Tag color="default" style={{ fontSize: 10, margin: '1px 2px', padding: '0 4px' }}>动作偏少</Tag>
+                                )}
+                              </div>
+                              <Divider style={{ margin: '4px 0' }} />
+                              <div>
+                                <div style={{ color: isDark ? '#94a3b8' : '#64748b', fontWeight: 600, marginBottom: 2 }}>维度打分理由:</div>
+                                {Object.entries(experimentResult.groupB.evidenceBreakdown.scoreReasons || {}).map(([dim, data]: [string, any]) => {
+                                  if (!data || !data.factors || data.factors.length === 0) return null;
+                                  const dimLabel = dim === 'causalMotivation' ? '因果动机' :
+                                                   dim === 'dialogueNaturalness' ? '对话自然' :
+                                                   dim === 'antiPreachiness' ? '反机械说教' :
+                                                   dim === 'sensoryRestraint' ? '感官克制' :
+                                                   dim === 'contextAppropriateness' ? '场景得体' : dim;
+                                  return (
+                                    <div key={dim} style={{ lineHeight: 1.4, marginBottom: 3 }}>
+                                      <Text strong style={{ color: isDark ? '#e2e8f0' : '#1e293b' }}>[{dimLabel} {data.score}]: </Text>
+                                      <Text type="secondary" style={{ fontSize: 11 }}>{data.factors.join('；')}</Text>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ),
+                        },
+                      ]}
+                    />
                   )}
 
                   {Array.isArray(experimentResult.groupB?.ruleSnapshot) && experimentResult.groupB.ruleSnapshot.length > 0 && (
@@ -1083,6 +1225,76 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                     </div>
                   )}
 
+                  {experimentResult.groupC?.evidenceBreakdown && (
+                    <Collapse
+                      ghost
+                      size="small"
+                      style={{ marginTop: 10, background: isDark ? 'rgba(0,0,0,0.2)' : '#dcfce7', borderRadius: 6 }}
+                      items={[
+                        {
+                          key: 'evidence-c',
+                          label: (
+                            <Text style={{ fontSize: 11, color: isDark ? '#4ade80' : '#15803d' }}>
+                              🔍 展开评分依据与文本特征溯源
+                            </Text>
+                          ),
+                          children: (
+                            <div style={{ fontSize: 11, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <div>
+                                <Text type="secondary" style={{ marginRight: 4 }}>套路词检出:</Text>
+                                {experimentResult.groupC.evidenceBreakdown.clicheMatches?.length > 0 ? (
+                                  experimentResult.groupC.evidenceBreakdown.clicheMatches.map((w, idx) => (
+                                    <Tag key={idx} color="error" style={{ fontSize: 10, margin: '1px 2px', padding: '0 4px' }}>{w}</Tag>
+                                  ))
+                                ) : (
+                                  <Tag color="success" style={{ fontSize: 10, margin: '1px 2px', padding: '0 4px' }}>零套路词 (0)</Tag>
+                                )}
+                              </div>
+                              <div>
+                                <Text type="secondary" style={{ marginRight: 4 }}>说教/点透词:</Text>
+                                {experimentResult.groupC.evidenceBreakdown.preachyMatches?.length > 0 ? (
+                                  experimentResult.groupC.evidenceBreakdown.preachyMatches.map((w, idx) => (
+                                    <Tag key={idx} color="warning" style={{ fontSize: 10, margin: '1px 2px', padding: '0 4px' }}>{w}</Tag>
+                                  ))
+                                ) : (
+                                  <Tag color="success" style={{ fontSize: 10, margin: '1px 2px', padding: '0 4px' }}>无说教灌输 (0)</Tag>
+                                )}
+                              </div>
+                              <div>
+                                <Text type="secondary" style={{ marginRight: 4 }}>动作物理支点:</Text>
+                                {experimentResult.groupC.evidenceBreakdown.actionMatches?.length > 0 ? (
+                                  experimentResult.groupC.evidenceBreakdown.actionMatches.slice(0, 6).map((w, idx) => (
+                                    <Tag key={idx} color="processing" style={{ fontSize: 10, margin: '1px 2px', padding: '0 4px' }}>{w}</Tag>
+                                  ))
+                                ) : (
+                                  <Tag color="default" style={{ fontSize: 10, margin: '1px 2px', padding: '0 4px' }}>动作偏少</Tag>
+                                )}
+                              </div>
+                              <Divider style={{ margin: '4px 0' }} />
+                              <div>
+                                <div style={{ color: isDark ? '#94a3b8' : '#64748b', fontWeight: 600, marginBottom: 2 }}>维度打分理由:</div>
+                                {Object.entries(experimentResult.groupC.evidenceBreakdown.scoreReasons || {}).map(([dim, data]: [string, any]) => {
+                                  if (!data || !data.factors || data.factors.length === 0) return null;
+                                  const dimLabel = dim === 'causalMotivation' ? '因果动机' :
+                                                   dim === 'dialogueNaturalness' ? '对话自然' :
+                                                   dim === 'antiPreachiness' ? '反机械说教' :
+                                                   dim === 'sensoryRestraint' ? '感官克制' :
+                                                   dim === 'contextAppropriateness' ? '场景得体' : dim;
+                                  return (
+                                    <div key={dim} style={{ lineHeight: 1.4, marginBottom: 3 }}>
+                                      <Text strong style={{ color: isDark ? '#e2e8f0' : '#1e293b' }}>[{dimLabel} {data.score}]: </Text>
+                                      <Text type="secondary" style={{ fontSize: 11 }}>{data.factors.join('；')}</Text>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ),
+                        },
+                      ]}
+                    />
+                  )}
+
                   {Array.isArray(experimentResult.groupC?.ruleSnapshot) && experimentResult.groupC.ruleSnapshot.length > 0 && (
                     <div style={{ marginTop: 8 }}>
                       <Text type="secondary" style={{ fontSize: 11 }}>
@@ -1093,6 +1305,87 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                 </Card>
               </Col>
             </Row>
+
+            {/* 双核指标深入洞察与规约副作用警戒卡片 */}
+            {experimentResult.dualCoreComparison && (
+              <Card
+                size="small"
+                style={{
+                  marginBottom: 16,
+                  background: isDark ? '#1e293b' : '#fafafa',
+                  borderColor: experimentResult.dualCoreComparison.hasSideEffectWarning ? '#f59e0b' : '#10b981',
+                  borderLeftWidth: 4,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+                  <Space align="center">
+                    <Text strong style={{ fontSize: 14 }}>
+                      ⚖️ 双核深度对比：对话自然度 vs 叙事反说教倾向
+                    </Text>
+                    {experimentResult.dualCoreComparison.hasSideEffectWarning ? (
+                      <Tag color="warning">⚠️ 检出高密度规约副作用</Tag>
+                    ) : (
+                      <Tag color="success">✅ 双核指标均衡</Tag>
+                    )}
+                  </Space>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    防过拟合与留白自检机制
+                  </Text>
+                </div>
+
+                <Row gutter={16} style={{ marginBottom: 12 }}>
+                  <Col span={12}>
+                    <div style={{ padding: '8px 12px', background: isDark ? '#27272a' : '#f8fafc', borderRadius: 6 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <Text strong>🗣️ 对话自然度 (生活化松弛感)</Text>
+                        <Space>
+                          <Text type="secondary">A基线: {experimentResult.dualCoreComparison.dialogueNaturalness.groupA}</Text>
+                          <Text type="secondary">C实证: {experimentResult.dualCoreComparison.dialogueNaturalness.groupC}</Text>
+                          <Tag color={experimentResult.dualCoreComparison.dialogueNaturalness.deltaCA >= 0 ? 'green' : 'red'}>
+                            差值 (C-A): {experimentResult.dualCoreComparison.dialogueNaturalness.deltaCA > 0 ? '+' : ''}
+                            {experimentResult.dualCoreComparison.dialogueNaturalness.deltaCA}
+                          </Tag>
+                        </Space>
+                      </div>
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        {experimentResult.dualCoreComparison.dialogueNaturalness.deltaCA < 0
+                          ? '受26条规约约束，C组对白过密承载博弈算计，生活化松弛度略逊于无规约的A组基线。'
+                          : '对白潜台词与生活化松弛感维持良好平衡。'}
+                      </Text>
+                    </div>
+                  </Col>
+
+                  <Col span={12}>
+                    <div style={{ padding: '8px 12px', background: isDark ? '#27272a' : '#f8fafc', borderRadius: 6 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <Text strong>🤐 反机械说教度 (叙事克制与留白)</Text>
+                        <Space>
+                          <Text type="secondary">A基线: {experimentResult.dualCoreComparison.antiPreachiness.groupA}</Text>
+                          <Text type="secondary">C实证: {experimentResult.dualCoreComparison.antiPreachiness.groupC}</Text>
+                          <Tag color={experimentResult.dualCoreComparison.antiPreachiness.deltaCA >= 0 ? 'green' : 'red'}>
+                            差值 (C-A): {experimentResult.dualCoreComparison.antiPreachiness.deltaCA > 0 ? '+' : ''}
+                            {experimentResult.dualCoreComparison.antiPreachiness.deltaCA}
+                          </Tag>
+                        </Space>
+                      </div>
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        {experimentResult.dualCoreComparison.antiPreachiness.deltaCA < 0
+                          ? '规约强化“逢三必解·点透玄机”，容易促使大模型旁白过多解释幕后心机，产生轻微说教感与留白不足。'
+                          : '叙事克制得当，无上帝视角生硬说教。'}
+                      </Text>
+                    </div>
+                  </Col>
+                </Row>
+
+                {experimentResult.dualCoreComparison.hasSideEffectWarning && experimentResult.dualCoreComparison.warningMessage && (
+                  <Alert
+                    message={experimentResult.dualCoreComparison.warningMessage}
+                    type="warning"
+                    showIcon
+                  />
+                )}
+              </Card>
+            )}
 
             <Alert
               message="对比实验量化结论"

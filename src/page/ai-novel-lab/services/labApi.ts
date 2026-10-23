@@ -338,6 +338,37 @@ export const cancelDistillTask = async (id: number): Promise<{ code: number; dat
 };
 
 // 规则管理
+export interface EvidenceBreakdown {
+  clicheMatches: string[];
+  preachyMatches: string[];
+  actionMatches: string[];
+  dialogues: Array<{ text: string; length: number }>;
+  scoreReasons: Record<string, {
+    score?: number;
+    factors: string[];
+    textTraces: string[];
+  }>;
+}
+
+export interface DualCoreComparison {
+  dialogueNaturalness: {
+    groupA: number;
+    groupB: number;
+    groupC: number;
+    deltaCA: number;
+    status: 'regressed' | 'improved' | 'equal';
+  };
+  antiPreachiness: {
+    groupA: number;
+    groupB: number;
+    groupC: number;
+    deltaCA: number;
+    status: 'regressed' | 'improved' | 'equal';
+  };
+  hasSideEffectWarning: boolean;
+  warningMessage: string | null;
+}
+
 export interface ComparativeExperimentResult {
   taskId?: number | null;
   genre: string;
@@ -368,6 +399,14 @@ export interface ComparativeExperimentResult {
       contextAppropriateness: number;
       compositeScore: number;
     };
+    textMetrics?: {
+      wordCount: number;
+      dialogueCount: number;
+      clicheCount: number;
+      actionCount: number;
+      preachyCount: number;
+    };
+    evidenceBreakdown?: EvidenceBreakdown;
   };
   groupB: {
     name: string;
@@ -394,6 +433,14 @@ export interface ComparativeExperimentResult {
       contextAppropriateness: number;
       compositeScore: number;
     };
+    textMetrics?: {
+      wordCount: number;
+      dialogueCount: number;
+      clicheCount: number;
+      actionCount: number;
+      preachyCount: number;
+    };
+    evidenceBreakdown?: EvidenceBreakdown;
   };
   groupC: {
     name: string;
@@ -420,7 +467,16 @@ export interface ComparativeExperimentResult {
       contextAppropriateness: number;
       compositeScore: number;
     };
+    textMetrics?: {
+      wordCount: number;
+      dialogueCount: number;
+      clicheCount: number;
+      actionCount: number;
+      preachyCount: number;
+    };
+    evidenceBreakdown?: EvidenceBreakdown;
   };
+  dualCoreComparison?: DualCoreComparison;
   mode?: 'demo' | 'live';
   isLiveModel?: boolean;
   conclusion: string;
