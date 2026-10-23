@@ -79,6 +79,37 @@ export interface DistillTaskItem {
   created_at?: string;
 }
 
+export interface RuleEffectProfile {
+  lastTestedAt?: string;
+  evaluatedAt?: string;
+  sampleSize?: number;
+  sampleCount?: number;
+  effectStatus?: 'insufficient_evidence' | 'positive' | 'negative' | 'context_dependent' | 'neutral' | string;
+  sceneType?: 'dialogue' | 'conflict' | 'daily' | string;
+  sceneName?: string;
+  mode?: 'live' | 'demo';
+  targetDimension?: string;
+  averageScoresA?: Record<string, number>;
+  averageScoresB?: Record<string, number>;
+  dimensionDeltas?: Record<string, number>;
+  metricAverages?: {
+    groupA?: Record<string, number>;
+    groupB?: Record<string, number>;
+  };
+  gainsObserved?: string[];
+  sideEffectsObserved?: string[];
+  recommendation?: string;
+  samplePairs?: Array<{
+    pairIndex: number;
+    textA: string;
+    textB: string;
+    scoresA: any;
+    scoresB: any;
+    breakdownA: any;
+    breakdownB: any;
+  }>;
+}
+
 export interface DistillRuleItem {
   id: number;
   taskId?: number;
@@ -96,6 +127,8 @@ export interface DistillRuleItem {
   sideEffects?: string;
   scopeType?: 'local' | 'cross_chapter' | 'unverified';
   trialActive?: boolean;
+  effectStatus?: 'insufficient_evidence' | 'positive' | 'negative' | 'context_dependent' | 'neutral';
+  effectProfile?: RuleEffectProfile;
   generalizationWarnings?: string[];
   evidenceSnippets?: (string | { snippet: string; verified?: boolean })[];
   evidenceVerified: boolean;
@@ -490,10 +523,23 @@ export const getDistillRules = async (params: any = {}): Promise<{
     trialTotal?: number;
     needsReviewTotal?: number;
     draftTotal?: number;
+    positiveTotal?: number;
+    negativeTotal?: number;
+    contextTotal?: number;
+    insufficientTotal?: number;
     items: DistillRuleItem[];
   };
 }> => {
   return httpService.get('/ai-novel/lab/rules', { params }) as any;
+};
+
+export const verifyRuleEffect = async (id: number, data: {
+  sceneType?: 'dialogue' | 'conflict' | 'daily';
+  sampleCount?: number;
+  mode?: 'demo' | 'live';
+  genre?: string;
+}): Promise<{ code: number; data: any; message: string }> => {
+  return httpService.post(`/ai-novel/lab/rules/${id}/verify-effect`, data) as any;
 };
 
 export const runComparativeExperiment = async (data: {

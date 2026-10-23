@@ -42,6 +42,8 @@ import {
   runComparativeExperiment,
   ComparativeExperimentResult,
   EvidenceBreakdown,
+  RuleEffectProfile,
+  verifyRuleEffect,
   DistillRuleItem,
 } from '../services/labApi';
 
@@ -92,6 +94,7 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
   );
   const [selectedDimension, setSelectedDimension] = useState<string>(initialFilter.dimension);
   const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'trial' | 'needs_review' | 'draft'>(initialFilter.status);
+  const [effectFilter, setEffectFilter] = useState<'all' | 'positive' | 'negative' | 'context_dependent' | 'neutral' | 'insufficient_evidence'>('all');
   const [searchKeyword, setSearchKeyword] = useState<string>(initialFilter.keyword);
 
   // 分页与统计状态
@@ -101,6 +104,10 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
   const [verifiedTotal, setVerifiedTotal] = useState<number>(0);
   const [trialTotal, setTrialTotal] = useState<number>(0);
   const [needsReviewTotal, setNeedsReviewTotal] = useState<number>(0);
+  const [positiveTotal, setPositiveTotal] = useState<number>(0);
+  const [negativeTotal, setNegativeTotal] = useState<number>(0);
+  const [contextTotal, setContextTotal] = useState<number>(0);
+  const [insufficientTotal, setInsufficientTotal] = useState<number>(0);
 
   // 编辑规则弹窗
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
@@ -113,6 +120,15 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
   const [experimentLoading, setExperimentLoading] = useState<boolean>(false);
   const [experimentResult, setExperimentResult] = useState<ComparativeExperimentResult | null>(null);
 
+  // 单条规则 A/B 配对效果实验状态
+  const [isSingleExpModalOpen, setIsSingleExpModalOpen] = useState<boolean>(false);
+  const [singleExpRule, setSingleExpRule] = useState<DistillRuleItem | null>(null);
+  const [singleExpScene, setSingleExpScene] = useState<'dialogue' | 'conflict' | 'daily'>('dialogue');
+  const [singleExpSampleCount, setSingleExpSampleCount] = useState<number>(3);
+  const [singleExpMode, setSingleExpMode] = useState<'demo' | 'live'>('demo');
+  const [singleExpLoading, setSingleExpLoading] = useState<boolean>(false);
+  const [singleExpResult, setSingleExpResult] = useState<any | null>(null);
+
   const fetchRules = async (targetPage: number = page, targetPageSize: number = pageSize) => {
     setLoading(true);
     try {
@@ -124,21 +140,20 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
       } else if (statusFilter !== 'all') {
         params.status = statusFilter;
       }
+      if (effectFilter !== 'all') params.effectStatus = effectFilter;
       if (searchKeyword.trim()) params.keyword = searchKeyword.trim();
 
       const res = await getDistillRules(params);
       if (res.code === 200) {
         setRules(res.data.items || []);
         setTotal(res.data.total || 0);
-        if (typeof res.data.verifiedTotal === 'number') {
-          setVerifiedTotal(res.data.verifiedTotal);
-        }
-        if (typeof res.data.trialTotal === 'number') {
-          setTrialTotal(res.data.trialTotal);
-        }
-        if (typeof res.data.needsReviewTotal === 'number') {
-          setNeedsReviewTotal(res.data.needsReviewTotal);
-        }
+        if (typeof res.data.verifiedTotal === 'number') setVerifiedTotal(res.data.verifiedTotal);
+        if (typeof res.data.trialTotal === 'number') setTrialTotal(res.data.trialTotal);
+        if (typeof res.data.needsReviewTotal === 'number') setNeedsReviewTotal(res.data.needsReviewTotal);
+        if (typeof res.data.positiveTotal === 'number') setPositiveTotal(res.data.positiveTotal);
+        if (typeof res.data.negativeTotal === 'number') setNegativeTotal(res.data.negativeTotal);
+        if (typeof res.data.contextTotal === 'number') setContextTotal(res.data.contextTotal);
+        if (typeof res.data.insufficientTotal === 'number') setInsufficientTotal(res.data.insufficientTotal);
       }
     } catch (e) {
       console.error(e);
@@ -174,7 +189,56 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
   useEffect(() => {
     setPage(1);
     fetchRules(1, pageSize);
-  }, [selectedGenre, selectedDimension, statusFilter]);
+  }, [selectedGenre, selectedDimension, statusFilter, effectFilter]);
+
+  const handleOpenSingleExperiment = (rule: DistillRuleItem) => {
+    setSingleExpRule(rule);
+    setSingleExpResult(rule.effectProfile || null);
+    setIsSingleExpModalOpen(true);
+  };
+
+  const handleExecuteSingleExperiment = async (mode: 'demo' | 'live' = 'demo') => {
+    if (!singleExpRule) return;
+    setSingleExpLoading(true);
+    try {
+      const res = await verifyRuleEffect(singleExpRule.id, {
+        sceneType: singleExpScene,
+        sampleCount: singleExpSampleCount,
+        mode,
+        genre: selectedGenre !== 'all' ? selectedGenre : singleExpRule.genre,
+      });
+      if (res.code === 200) {
+        setSingleExpResult(res.data);
+        message.success('单条规约配对盲测完成，效果档案已自动保存落盘！');
+        fetchRules(page, pageSize);
+      } else {
+        message.error(res.message || '实验执行失败');
+      }
+    } catch (e: any) {
+      message.error(e.message || '网络异常');
+    } finally {
+      setSingleExpLoading(false);
+    }
+  };
+
+  const handleManualOverrideEffect = async (ruleId?: number, effectStatusVal?: string) => {
+    if (!ruleId || !effectStatusVal) return;
+    try {
+      const res = await reviewDistillRule(ruleId, {
+        effectStatus: effectStatusVal as any,
+        userOverride: true,
+      });
+      if (res.code === 200) {
+        message.success(`已手动更新规约效果结论为: ${effectStatusVal}`);
+        if (singleExpResult) {
+          setSingleExpResult({ ...singleExpResult, effectStatus: effectStatusVal });
+        }
+        fetchRules(page, pageSize);
+      }
+    } catch (e: any) {
+      message.error(e.message || '更新失败');
+    }
+  };
 
   const handleToggleActive = async (rule: DistillRuleItem, active: boolean) => {
     try {
@@ -437,13 +501,29 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
             <Select
               value={statusFilter}
               onChange={setStatusFilter}
-              style={{ width: 150 }}
+              style={{ width: 140 }}
             >
               <Option value="all">全部状态</Option>
               <Option value="verified">仅看已实证通过</Option>
               <Option value="trial">仅看创作者试用中</Option>
               <Option value="needs_review">仅看待人工复核</Option>
               <Option value="draft">仅看已停用草稿</Option>
+            </Select>
+          </Space>
+
+          <Space>
+            <Text type="secondary">效果实测:</Text>
+            <Select
+              value={effectFilter}
+              onChange={setEffectFilter}
+              style={{ width: 165 }}
+            >
+              <Option value="all">全部效果结论</Option>
+              <Option value="positive">🟢 实测正向 ({positiveTotal})</Option>
+              <Option value="negative">🔴 实测负向 ({negativeTotal})</Option>
+              <Option value="context_dependent">⚠️ 场景依赖 ({contextTotal})</Option>
+              <Option value="insufficient_evidence">❔ 待效果实测 ({insufficientTotal})</Option>
+              <Option value="neutral">⚪ 实测中性</Option>
             </Select>
           </Space>
 
@@ -455,7 +535,7 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
               setPage(1);
               fetchRules(1, pageSize);
             }}
-            style={{ width: 240 }}
+            style={{ width: 220 }}
             allowClear
           />
 
@@ -464,6 +544,7 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
               setSelectedGenre('all');
               setSelectedDimension('all');
               setStatusFilter('all');
+              setEffectFilter('all');
               setSearchKeyword('');
             }}
           >
@@ -513,6 +594,23 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                     {isTrial && <Tag color="orange">试用生效中</Tag>}
                     {isNeedsReview && <Tag color="gold">待人工复核</Tag>}
                     {!isVerified && !isTrial && !isNeedsReview && <Tag color="default">未启用草稿</Tag>}
+
+                    {/* 第二层：规则效果实测结论标签 */}
+                    {rule.effectStatus === 'positive' && (
+                      <Tag color="green" style={{ fontWeight: 500 }}>🟢 实测正向</Tag>
+                    )}
+                    {rule.effectStatus === 'negative' && (
+                      <Tag color="red" style={{ fontWeight: 500 }}>🔴 实测负向</Tag>
+                    )}
+                    {rule.effectStatus === 'context_dependent' && (
+                      <Tag color="gold" style={{ fontWeight: 500 }}>⚠️ 场景依赖</Tag>
+                    )}
+                    {rule.effectStatus === 'neutral' && (
+                      <Tag color="default">⚪ 实测中性</Tag>
+                    )}
+                    {(!rule.effectStatus || rule.effectStatus === 'insufficient_evidence') && (
+                      <Tag color="default">❔ 待效果实测</Tag>
+                    )}
 
                     {rule.scopeType === 'cross_chapter' && <Tag color="purple">跨章普遍规律</Tag>}
                     {rule.scopeType === 'local' && <Tag color="blue">局部精妙观察</Tag>}
@@ -581,6 +679,13 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                         onChange={(checked) => handleToggleActive(rule, checked)}
                       />
                     </Tooltip>
+                    <Button
+                      size="small"
+                      icon={<ExperimentOutlined />}
+                      onClick={() => handleOpenSingleExperiment(rule)}
+                    >
+                      效果实测
+                    </Button>
                     <Button
                       type="text"
                       icon={<EditOutlined />}
@@ -686,6 +791,69 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                     </div>
                   </Col>
                 </Row>
+
+                {/* 规则实测效果档案卡片 (第二、三层正交呈现) */}
+                {rule.effectProfile && (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      background: isDark ? 'rgba(30, 41, 59, 0.7)' : '#f8fafc',
+                      border: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
+                      borderRadius: 6,
+                      padding: '8px 12px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, flexWrap: 'wrap', gap: 6 }}>
+                      <Space size={6} wrap>
+                        <Text strong style={{ color: isDark ? '#93c5fd' : '#1e40af', fontSize: 12 }}>
+                          📊 实测效果档案 ({rule.effectProfile.sceneName || rule.effectProfile.sceneType}场景)
+                        </Text>
+                        <Tag color="cyan" style={{ fontSize: 10, margin: 0 }}>
+                          样本数: {rule.effectProfile.sampleCount || 3}组配对
+                        </Tag>
+                        {rule.effectStatus === 'positive' && <Tag color="green" style={{ fontSize: 10, margin: 0 }}>实测收益明显</Tag>}
+                        {rule.effectStatus === 'negative' && <Tag color="red" style={{ fontSize: 10, margin: 0 }}>副作用占优</Tag>}
+                        {rule.effectStatus === 'context_dependent' && <Tag color="gold" style={{ fontSize: 10, margin: 0 }}>场景边界依赖</Tag>}
+                        {rule.effectStatus === 'neutral' && <Tag color="default" style={{ fontSize: 10, margin: 0 }}>无显著差异</Tag>}
+                      </Space>
+                      <Button
+                        type="link"
+                        size="small"
+                        icon={<ExperimentOutlined />}
+                        style={{ padding: 0, height: 'auto', fontSize: 11 }}
+                        onClick={() => handleOpenSingleExperiment(rule)}
+                      >
+                        重测/查看详情
+                      </Button>
+                    </div>
+
+                    {rule.effectProfile.recommendation && (
+                      <div style={{ marginBottom: 4, fontSize: 12, color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#334155' }}>
+                        <Text strong style={{ marginRight: 6 }}>推荐决策:</Text>
+                        {rule.effectProfile.recommendation}
+                      </div>
+                    )}
+
+                    <Row gutter={8} style={{ fontSize: 11 }}>
+                      <Col span={12}>
+                        <div style={{ color: isDark ? '#86efac' : '#15803d' }}>
+                          <strong>收益增益: </strong>
+                          {Array.isArray(rule.effectProfile.gainsObserved) && rule.effectProfile.gainsObserved.length > 0
+                            ? rule.effectProfile.gainsObserved.join('；')
+                            : '无明显维度提升 (Δ < 0.2)'}
+                        </div>
+                      </Col>
+                      <Col span={12}>
+                        <div style={{ color: isDark ? '#fca5a5' : '#b91c1c' }}>
+                          <strong>检出副作用: </strong>
+                          {Array.isArray(rule.effectProfile.sideEffectsObserved) && rule.effectProfile.sideEffectsObserved.length > 0
+                            ? rule.effectProfile.sideEffectsObserved.join('；')
+                            : '未检出显著负向衰减 (无过度生硬/说教风险)'}
+                        </div>
+                      </Col>
+                    </Row>
+                  </div>
+                )}
 
                 {/* 真实物理证据链溯源与字符偏移量 */}
                 {Array.isArray(rule.contextSnapshots) && rule.contextSnapshots.length > 0 && (
@@ -1393,6 +1561,398 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
               type="success"
               showIcon
             />
+          </div>
+        )}
+      </Modal>
+
+      {/* 单条规约 A/B 配对效果实验台弹窗 */}
+      <Modal
+        title={
+          <Space>
+            <ExperimentOutlined style={{ color: '#1890ff' }} />
+            <Text strong style={{ fontSize: 16 }}>单条写作规约 A/B 配对效果实测台</Text>
+            {singleExpRule && <Tag color="blue">{singleExpRule.ruleName}</Tag>}
+          </Space>
+        }
+        open={isSingleExpModalOpen}
+        onCancel={() => setIsSingleExpModalOpen(false)}
+        footer={null}
+        width={1000}
+        destroyOnClose
+      >
+        {singleExpRule && (
+          <div>
+            {/* 规约核心信息摘要卡 */}
+            <Card
+              size="small"
+              style={{
+                marginBottom: 16,
+                background: isDark ? '#1e293b' : '#f8fafc',
+                border: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
+              }}
+            >
+              <Row gutter={12} align="middle">
+                <Col span={16}>
+                  <div style={{ marginBottom: 4 }}>
+                    <Text strong style={{ fontSize: 14, color: isDark ? '#ffd666' : '#0f172a' }}>
+                      【{singleExpRule.ruleName}】
+                    </Text>
+                    <Tag color="cyan" style={{ marginLeft: 6 }}>{singleExpRule.genre}</Tag>
+                    <Tag color="geekblue">{singleExpRule.targetDimension}</Tag>
+                    {singleExpRule.scopeType === 'cross_chapter' ? (
+                      <Tag color="purple">跨章普遍规律</Tag>
+                    ) : (
+                      <Tag color="blue">局部精妙观察</Tag>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#334155' }}>
+                    <Text type="secondary">规约要旨: </Text>
+                    {singleExpRule.ruleText}
+                  </div>
+                </Col>
+                <Col span={8} style={{ textAlign: 'right' }}>
+                  <Space direction="vertical" size={2} align="end">
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      证据核验: {singleExpRule.evidenceVerified ? '🟢 物理语料实证通过' : '⚪ 待实证印证'}
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      当前使用状态: {singleExpRule.trialActive ? '🟠 个人试用中' : '⚪ 未开启试用'}
+                    </Text>
+                  </Space>
+                </Col>
+              </Row>
+            </Card>
+
+            {/* 配对实验控制栏 */}
+            <Card
+              size="small"
+              style={{
+                marginBottom: 16,
+                background: isDark ? '#182234' : '#eff6ff',
+                borderColor: isDark ? '#1e3a8a' : '#bfdbfe',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                <Space wrap>
+                  <Text strong style={{ color: isDark ? '#93c5fd' : '#1e40af' }}>实验基准情境:</Text>
+                  <Select
+                    value={singleExpScene}
+                    onChange={(val) => setSingleExpScene(val)}
+                    style={{ width: 230 }}
+                  >
+                    <Option value="dialogue">🗣️ 非正式茶叙试探 (对话自然度)</Option>
+                    <Option value="conflict">⚡ 公文签批责任交锋 (权力博弈冲突)</Option>
+                    <Option value="daily">🍵 初入股室文书报到 (行政日常过场)</Option>
+                  </Select>
+
+                  <Text strong style={{ color: isDark ? '#93c5fd' : '#1e40af', marginLeft: 8 }}>配对样本组数:</Text>
+                  <Select
+                    value={singleExpSampleCount}
+                    onChange={(val) => setSingleExpSampleCount(val)}
+                    style={{ width: 110 }}
+                  >
+                    <Option value={3}>3 组配对</Option>
+                    <Option value={5}>5 组配对</Option>
+                    <Option value={10}>10 组配对</Option>
+                  </Select>
+                </Space>
+
+                <Space>
+                  <Button
+                    type="primary"
+                    icon={<ThunderboltOutlined />}
+                    loading={singleExpLoading}
+                    onClick={() => handleExecuteSingleExperiment('demo')}
+                  >
+                    执行 A/B 配对盲测
+                  </Button>
+                  <Button
+                    icon={<ExperimentOutlined />}
+                    loading={singleExpLoading}
+                    onClick={() => handleExecuteSingleExperiment('live')}
+                  >
+                    实景模型盲测
+                  </Button>
+                </Space>
+              </div>
+            </Card>
+
+            {/* 实测结果档案展示 */}
+            {singleExpResult && (
+              <div>
+                {/* 核心结论 Banner */}
+                <Alert
+                  style={{ marginBottom: 16 }}
+                  type={
+                    singleExpResult.effectStatus === 'positive'
+                      ? 'success'
+                      : singleExpResult.effectStatus === 'negative'
+                      ? 'error'
+                      : singleExpResult.effectStatus === 'context_dependent'
+                      ? 'warning'
+                      : 'info'
+                  }
+                  showIcon
+                  message={
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                      <Space>
+                        <Text strong style={{ fontSize: 15 }}>
+                          实测结论:{' '}
+                          {singleExpResult.effectStatus === 'positive' && '🟢 实测正向 (Positive)'}
+                          {singleExpResult.effectStatus === 'negative' && '🔴 实测负向 (Negative)'}
+                          {singleExpResult.effectStatus === 'context_dependent' && '⚠️ 场景依赖 (Context-Dependent)'}
+                          {singleExpResult.effectStatus === 'neutral' && '⚪ 实测中性 (Neutral)'}
+                          {singleExpResult.effectStatus === 'insufficient_evidence' && '❔ 待实测补充'}
+                        </Text>
+                        <Tag color="cyan">
+                          情境: {singleExpResult.sceneName || singleExpResult.sceneType}
+                        </Tag>
+                        <Tag color="purple">
+                          样本: {singleExpResult.sampleCount} 组配对盲评
+                        </Tag>
+                      </Space>
+                    </div>
+                  }
+                  description={
+                    <div style={{ marginTop: 6 }}>
+                      <Paragraph style={{ margin: '0 0 8px 0', fontSize: 13, lineHeight: '1.6' }}>
+                        {singleExpResult.recommendation}
+                      </Paragraph>
+                      <Divider style={{ margin: '8px 0' }} />
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>创作者手动定调修正 (落盘物理数据库):</Text>
+                        <Button
+                          size="small"
+                          type={singleExpResult.effectStatus === 'positive' ? 'primary' : 'default'}
+                          onClick={() => handleManualOverrideEffect(singleExpRule?.id, 'positive')}
+                        >
+                          🟢 确认为正向
+                        </Button>
+                        <Button
+                          size="small"
+                          danger
+                          type={singleExpResult.effectStatus === 'negative' ? 'primary' : 'default'}
+                          onClick={() => handleManualOverrideEffect(singleExpRule?.id, 'negative')}
+                        >
+                          🔴 判定为负向
+                        </Button>
+                        <Button
+                          size="small"
+                          style={{ borderColor: '#d97706', color: '#d97706' }}
+                          onClick={() => handleManualOverrideEffect(singleExpRule?.id, 'context_dependent')}
+                        >
+                          ⚠️ 标为场景依赖
+                        </Button>
+                        <Button
+                          size="small"
+                          onClick={() => handleManualOverrideEffect(singleExpRule?.id, 'neutral')}
+                        >
+                          ⚪ 标为实测中性
+                        </Button>
+                      </div>
+                    </div>
+                  }
+                />
+
+                {/* 收益与副作用对照两栏 */}
+                <Row gutter={16} style={{ marginBottom: 16 }}>
+                  <Col span={12}>
+                    <Card
+                      size="small"
+                      title={
+                        <Space>
+                          <CheckCircleOutlined style={{ color: '#16a34a' }} />
+                          <span style={{ color: isDark ? '#86efac' : '#15803d' }}>
+                            检出明确正向收益 (Δ ≥ +0.2)
+                          </span>
+                        </Space>
+                      }
+                      style={{
+                        height: '100%',
+                        background: isDark ? 'rgba(22, 101, 52, 0.15)' : '#f0fdf4',
+                        borderColor: isDark ? '#166534' : '#bbf7d0',
+                      }}
+                    >
+                      {Array.isArray(singleExpResult.gainsObserved) && singleExpResult.gainsObserved.length > 0 ? (
+                        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#14532d' }}>
+                          {singleExpResult.gainsObserved.map((gain: string, gIdx: number) => (
+                            <li key={gIdx} style={{ marginBottom: 4 }}>{gain}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <Text type="secondary" style={{ fontSize: 12 }}>未检出具有统计学显著意义的维度提升 (差值均在 ±0.2 以内)</Text>
+                      )}
+                    </Card>
+                  </Col>
+
+                  <Col span={12}>
+                    <Card
+                      size="small"
+                      title={
+                        <Space>
+                          <StopOutlined style={{ color: '#dc2626' }} />
+                          <span style={{ color: isDark ? '#fca5a5' : '#b91c1c' }}>
+                            检出潜在负向副作用 (Δ ≤ -0.2)
+                          </span>
+                        </Space>
+                      }
+                      style={{
+                        height: '100%',
+                        background: isDark ? 'rgba(153, 27, 27, 0.15)' : '#fef2f2',
+                        borderColor: isDark ? '#991b1b' : '#fecaca',
+                      }}
+                    >
+                      {Array.isArray(singleExpResult.sideEffectsObserved) && singleExpResult.sideEffectsObserved.length > 0 ? (
+                        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#7f1d1d' }}>
+                          {singleExpResult.sideEffectsObserved.map((side: string, sIdx: number) => (
+                            <li key={sIdx} style={{ marginBottom: 4 }}>{side}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <Text style={{ fontSize: 12, color: isDark ? '#86efac' : '#15803d' }}>
+                          ✓ 未检出显著负向衰减，无生硬说教或过度过拟合风险
+                        </Text>
+                      )}
+                    </Card>
+                  </Col>
+                </Row>
+
+                {/* 8 维度均值与差值 Δ 对比网格 */}
+                {singleExpResult.dimensionDeltas && singleExpResult.metricAverages && (
+                  <Card
+                    size="small"
+                    title="8 维量化指标：基线 (A) vs 单规约介入 (B) 差值 Δ (B - A)"
+                    style={{ marginBottom: 16 }}
+                  >
+                    <Row gutter={[12, 12]}>
+                      {Object.keys(singleExpResult.dimensionDeltas).map((key) => {
+                        const delta = singleExpResult.dimensionDeltas[key];
+                        const aVal = singleExpResult.metricAverages.groupA?.[key] ?? '-';
+                        const bVal = singleExpResult.metricAverages.groupB?.[key] ?? '-';
+                        const isGain = delta >= 0.2;
+                        const isDrop = delta <= -0.2;
+
+                        const DIM_MAP: Record<string, string> = {
+                          dialogueNaturalness: '对话生活化自然度',
+                          causalMotivation: '因果动机完整度',
+                          antiPreachiness: '反机械说教度 (留白)',
+                          sceneVividness: '场景白描与制度推演',
+                          subtextDepth: '潜台词博弈丰富度',
+                          pacingControl: '叙事节奏张弛度',
+                          humanVoice: '语言去AI机械味',
+                          characterConsistency: '角色口吻一致性',
+                        };
+
+                        return (
+                          <Col span={6} key={key}>
+                            <div
+                              style={{
+                                padding: '8px 10px',
+                                borderRadius: 6,
+                                background: isDark ? '#1e293b' : '#f8fafc',
+                                border: isGain
+                                  ? '1px solid #16a34a'
+                                  : isDrop
+                                  ? '1px solid #dc2626'
+                                  : isDark
+                                  ? '1px solid #334155'
+                                  : '1px solid #e2e8f0',
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                <Text strong style={{ fontSize: 12 }}>{DIM_MAP[key] || key}</Text>
+                                <Tag
+                                  color={isGain ? 'green' : isDrop ? 'red' : 'default'}
+                                  style={{ margin: 0, fontSize: 11 }}
+                                >
+                                  Δ {delta > 0 ? `+${delta}` : delta}
+                                </Tag>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                                <span style={{ color: isDark ? '#94a3b8' : '#64748b' }}>A基线: {aVal}</span>
+                                <span style={{ color: isDark ? '#cbd5e1' : '#334155', fontWeight: 500 }}>B单规: {bVal}</span>
+                              </div>
+                            </div>
+                          </Col>
+                        );
+                      })}
+                    </Row>
+                  </Card>
+                )}
+
+                {/* 配对样本明细折叠面板 */}
+                {Array.isArray(singleExpResult.samples) && singleExpResult.samples.length > 0 && (
+                  <Card size="small" title="配对生成样本逐一盲评对照">
+                    <Collapse
+                      defaultActiveKey={['sample-0']}
+                      items={singleExpResult.samples.map((s: any, idx: number) => ({
+                        key: `sample-${idx}`,
+                        label: (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Space>
+                              <Text strong>配对样本 #{idx + 1}</Text>
+                              <Tag color="cyan">种子一致盲测</Tag>
+                            </Space>
+                            <Space size={8}>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                A基线总分: {s.scoresA?.overall ?? '-'}
+                              </Text>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                B引入规约总分: {s.scoresB?.overall ?? '-'}
+                              </Text>
+                            </Space>
+                          </div>
+                        ),
+                        children: (
+                          <Row gutter={16}>
+                            <Col span={12}>
+                              <div
+                                style={{
+                                  padding: '8px 12px',
+                                  borderRadius: 6,
+                                  background: isDark ? '#1e293b' : '#f8fafc',
+                                  border: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
+                                }}
+                              >
+                                <Text strong style={{ display: 'block', marginBottom: 4, color: isDark ? '#94a3b8' : '#475569' }}>
+                                  【Group A: 无本规约自然基线】
+                                </Text>
+                                <Paragraph
+                                  ellipsis={{ rows: 8, expandable: true, symbol: '展开全文' }}
+                                  style={{ whiteSpace: 'pre-wrap', fontSize: 12, margin: 0, color: isDark ? '#cbd5e1' : '#334155' }}
+                                >
+                                  {s.textA}
+                                </Paragraph>
+                              </div>
+                            </Col>
+                            <Col span={12}>
+                              <div
+                                style={{
+                                  padding: '8px 12px',
+                                  borderRadius: 6,
+                                  background: isDark ? '#1e293b' : '#f0fdf4',
+                                  border: isDark ? '1px solid #334155' : '1px solid #bbf7d0',
+                                }}
+                              >
+                                <Text strong style={{ display: 'block', marginBottom: 4, color: isDark ? '#86efac' : '#166534' }}>
+                                  【Group B: 引入【{singleExpRule.ruleName}】约束】
+                                </Text>
+                                <Paragraph
+                                  ellipsis={{ rows: 8, expandable: true, symbol: '展开全文' }}
+                                  style={{ whiteSpace: 'pre-wrap', fontSize: 12, margin: 0, color: isDark ? '#cbd5e1' : '#14532d' }}
+                                >
+                                  {s.textB}
+                                </Paragraph>
+                              </div>
+                            </Col>
+                          </Row>
+                        ),
+                      }))}
+                    />
+                  </Card>
+                )}
+              </div>
+            )}
           </div>
         )}
       </Modal>
