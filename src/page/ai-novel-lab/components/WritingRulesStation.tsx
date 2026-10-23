@@ -20,6 +20,10 @@ import {
   Divider,
   Pagination,
   Collapse,
+  Progress,
+  Checkbox,
+  List,
+  Spin,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -34,6 +38,10 @@ import {
   ExperimentOutlined,
   SafetyCertificateOutlined,
   ThunderboltOutlined,
+  PauseCircleOutlined,
+  EyeOutlined,
+  CheckSquareOutlined,
+  BorderOutlined,
 } from '@ant-design/icons';
 import {
   getDistillRules,
@@ -129,6 +137,23 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
   const [singleExpSampleCount, setSingleExpSampleCount] = useState<number>(1);
   const [singleExpLoading, setSingleExpLoading] = useState<boolean>(false);
   const [singleExpResult, setSingleExpResult] = useState<any | null>(null);
+
+  // 批量全量实测未测规约状态
+  const [isBatchExpModalOpen, setIsBatchExpModalOpen] = useState<boolean>(false);
+  const [batchExpFetching, setBatchExpFetching] = useState<boolean>(false);
+  const [untestedRules, setUntestedRules] = useState<DistillRuleItem[]>([]);
+  const [selectedBatchRuleIds, setSelectedBatchRuleIds] = useState<number[]>([]);
+  const [batchScene, setBatchScene] = useState<'auto' | 'dialogue' | 'conflict' | 'daily'>('auto');
+  const [batchSampleCount, setBatchSampleCount] = useState<number>(1);
+  const [batchExpRunning, setBatchExpRunning] = useState<boolean>(false);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; currentRuleName: string; step: string }>({
+    current: 0,
+    total: 0,
+    currentRuleName: '',
+    step: '',
+  });
+  const [batchResults, setBatchResults] = useState<any[]>([]);
+  const batchExpAbortRef = React.useRef<boolean>(false);
 
   const fetchRules = async (targetPage: number = page, targetPageSize: number = pageSize) => {
     setLoading(true);
@@ -239,6 +264,161 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
     } catch (e: any) {
       message.error(e.message || '更新失败');
     }
+  };
+
+  const handleOpenBatchExperiment = async () => {
+    setIsBatchExpModalOpen(true);
+    setBatchExpFetching(true);
+    setBatchResults([]);
+    try {
+      const params: any = {
+        pageSize: 500,
+        effectStatus: 'insufficient_evidence',
+      };
+      if (selectedGenre !== 'all') {
+        params.genre = selectedGenre;
+      }
+      const res = await getDistillRules(params);
+      if (res.code === 200 && res.data?.items) {
+        setUntestedRules(res.data.items);
+        setSelectedBatchRuleIds(res.data.items.map((r) => r.id));
+      } else {
+        setUntestedRules([]);
+        setSelectedBatchRuleIds([]);
+      }
+    } catch (e: any) {
+      message.error(e.message || '获取未测试规约列表失败');
+    } finally {
+      setBatchExpFetching(false);
+    }
+  };
+
+  const handleToggleSelectAllBatch = () => {
+    if (selectedBatchRuleIds.length === untestedRules.length) {
+      setSelectedBatchRuleIds([]);
+    } else {
+      setSelectedBatchRuleIds(untestedRules.map((r) => r.id));
+    }
+  };
+
+  const handleToggleSelectRule = (ruleId: number) => {
+    if (selectedBatchRuleIds.includes(ruleId)) {
+      setSelectedBatchRuleIds(selectedBatchRuleIds.filter((id) => id !== ruleId));
+    } else {
+      setSelectedBatchRuleIds([...selectedBatchRuleIds, ruleId]);
+    }
+  };
+
+  const handleStartBatchExperiment = async () => {
+    const targetRules = untestedRules.filter((r) => selectedBatchRuleIds.includes(r.id));
+    if (targetRules.length === 0) {
+      message.warning('请至少勾选一条待实测规约');
+      return;
+    }
+
+    setBatchExpRunning(true);
+    batchExpAbortRef.current = false;
+    setBatchResults([]);
+    setBatchProgress({
+      current: 0,
+      total: targetRules.length,
+      currentRuleName: targetRules[0].ruleName,
+      step: '准备启动大模型实时成对盲测...',
+    });
+
+    const accumulatedResults: any[] = [];
+
+    for (let i = 0; i < targetRules.length; i++) {
+      if (batchExpAbortRef.current) {
+        message.info(`已中止批量实测，已成功完成 ${accumulatedResults.length} 条规约的测试并落盘保存`);
+        break;
+      }
+
+      const rule = targetRules[i];
+      setBatchProgress({
+        current: i + 1,
+        total: targetRules.length,
+        currentRuleName: rule.ruleName,
+        step: `[${i + 1}/${targetRules.length}] 正在调用大模型生成 A/B 样章并盲评质检...`,
+      });
+
+      let sceneToUse: 'dialogue' | 'conflict' | 'daily' = 'dialogue';
+      if (batchScene === 'auto') {
+        if (rule.targetDimension === 'scene') {
+          sceneToUse = 'daily';
+        } else if (rule.targetDimension === 'subtext' || rule.targetDimension === 'pacing') {
+          sceneToUse = 'conflict';
+        } else {
+          sceneToUse = 'dialogue';
+        }
+      } else {
+        sceneToUse = batchScene;
+      }
+
+      try {
+        const res = await verifyRuleEffect(rule.id, {
+          sceneType: sceneToUse,
+          sampleCount: batchSampleCount,
+          mode: 'live',
+          genre: selectedGenre !== 'all' ? selectedGenre : rule.genre,
+        });
+
+        if (res.code === 200 && res.data) {
+          const itemRes = {
+            ruleId: rule.id,
+            ruleName: rule.ruleName,
+            genre: rule.genre,
+            targetDimension: rule.targetDimension,
+            status: 'success',
+            effectStatus: res.data.effectStatus,
+            recommendation: res.data.recommendation,
+            gainsObserved: res.data.gainsObserved || [],
+            sideEffectsObserved: res.data.sideEffectsObserved || [],
+            dimensionDeltas: res.data.dimensionDeltas || {},
+            data: res.data,
+            rule,
+          };
+          accumulatedResults.push(itemRes);
+          setBatchResults([...accumulatedResults]);
+        } else {
+          accumulatedResults.push({
+            ruleId: rule.id,
+            ruleName: rule.ruleName,
+            genre: rule.genre,
+            targetDimension: rule.targetDimension,
+            status: 'failed',
+            error: res.message || '大模型生成失败',
+            rule,
+          });
+          setBatchResults([...accumulatedResults]);
+        }
+      } catch (err: any) {
+        accumulatedResults.push({
+          ruleId: rule.id,
+          ruleName: rule.ruleName,
+          genre: rule.genre,
+          targetDimension: rule.targetDimension,
+          status: 'failed',
+          error: err.message || '网络或大模型响应超时',
+          rule,
+        });
+        setBatchResults([...accumulatedResults]);
+      }
+    }
+
+    setBatchExpRunning(false);
+    fetchRules(page, pageSize);
+    message.success(`批量实测流程结束！成功完成 ${accumulatedResults.filter(r => r.status === 'success').length} 条规约，可在下方逐条检阅样章`);
+  };
+
+  const handleAbortBatchExperiment = () => {
+    batchExpAbortRef.current = true;
+  };
+
+  const handleInspectFromBatch = (item: any) => {
+    setSingleExpRule(item.rule);
+    setSingleExpResult(item.data || item.rule.effectProfile || null);
+    setIsSingleExpModalOpen(true);
   };
 
   const handleToggleActive = async (rule: DistillRuleItem, active: boolean) => {
@@ -459,6 +639,13 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
               style={{ borderColor: '#7c3aed', color: '#7c3aed' }}
             >
               写作效果A/B/C对照实验
+            </Button>
+            <Button
+              icon={<ThunderboltOutlined />}
+              onClick={handleOpenBatchExperiment}
+              style={{ borderColor: '#2563eb', color: '#1d4ed8', fontWeight: 500 }}
+            >
+              一键全量实测未测规约 ({insufficientTotal}条待测)
             </Button>
             <Button
               icon={<FireOutlined />}
@@ -724,10 +911,10 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                     </Tooltip>
                     <Button
                       size="small"
-                      icon={<ExperimentOutlined />}
+                      icon={rule.effectProfile ? <CheckCircleOutlined style={{ color: '#16a34a' }} /> : <ExperimentOutlined />}
                       onClick={() => handleOpenSingleExperiment(rule)}
                     >
-                      效果实测
+                      {rule.effectProfile ? '查看实测报告' : '效果实测'}
                     </Button>
                     <Button
                       type="text"
@@ -1639,6 +1826,7 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
         footer={null}
         width={1000}
         destroyOnClose
+        zIndex={1100}
       >
         {singleExpRule && (
           <div>
@@ -2106,6 +2294,330 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
               </div>
             )}
           </div>
+        )}
+      </Modal>
+
+      {/* 批量全量实测控制台弹窗 */}
+      <Modal
+        title={
+          <Space>
+            <ThunderboltOutlined style={{ color: '#2563eb' }} />
+            <Text strong style={{ fontSize: 16 }}>批量写作笔法 A/B 效果实测控制台</Text>
+            <Tag color="blue">{selectedGenre !== 'all' ? selectedGenre : '全部题材'}</Tag>
+            <Tag color="orange">待测规约: {untestedRules.length} 条</Tag>
+          </Space>
+        }
+        open={isBatchExpModalOpen}
+        onCancel={() => {
+          if (batchExpRunning) {
+            Modal.confirm({
+              title: '批量实测正在进行中',
+              content: '关闭弹窗不会中断已完成的规约保存，但将中止后续规约测试。确认中止并关闭吗？',
+              okText: '中止并关闭',
+              cancelText: '继续运行',
+              okType: 'danger',
+              onOk: () => {
+                handleAbortBatchExperiment();
+                setIsBatchExpModalOpen(false);
+              },
+            });
+          } else {
+            setIsBatchExpModalOpen(false);
+          }
+        }}
+        footer={null}
+        width={1050}
+        destroyOnClose
+      >
+        <Alert
+          message="一键大模型成对盲测机制（解决逐条测试耗时慢痛点）"
+          description="系统将为您批量选中的未测试写作规约，依次向大模型发起成对真实创作：生成【原生基线 A 组】与【引入该规约的 B 组】两篇小说正文，由双核客观质检引擎全自动盲评打分，得出【🟢 实测正向】、【⚠️ 场景依赖】或【🔴 负向副作用】客观结论并持久化写入数据库。测试完成后，您可以在下方列表中逐条点击查看样章，也可返回主工作台分类检阅。"
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+
+        {/* 顶部运行配置与总览栏 */}
+        <Card
+          size="small"
+          style={{
+            marginBottom: 16,
+            background: isDark ? '#1e293b' : '#f8fafc',
+            border: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
+          }}
+        >
+          <Row gutter={[16, 12]} align="middle">
+            <Col span={14}>
+              <Space wrap size="middle">
+                <div>
+                  <Text strong style={{ marginRight: 6 }}>基准场景:</Text>
+                  <Select
+                    value={batchScene}
+                    onChange={setBatchScene}
+                    disabled={batchExpRunning}
+                    style={{ width: 190 }}
+                  >
+                    <Option value="auto">🎯 智能自适应维度场景</Option>
+                    <Option value="dialogue">🗣️ 非正式茶叙试探</Option>
+                    <Option value="conflict">⚡ 公文责任交锋博弈</Option>
+                    <Option value="daily">🍵 行政文书报到过场</Option>
+                  </Select>
+                </div>
+
+                <div>
+                  <Text strong style={{ marginRight: 6 }}>配对组数:</Text>
+                  <Select
+                    value={batchSampleCount}
+                    onChange={setBatchSampleCount}
+                    disabled={batchExpRunning}
+                    style={{ width: 140 }}
+                  >
+                    <Option value={1}>1 组配对 (生成2篇)</Option>
+                    <Option value={2}>2 组配对 (生成4篇)</Option>
+                  </Select>
+                </div>
+              </Space>
+            </Col>
+
+            <Col span={10} style={{ textAlign: 'right' }}>
+              <Space>
+                {batchExpRunning ? (
+                  <Button
+                    danger
+                    icon={<PauseCircleOutlined />}
+                    onClick={handleAbortBatchExperiment}
+                  >
+                    中止批量测试 (已完成 {batchResults.length} 条)
+                  </Button>
+                ) : (
+                  <Button
+                    type="primary"
+                    icon={<ThunderboltOutlined />}
+                    disabled={selectedBatchRuleIds.length === 0 || untestedRules.length === 0}
+                    loading={batchExpFetching}
+                    onClick={handleStartBatchExperiment}
+                    style={{ backgroundColor: '#2563eb', borderColor: '#2563eb', fontWeight: 500 }}
+                  >
+                    {batchResults.length > 0 ? '重新开始批量实测' : `开始批量实测 (${selectedBatchRuleIds.length} 条)`}
+                  </Button>
+                )}
+              </Space>
+            </Col>
+          </Row>
+        </Card>
+
+        {/* 运行中的实时进度条 */}
+        {(batchExpRunning || batchProgress.current > 0) && (
+          <Card
+            size="small"
+            style={{
+              marginBottom: 16,
+              background: isDark ? '#172554' : '#eff6ff',
+              borderColor: isDark ? '#1e40af' : '#bfdbfe',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <Space>
+                {batchExpRunning ? (
+                  <Spin size="small" />
+                ) : (
+                  <CheckCircleOutlined style={{ color: '#16a34a' }} />
+                )}
+                <Text strong style={{ color: isDark ? '#93c5fd' : '#1e40af' }}>
+                  {batchExpRunning ? '大模型正在实时推理成对样章中...' : '🎉 批量实测全部完成！'}
+                </Text>
+                {batchProgress.currentRuleName && (
+                  <Tag color="blue">当前: {batchProgress.currentRuleName}</Tag>
+                )}
+              </Space>
+              <Text strong style={{ color: isDark ? '#93c5fd' : '#1e40af' }}>
+                {batchProgress.current} / {batchProgress.total} ({Math.round((batchProgress.current / (batchProgress.total || 1)) * 100)}%)
+              </Text>
+            </div>
+            <Progress
+              percent={Math.round((batchProgress.current / (batchProgress.total || 1)) * 100)}
+              status={batchExpRunning ? 'active' : 'success'}
+              strokeColor={{ '0%': '#2563eb', '100%': '#10b981' }}
+            />
+            <div style={{ marginTop: 6, fontSize: 12, color: isDark ? '#cbd5e1' : '#475569' }}>
+              {batchProgress.step}
+            </div>
+          </Card>
+        )}
+
+        {/* 待测规约勾选区 (未运行或测试前展示) */}
+        {!batchExpRunning && batchResults.length === 0 && (
+          <Card
+            size="small"
+            title={
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Space>
+                  <Checkbox
+                    checked={selectedBatchRuleIds.length === untestedRules.length && untestedRules.length > 0}
+                    indeterminate={selectedBatchRuleIds.length > 0 && selectedBatchRuleIds.length < untestedRules.length}
+                    onChange={handleToggleSelectAllBatch}
+                  >
+                    全选全部未测规约
+                  </Checkbox>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    已勾选 {selectedBatchRuleIds.length} / {untestedRules.length} 条
+                  </Text>
+                </Space>
+                {untestedRules.length === 0 && !batchExpFetching && (
+                  <Tag color="success">当前题材下所有规约均已完成效果实测！</Tag>
+                )}
+              </div>
+            }
+            style={{ marginBottom: 16 }}
+          >
+            {batchExpFetching ? (
+              <div style={{ textAlign: 'center', padding: '30px 0' }}>
+                <Spin tip="正在检索未测试规约列表..." />
+              </div>
+            ) : untestedRules.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: isDark ? '#94a3b8' : '#64748b' }}>
+                <CheckCircleOutlined style={{ fontSize: 28, color: '#10b981', marginBottom: 8 }} />
+                <div>当前题材下暂无待测规约，全部规约均已生成实测样章与量化档案！</div>
+              </div>
+            ) : (
+              <div style={{ maxHeight: 380, overflowY: 'auto', paddingRight: 8 }}>
+                <Row gutter={[12, 10]}>
+                  {untestedRules.map((r) => {
+                    const isChecked = selectedBatchRuleIds.includes(r.id);
+                    return (
+                      <Col span={12} key={r.id}>
+                        <div
+                          onClick={() => handleToggleSelectRule(r.id)}
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: 6,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: 10,
+                            background: isChecked
+                              ? (isDark ? 'rgba(37, 99, 235, 0.18)' : '#eff6ff')
+                              : (isDark ? '#1e293b' : '#f8fafc'),
+                            border: isChecked
+                              ? '1px solid #3b82f6'
+                              : (isDark ? '1px solid #334155' : '1px solid #e2e8f0'),
+                            transition: 'all 0.2s',
+                          }}
+                        >
+                          <Checkbox checked={isChecked} style={{ marginTop: 2 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                              <Text strong style={{ fontSize: 13, color: isDark ? '#ffd666' : '#0f172a' }}>
+                                {r.ruleName}
+                              </Text>
+                              <Tag color="geekblue" style={{ margin: 0, fontSize: 11 }}>{r.targetDimension}</Tag>
+                            </div>
+                            <div style={{ fontSize: 12, color: isDark ? 'rgba(255, 255, 255, 0.65)' : '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {r.ruleText}
+                            </div>
+                          </div>
+                        </div>
+                      </Col>
+                    );
+                  })}
+                </Row>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* 实测完成/进行中流式结果列表 (测试完我再一个一个看) */}
+        {batchResults.length > 0 && (
+          <Card
+            size="small"
+            title={
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                <Space>
+                  <Text strong style={{ fontSize: 14 }}>
+                    已完成规约效果检阅流 ({batchResults.length}/{batchProgress.total})
+                  </Text>
+                  <Tag color="success">🟢 正向有效: {batchResults.filter((b) => b.effectStatus === 'positive').length}</Tag>
+                  <Tag color="warning">⚠️ 场景依赖: {batchResults.filter((b) => b.effectStatus === 'context_dependent').length}</Tag>
+                  <Tag color="error">🔴 负向副作用: {batchResults.filter((b) => b.effectStatus === 'negative').length}</Tag>
+                  <Tag color="default">⚪ 中性: {batchResults.filter((b) => b.effectStatus === 'neutral').length}</Tag>
+                </Space>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  点击右侧按钮即可查看对应规约的真实生成样章与 8 维对比
+                </Text>
+              </div>
+            }
+          >
+            <div style={{ maxHeight: 420, overflowY: 'auto', paddingRight: 6 }}>
+              <List
+                dataSource={batchResults}
+                renderItem={(item) => {
+                  const isPositive = item.effectStatus === 'positive';
+                  const isContext = item.effectStatus === 'context_dependent';
+                  const isNegative = item.effectStatus === 'negative';
+                  return (
+                    <List.Item
+                      key={item.ruleId}
+                      style={{
+                        padding: '12px 14px',
+                        marginBottom: 10,
+                        borderRadius: 6,
+                        background: isDark ? '#1e293b' : '#f8fafc',
+                        border: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
+                      }}
+                      actions={[
+                        <Button
+                          key="inspect"
+                          type="primary"
+                          ghost
+                          size="small"
+                          icon={<EyeOutlined />}
+                          onClick={() => handleInspectFromBatch(item)}
+                        >
+                          检阅真实样章与对比
+                        </Button>,
+                      ]}
+                    >
+                      <List.Item.Meta
+                        title={
+                          <Space wrap>
+                            <Text strong style={{ fontSize: 14, color: isDark ? '#ffd666' : '#0f172a' }}>
+                              【{item.ruleName}】
+                            </Text>
+                            <Tag color="geekblue">{item.targetDimension}</Tag>
+                            <Tag color="cyan">{item.genre}</Tag>
+                            {isPositive && <Tag color="success">🟢 实测正向有效</Tag>}
+                            {isContext && <Tag color="warning">⚠️ 场景依赖</Tag>}
+                            {isNegative && <Tag color="error">🔴 检出负向副作用</Tag>}
+                            {item.effectStatus === 'neutral' && <Tag color="default">⚪ 实测中性不明显</Tag>}
+                            {item.status === 'failed' && <Tag color="error">❌ 测试失败: {item.error}</Tag>}
+                          </Space>
+                        }
+                        description={
+                          <div style={{ marginTop: 4 }}>
+                            {item.recommendation && (
+                              <div style={{ fontSize: 12, color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#334155', marginBottom: 4 }}>
+                                <Text type="secondary">质检建议: </Text>{item.recommendation}
+                              </div>
+                            )}
+                            {item.gainsObserved && item.gainsObserved.length > 0 && (
+                              <div style={{ fontSize: 11, color: isDark ? '#86efac' : '#16a34a' }}>
+                                收益亮点: {item.gainsObserved.join('；')}
+                              </div>
+                            )}
+                            {item.sideEffectsObserved && item.sideEffectsObserved.length > 0 && (
+                              <div style={{ fontSize: 11, color: isDark ? '#fca5a5' : '#dc2626' }}>
+                                副作用预警: {item.sideEffectsObserved.join('；')}
+                              </div>
+                            )}
+                          </div>
+                        }
+                      />
+                    </List.Item>
+                  );
+                }}
+              />
+            </div>
+          </Card>
         )}
       </Modal>
     </div>
