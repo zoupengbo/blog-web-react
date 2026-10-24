@@ -55,6 +55,7 @@ import {
   RuleEffectProfile,
   verifyRuleEffect,
   DistillRuleItem,
+  resetRuleEffectStatus,
 } from '../services/labApi';
 
 const { Text, Paragraph } = Typography;
@@ -288,6 +289,37 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
       }
     } catch (e: any) {
       message.error(e.message || '获取未测试规约列表失败');
+    } finally {
+      setBatchExpFetching(false);
+    }
+  };
+
+  const handleResetBatchEffects = async () => {
+    try {
+      setBatchExpFetching(true);
+      const res = await resetRuleEffectStatus({
+        genre: selectedGenre !== 'all' ? selectedGenre : undefined,
+      });
+      if (res.code === 200) {
+        message.success(res.message || '已成功将当前题材下所有规约重置为待测状态！');
+        await fetchRules(1, pageSize);
+        const params: any = {
+          pageSize: 500,
+          effectStatus: 'insufficient_evidence',
+        };
+        if (selectedGenre !== 'all') {
+          params.genre = selectedGenre;
+        }
+        const updatedRes = await getDistillRules(params);
+        if (updatedRes.code === 200 && updatedRes.data?.items) {
+          setUntestedRules(updatedRes.data.items);
+          setSelectedBatchRuleIds(updatedRes.data.items.map((r) => r.id));
+        }
+      } else {
+        message.error(res.message || '重置失败');
+      }
+    } catch (e: any) {
+      message.error(e.message || '网络异常');
     } finally {
       setBatchExpFetching(false);
     }
@@ -650,6 +682,20 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
             >
               一键全量实测未测规约 ({insufficientTotal}条待测)
             </Button>
+            <Popconfirm
+              title="确定将当前题材下所有规约的实测结论重置为“待测”吗？"
+              description="重置后历史旧版评测档案将被清空，方便您使用全新的 v2.0 客观内容评分器重新进行批量盲测。"
+              onConfirm={handleResetBatchEffects}
+              okText="确认重置为待测"
+              cancelText="取消"
+            >
+              <Button
+                icon={<ReloadOutlined />}
+                style={{ borderColor: '#d97706', color: '#d97706' }}
+              >
+                重置实测状态为待测
+              </Button>
+            </Popconfirm>
             <Button
               icon={<FireOutlined />}
               onClick={() => handleBatchTrial(true)}
@@ -2372,6 +2418,15 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
             <Text strong style={{ fontSize: 16 }}>批量写作笔法 A/B 效果实测控制台</Text>
             <Tag color="blue">{selectedGenre !== 'all' ? selectedGenre : '全部题材'}</Tag>
             <Tag color="orange">待测规约: {untestedRules.length} 条</Tag>
+            <Button
+              size="small"
+              icon={<ReloadOutlined />}
+              onClick={handleResetBatchEffects}
+              loading={batchExpFetching}
+              style={{ marginLeft: 6 }}
+            >
+              重置本题材为待测
+            </Button>
           </Space>
         }
         open={isBatchExpModalOpen}
@@ -2542,9 +2597,23 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                 <Spin tip="正在检索未测试规约列表..." />
               </div>
             ) : untestedRules.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '24px 0', color: isDark ? '#94a3b8' : '#64748b' }}>
-                <CheckCircleOutlined style={{ fontSize: 28, color: '#10b981', marginBottom: 8 }} />
-                <div>当前题材下暂无待测规约，全部规约均已生成实测样章与量化档案！</div>
+              <div style={{ textAlign: 'center', padding: '28px 0', color: isDark ? '#94a3b8' : '#64748b' }}>
+                <CheckCircleOutlined style={{ fontSize: 32, color: '#10b981', marginBottom: 10 }} />
+                <div style={{ fontSize: 14, marginBottom: 8, fontWeight: 500, color: isDark ? '#e2e8f0' : '#1e293b' }}>
+                  当前题材下暂无待测规约，全部规约均已生成实测样章与量化档案！
+                </div>
+                <div style={{ fontSize: 12, marginBottom: 16, color: isDark ? '#94a3b8' : '#64748b' }}>
+                  若您希望采用最新的 v2.0 客观内容质检评分引擎全面重新洗牌评测，可点击下方按钮一键重置：
+                </div>
+                <Button
+                  type="primary"
+                  icon={<ReloadOutlined />}
+                  loading={batchExpFetching}
+                  onClick={handleResetBatchEffects}
+                  style={{ fontWeight: 500 }}
+                >
+                  一键重置当前题材下全部规约实测状态为“待测”（使用 v2.0 全新质检重新实测）
+                </Button>
               </div>
             ) : (
               <div style={{ maxHeight: 380, overflowY: 'auto', paddingRight: 8 }}>

@@ -589,6 +589,13 @@ export const batchDeleteDistillRules = async (ruleIds: number[]): Promise<{ code
   return httpService.post('/ai-novel/lab/rules/batch-delete', { ruleIds }) as any;
 };
 
+export const resetRuleEffectStatus = async (data: {
+  genre?: string;
+  ruleIds?: number[];
+}): Promise<{ code: number; data: { affected: number }; message: string }> => {
+  return httpService.post('/ai-novel/lab/rules/reset-effect', data) as any;
+};
+
 // 规则包管理
 export const getRuleBundles = async (params: any = {}): Promise<{ code: number; data: { total: number; items: RuleBundleItem[] } }> => {
   return httpService.get('/ai-novel/lab/bundles', { params }) as any;
