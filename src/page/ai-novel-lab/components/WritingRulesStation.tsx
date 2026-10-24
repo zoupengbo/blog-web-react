@@ -371,9 +371,12 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
             targetDimension: rule.targetDimension,
             status: 'success',
             effectStatus: res.data.effectStatus,
+            evaluatorVersion: res.data.evaluatorVersion,
             recommendation: res.data.recommendation,
             gainsObserved: res.data.gainsObserved || [],
             sideEffectsObserved: res.data.sideEffectsObserved || [],
+            evidenceBackedGains: res.data.evidenceBackedGains || [],
+            evidenceBackedSideEffects: res.data.evidenceBackedSideEffects || [],
             dimensionDeltas: res.data.dimensionDeltas || {},
             data: res.data,
             rule,
@@ -1058,6 +1061,11 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                         <Tag color="cyan" style={{ fontSize: 10, margin: 0 }}>
                           样本数: {rule.effectProfile.sampleCount || 3}组配对
                         </Tag>
+                        {rule.effectProfile.evaluatorVersion === '2.0.0' ? (
+                          <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>v2.0 内容实测</Tag>
+                        ) : (
+                          <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>旧版评测 (建议重测)</Tag>
+                        )}
                         {rule.effectStatus === 'positive' && <Tag color="green" style={{ fontSize: 10, margin: 0 }}>实测收益明显</Tag>}
                         {rule.effectStatus === 'negative' && <Tag color="red" style={{ fontSize: 10, margin: 0 }}>副作用占优</Tag>}
                         {rule.effectStatus === 'context_dependent' && <Tag color="gold" style={{ fontSize: 10, margin: 0 }}>场景边界依赖</Tag>}
@@ -1964,6 +1972,11 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                         {singleExpResult.mode === 'live' && (
                           <Tag color="geekblue">大模型真实端到端生成</Tag>
                         )}
+                        {singleExpResult.evaluatorVersion === '2.0.0' ? (
+                          <Tag color="blue">v2.0 客观内容实测</Tag>
+                        ) : (
+                          <Tag color="orange">旧版评分机制 (建议重测)</Tag>
+                        )}
                       </Space>
                     </div>
                   }
@@ -2185,7 +2198,34 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                         borderColor: isDark ? '#166534' : '#bbf7d0',
                       }}
                     >
-                      {Array.isArray(singleExpResult.gainsObserved) && singleExpResult.gainsObserved.length > 0 ? (
+                      {Array.isArray(singleExpResult.evidenceBackedGains) && singleExpResult.evidenceBackedGains.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {singleExpResult.evidenceBackedGains.map((gain: any, gIdx: number) => (
+                            <div key={gIdx} style={{ fontSize: 12 }}>
+                              <div style={{ color: isDark ? '#86efac' : '#15803d', fontWeight: 500 }}>
+                                • {gain.reason || gain}
+                              </div>
+                              {gain.evidenceSnippet && (
+                                <div
+                                  style={{
+                                    marginTop: 4,
+                                    marginLeft: 12,
+                                    padding: '4px 8px',
+                                    background: isDark ? 'rgba(34, 197, 94, 0.15)' : '#dcfce7',
+                                    borderLeft: '3px solid #16a34a',
+                                    borderRadius: 4,
+                                    fontSize: 11,
+                                    color: isDark ? '#bbf7d0' : '#14532d',
+                                    fontFamily: 'monospace',
+                                  }}
+                                >
+                                  正文支撑证据: “{gain.evidenceSnippet}”
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : Array.isArray(singleExpResult.gainsObserved) && singleExpResult.gainsObserved.length > 0 ? (
                         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#14532d' }}>
                           {singleExpResult.gainsObserved.map((gain: string, gIdx: number) => (
                             <li key={gIdx} style={{ marginBottom: 4 }}>{gain}</li>
@@ -2214,7 +2254,34 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                         borderColor: isDark ? '#991b1b' : '#fecaca',
                       }}
                     >
-                      {Array.isArray(singleExpResult.sideEffectsObserved) && singleExpResult.sideEffectsObserved.length > 0 ? (
+                      {Array.isArray(singleExpResult.evidenceBackedSideEffects) && singleExpResult.evidenceBackedSideEffects.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {singleExpResult.evidenceBackedSideEffects.map((side: any, sIdx: number) => (
+                            <div key={sIdx} style={{ fontSize: 12 }}>
+                              <div style={{ color: isDark ? '#fca5a5' : '#b91c1c', fontWeight: 500 }}>
+                                • {side.reason || side}
+                              </div>
+                              {side.evidenceSnippet && (
+                                <div
+                                  style={{
+                                    marginTop: 4,
+                                    marginLeft: 12,
+                                    padding: '4px 8px',
+                                    background: isDark ? 'rgba(239, 68, 68, 0.15)' : '#fee2e2',
+                                    borderLeft: '3px solid #dc2626',
+                                    borderRadius: 4,
+                                    fontSize: 11,
+                                    color: isDark ? '#fca5a5' : '#7f1d1d',
+                                    fontFamily: 'monospace',
+                                  }}
+                                >
+                                  负面证据片段: “{side.evidenceSnippet}”
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : Array.isArray(singleExpResult.sideEffectsObserved) && singleExpResult.sideEffectsObserved.length > 0 ? (
                         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#7f1d1d' }}>
                           {singleExpResult.sideEffectsObserved.map((side: string, sIdx: number) => (
                             <li key={sIdx} style={{ marginBottom: 4 }}>{side}</li>
@@ -2589,6 +2656,9 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                             {isContext && <Tag color="warning">⚠️ 场景依赖</Tag>}
                             {isNegative && <Tag color="error">🔴 检出负向副作用</Tag>}
                             {item.effectStatus === 'neutral' && <Tag color="default">⚪ 实测中性不明显</Tag>}
+                            {(item.evaluatorVersion === '2.0.0' || item.data?.evaluatorVersion === '2.0.0') && (
+                              <Tag color="blue">v2.0 客观内容实测</Tag>
+                            )}
                             {item.status === 'failed' && <Tag color="error">❌ 测试失败: {item.error}</Tag>}
                           </Space>
                         }
@@ -2599,16 +2669,24 @@ export const WritingRulesStation: React.FC<WritingRulesStationProps> = ({ initia
                                 <Text type="secondary">质检建议: </Text>{item.recommendation}
                               </div>
                             )}
-                            {item.gainsObserved && item.gainsObserved.length > 0 && (
-                              <div style={{ fontSize: 11, color: isDark ? '#86efac' : '#16a34a' }}>
+                            {Array.isArray(item.evidenceBackedGains) && item.evidenceBackedGains.length > 0 ? (
+                              <div style={{ fontSize: 11, color: isDark ? '#86efac' : '#16a34a', marginBottom: 2 }}>
+                                收益亮点: {item.evidenceBackedGains.map((g: any) => g.evidenceSnippet ? `${g.reason}（证据: “${g.evidenceSnippet}”）` : (g.reason || g)).join('；')}
+                              </div>
+                            ) : item.gainsObserved && item.gainsObserved.length > 0 ? (
+                              <div style={{ fontSize: 11, color: isDark ? '#86efac' : '#16a34a', marginBottom: 2 }}>
                                 收益亮点: {item.gainsObserved.join('；')}
                               </div>
-                            )}
-                            {item.sideEffectsObserved && item.sideEffectsObserved.length > 0 && (
+                            ) : null}
+                            {Array.isArray(item.evidenceBackedSideEffects) && item.evidenceBackedSideEffects.length > 0 ? (
+                              <div style={{ fontSize: 11, color: isDark ? '#fca5a5' : '#dc2626' }}>
+                                副作用预警: {item.evidenceBackedSideEffects.map((s: any) => s.evidenceSnippet ? `${s.reason}（证据: “${s.evidenceSnippet}”）` : (s.reason || s)).join('；')}
+                              </div>
+                            ) : item.sideEffectsObserved && item.sideEffectsObserved.length > 0 ? (
                               <div style={{ fontSize: 11, color: isDark ? '#fca5a5' : '#dc2626' }}>
                                 副作用预警: {item.sideEffectsObserved.join('；')}
                               </div>
-                            )}
+                            ) : null}
                           </div>
                         }
                       />

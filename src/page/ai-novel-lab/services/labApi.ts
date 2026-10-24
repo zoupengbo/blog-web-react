@@ -96,8 +96,22 @@ export interface RuleEffectProfile {
     groupA?: Record<string, number>;
     groupB?: Record<string, number>;
   };
+  evaluatorVersion?: string;
+  scoringMode?: string;
   gainsObserved?: string[];
   sideEffectsObserved?: string[];
+  evidenceBackedGains?: Array<{
+    dimension: string;
+    delta: number;
+    reason: string;
+    evidenceSnippet?: string | null;
+  }>;
+  evidenceBackedSideEffects?: Array<{
+    dimension: string;
+    delta: number;
+    reason: string;
+    evidenceSnippet?: string | null;
+  }>;
   recommendation?: string;
   samplePairs?: Array<{
     pairIndex: number;
