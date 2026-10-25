@@ -616,3 +616,141 @@ export const deactivateRuleBundle = async (id: number): Promise<{ code: number; 
 export const exportRuleBundle = async (id: number, format: 'markdown' | 'json' = 'markdown'): Promise<{ code: number; data: any }> => {
   return httpService.get(`/ai-novel/lab/bundles/${id}/export`, { params: { format } }) as any;
 };
+
+// ==================== AI 感诊断与文风实验室 ====================
+export interface PresetAIProblem {
+  key: string;
+  name: string;
+  description: string;
+  defaultHypothesis: string;
+  defaultRuleText: string;
+  targetDimension: string;
+  conditionPattern: string;
+  counterConditions: string;
+}
+
+export interface AIDiagnosisResult {
+  problemCategory: string;
+  problemName: string;
+  customProblem?: string;
+  diagnosis: string;
+  symptomSnippets: string[];
+  singleVariableHypothesis: string;
+  ruleText: string;
+  ruleName: string;
+  targetDimension: string;
+  conditionPattern: string;
+  counterConditions: string;
+  sideEffectsWarning: string;
+  genre: string;
+}
+
+export interface DiagnosisExperimentItem {
+  id: string;
+  timestamp: string;
+  genre: string;
+  problemCategory: string;
+  problemName: string;
+  customProblem?: string;
+  hypothesis: string;
+  ruleText: string;
+  ruleName: string;
+  targetDimension: string;
+  conditionPattern: string;
+  counterConditions: string;
+  sampleCount: number;
+  mode: string;
+  pairedSamples: Array<{
+    pairIndex: number;
+    textA: string;
+    textB: string;
+    wordCountA: number;
+    wordCountB: number;
+    evaluation: {
+      dimensionAI: { scoreA: number; scoreB: number; label: string; delta: number; details: string[] };
+      dimensionPersona: { scoreA: number; scoreB: number; label: string; delta: number; details: string[] };
+      dimensionCredibility: { scoreA: number; scoreB: number; label: string; delta: number; details: string[] };
+      dimensionSideEffects: { scoreB: number; label: string; hasSideEffect: boolean; details: string[] };
+      compositeScoreA: number;
+      compositeScoreB: number;
+      deltaScore: number;
+      evidenceSnippets: string[];
+      sideEffectSnippets: string[];
+    };
+    evidenceSnippets: string[];
+    sideEffectSnippets: string[];
+  }>;
+  overallEvaluation: {
+    dimensionAI: { averageDelta: number; summary: string };
+    dimensionPersona: { averageDelta: number; summary: string };
+    dimensionCredibility: { averageDelta: number; summary: string };
+    dimensionSideEffects: { averageScore: number; summary: string };
+  };
+  gainsObserved: string[];
+  sideEffectsObserved: string[];
+  evidenceSnippets: string[];
+  sideEffectSnippets: string[];
+  effectStatus: 'positive' | 'context_dependent' | 'neutral' | 'negative' | 'insufficient_evidence';
+  recommendation: string;
+  confidenceScore: number;
+  isAdopted?: boolean;
+}
+
+export const getPresetAIProblems = async (): Promise<{ code: number; data: PresetAIProblem[] }> => {
+  return httpService.get('/ai-novel/lab/diagnosis/presets') as any;
+};
+
+export const diagnoseAIProblem = async (data: {
+  text?: string;
+  problemCategory?: string;
+  customProblem?: string;
+  genre?: string;
+}): Promise<{ code: number; data: AIDiagnosisResult; message: string }> => {
+  return httpService.post('/ai-novel/lab/diagnosis/diagnose', data) as any;
+};
+
+export const runDiagnosisExperiment = async (data: {
+  text?: string;
+  novelId?: number;
+  chapterNumber?: number;
+  problemCategory?: string;
+  customProblem?: string;
+  hypothesis?: string;
+  ruleText?: string;
+  sampleCount?: number;
+  genre?: string;
+  mode?: 'live' | 'demo';
+}): Promise<{ code: number; data: DiagnosisExperimentItem; message: string }> => {
+  return httpService.post('/ai-novel/lab/diagnosis/experiment', data) as any;
+};
+
+export const getDiagnosisHistory = async (params: any = {}): Promise<{ code: number; data: DiagnosisExperimentItem[] }> => {
+  return httpService.get('/ai-novel/lab/diagnosis/history', { params }) as any;
+};
+
+export const adoptDiagnosisRule = async (data: {
+  experimentId?: string;
+  ruleName: string;
+  ruleText: string;
+  targetDimension?: string;
+  conditionPattern?: string;
+  counterConditions?: string;
+  sideEffects?: string;
+  effectStatus?: string;
+  genre?: string;
+  scopeType?: string;
+}): Promise<{ code: number; data: { rule: DistillRuleItem; message: string }; message: string }> => {
+  return httpService.post('/ai-novel/lab/diagnosis/adopt', data) as any;
+};
+
+export const getAiNovelsList = async (): Promise<{ code: number; data: any[] }> => {
+  return httpService.get('/ai-novel/list') as any;
+};
+
+export const getAiNovelDetail = async (id: number): Promise<{ code: number; data: any }> => {
+  return httpService.get(`/ai-novel/detail/${id}`) as any;
+};
+
+export const getAiNovelChapterContent = async (params: { novelId: number; chapterNumber: number }): Promise<{ code: number; data: any }> => {
+  return httpService.get('/ai-novel/chapter-content', { params }) as any;
+};
