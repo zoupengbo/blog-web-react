@@ -676,13 +676,19 @@ export interface DiagnosisExperimentItem {
   procedure?: string;
   transferability?: string;
   sideEffects?: string;
-  evidenceGrade?: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+  evidenceGrade?: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'unverified' | 'insufficient_evidence' | string;
+  evidenceGradeDesc?: string;
+  sourceOrigin?: string;
   sampleCount: number;
   validSampleCount?: number;
+  failedSampleCount?: number;
+  failureRate?: number;
   mode: string;
   executionStatus?: 'success' | 'failed' | 'partial_success' | 'demo';
   isLiveSuccess?: boolean;
   errorMessage?: string;
+  evaluationType?: 'heuristic' | 'semantic' | 'human' | string;
+  evaluationTypeDesc?: string;
   pairedSamples: Array<{
     pairIndex: number;
     executionStatus?: string;
@@ -693,6 +699,11 @@ export interface DiagnosisExperimentItem {
     wordCountA: number;
     wordCountB: number;
     evaluation?: {
+      evaluationType?: string;
+      evaluationTypeDesc?: string;
+      heuristicEvaluation?: any;
+      semanticEvaluation?: any;
+      humanEvaluation?: any;
       dimensionAI: { scoreA: number; scoreB: number; label: string; delta: number; details: string[] };
       dimensionPersona: { scoreA: number; scoreB: number; label: string; delta: number; details: string[] };
       dimensionCredibility: { scoreA: number; scoreB: number; label: string; delta: number; details: string[] };

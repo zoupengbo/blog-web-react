@@ -473,29 +473,41 @@ export const AIDiagnosisLab: React.FC = () => {
 
   const renderGradeTag = (grade?: string) => {
     switch (grade) {
+      case 'unverified':
+      case 'pending':
+        return <Tag color="default">待证据定位核验 (Unverified)</Tag>;
+      case 'insufficient_evidence':
+        return <Tag color="orange">证据不足 (Insufficient Evidence)</Tag>;
       case 'A':
-        return <Tag color="blue">Grade A: 名家引证</Tag>;
+        return <Tag color="blue">Grade A: 原文引证核验</Tag>;
       case 'B':
-        return <Tag color="cyan">Grade B: 单场景验证</Tag>;
+        return <Tag color="cyan">Grade B: 跨章模式复现</Tag>;
       case 'C':
-        return <Tag color="geekblue">Grade C: 跨章机制复用</Tag>;
+        return <Tag color="geekblue">Grade C: 人工精审确证</Tag>;
       case 'D':
-        return <Tag color="green">Grade D: A/B实测胜出</Tag>;
+        return <Tag color="green">Grade D: A/B受控实测胜出</Tag>;
       case 'E':
-        return <Tag color="gold">Grade E: 创作者采纳</Tag>;
+        return <Tag color="gold">Grade E: 创作者实战采纳</Tag>;
       default:
-        return <Tag color="default">Grade {grade || '待定'}</Tag>;
+        return <Tag color="default">Grade {grade || '未评级'}</Tag>;
     }
   };
 
   const renderModeTag = (exp: DiagnosisExperimentItem) => {
-    if (exp.executionStatus === 'failed' || (!exp.isLiveSuccess && exp.mode === 'live')) {
+    if (exp.executionStatus === 'failed') {
       return <Tag color="error">实测调用失败 (Live Failed)</Tag>;
     }
-    if (exp.mode === 'live') {
-      return <Tag color="success">真实实测 (Live)</Tag>;
+    if (exp.executionStatus === 'partial_success') {
+      return (
+        <Tag color="warning">
+          部分实测成功 (Partial: 失败 {exp.failedSampleCount || 0} 组 / 失败率 {exp.failureRate || 0}%)
+        </Tag>
+      );
     }
-    return <Tag color="purple">演示样例 (Demo)</Tag>;
+    if (exp.mode === 'live') {
+      return <Tag color="success">真实实测 (Live 成功)</Tag>;
+    }
+    return <Tag color="purple">演示样例 (Demo Fixture)</Tag>;
   };
 
   return (
@@ -943,6 +955,32 @@ export const AIDiagnosisLab: React.FC = () => {
             />
           )}
 
+          {/* 实测部分失败与零伪造警示 */}
+          {currentExperiment.executionStatus === 'partial_success' && (
+            <Alert
+              type="warning"
+              showIcon
+              message={`实测部分样本失败 (有效样本数 ${currentExperiment.validSampleCount || 0}/${currentExperiment.sampleCount || 0}，失败率 ${currentExperiment.failureRate || 0}%)`}
+              description={`本次实测中存在 ${currentExperiment.failedSampleCount || 0} 组大模型实测调用失败。遵循防造假铁律，统计指标严格仅基于有效样本对归纳，证据等级定为【证据不足 (insufficient_evidence)】，绝不隐瞒故障或虚假包装为完全成功。`}
+              style={{ marginBottom: 16 }}
+            />
+          )}
+
+          {/* 评测模式声明：客观物理特征启发式 vs 语义评审分离 */}
+          <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, background: subBg, padding: '8px 12px', borderRadius: 6, border: `1px solid ${cardBorder}` }}>
+            <Space wrap>
+              <Tag color="geekblue">评测机制: 文本物理特征启发式评测 (Heuristic)</Tag>
+              {currentExperiment.sourceOrigin && (
+                <Tag color="default">
+                  数据源: {currentExperiment.sourceOrigin === 'demo_fixture' ? '演示样例 (demo_fixture)' : '真实实测 (diagnosis_experiment)'}
+                </Tag>
+              )}
+            </Space>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              ℹ️ 基于物理字数、对白比、词频与套路词进行数学对称评测，与语义评审独立分离。
+            </Text>
+          </div>
+
           {/* 写作机制策略解构面板 */}
           <div style={{ background: subBg, padding: '12px 16px', borderRadius: 8, border: `1px solid ${cardBorder}`, marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
@@ -1378,7 +1416,11 @@ export const AIDiagnosisLab: React.FC = () => {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <Text strong style={{ color: textColor }}>{item.ruleName}</Text>
-                  {renderStatusTag(item.effectStatus)}
+                  <Space size={4}>
+                    {renderModeTag(item)}
+                    {renderGradeTag(item.evidenceGrade)}
+                    {renderStatusTag(item.effectStatus)}
+                  </Space>
                 </div>
                 <Paragraph
                   ellipsis={{ rows: 2 }}
