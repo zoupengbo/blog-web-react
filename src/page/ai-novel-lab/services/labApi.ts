@@ -672,15 +672,27 @@ export interface DiagnosisExperimentItem {
   targetDimension: string;
   conditionPattern: string;
   counterConditions: string;
+  decisionSignals?: string;
+  procedure?: string;
+  transferability?: string;
+  sideEffects?: string;
+  evidenceGrade?: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
   sampleCount: number;
+  validSampleCount?: number;
   mode: string;
+  executionStatus?: 'success' | 'failed' | 'partial_success' | 'demo';
+  isLiveSuccess?: boolean;
+  errorMessage?: string;
   pairedSamples: Array<{
     pairIndex: number;
+    executionStatus?: string;
+    isLiveSuccess?: boolean;
+    errorMessage?: string;
     textA: string;
     textB: string;
     wordCountA: number;
     wordCountB: number;
-    evaluation: {
+    evaluation?: {
       dimensionAI: { scoreA: number; scoreB: number; label: string; delta: number; details: string[] };
       dimensionPersona: { scoreA: number; scoreB: number; label: string; delta: number; details: string[] };
       dimensionCredibility: { scoreA: number; scoreB: number; label: string; delta: number; details: string[] };
@@ -690,7 +702,7 @@ export interface DiagnosisExperimentItem {
       deltaScore: number;
       evidenceSnippets: string[];
       sideEffectSnippets: string[];
-    };
+    } | null;
     evidenceSnippets: string[];
     sideEffectSnippets: string[];
   }>;

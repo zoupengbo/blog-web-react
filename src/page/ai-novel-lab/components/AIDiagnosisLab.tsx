@@ -471,6 +471,33 @@ export const AIDiagnosisLab: React.FC = () => {
     }
   };
 
+  const renderGradeTag = (grade?: string) => {
+    switch (grade) {
+      case 'A':
+        return <Tag color="blue">Grade A: 名家引证</Tag>;
+      case 'B':
+        return <Tag color="cyan">Grade B: 单场景验证</Tag>;
+      case 'C':
+        return <Tag color="geekblue">Grade C: 跨章机制复用</Tag>;
+      case 'D':
+        return <Tag color="green">Grade D: A/B实测胜出</Tag>;
+      case 'E':
+        return <Tag color="gold">Grade E: 创作者采纳</Tag>;
+      default:
+        return <Tag color="default">Grade {grade || '待定'}</Tag>;
+    }
+  };
+
+  const renderModeTag = (exp: DiagnosisExperimentItem) => {
+    if (exp.executionStatus === 'failed' || (!exp.isLiveSuccess && exp.mode === 'live')) {
+      return <Tag color="error">实测调用失败 (Live Failed)</Tag>;
+    }
+    if (exp.mode === 'live') {
+      return <Tag color="success">真实实测 (Live)</Tag>;
+    }
+    return <Tag color="purple">演示样例 (Demo)</Tag>;
+  };
+
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto', paddingBottom: 60 }}>
       {/* 顶部横幅介绍 */}
@@ -895,7 +922,9 @@ export const AIDiagnosisLab: React.FC = () => {
                 <DiffOutlined style={{ color: '#10b981' }} />
                 <span style={{ fontWeight: 600 }}>第三步：A/B 双盲对照实测与 4 维度证据审计</span>
               </Space>
-              <Space>
+              <Space wrap>
+                {renderModeTag(currentExperiment)}
+                {renderGradeTag(currentExperiment.evidenceGrade)}
                 {renderStatusTag(currentExperiment.effectStatus)}
                 <Tag color="cyan">置信度: {currentExperiment.confidenceScore}%</Tag>
               </Space>
@@ -903,6 +932,55 @@ export const AIDiagnosisLab: React.FC = () => {
           }
           style={{ background: cardBg, borderColor: cardBorder, borderRadius: 10, marginBottom: 20 }}
         >
+          {/* 实测失败安全警示（零造假保障） */}
+          {currentExperiment.executionStatus === 'failed' && (
+            <Alert
+              type="error"
+              showIcon
+              message="真实大模型生成失败，系统未填补任何虚假数据"
+              description={currentExperiment.errorMessage || '本次实测调用大模型超时或失败。系统遵循防假数据铁律，严禁伪造测试结果，请检查网络或重新实测。'}
+              style={{ marginBottom: 16 }}
+            />
+          )}
+
+          {/* 写作机制策略解构面板 */}
+          <div style={{ background: subBg, padding: '12px 16px', borderRadius: 8, border: `1px solid ${cardBorder}`, marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+              <BulbOutlined style={{ color: '#d97706', marginRight: 8, fontSize: 16 }} />
+              <Text strong style={{ color: textColor, fontSize: 14 }}>
+                逆向提炼写作机制：【{currentExperiment.ruleName}】
+              </Text>
+            </div>
+            <Row gutter={[16, 6]}>
+              <Col xs={24} md={12}>
+                <Text type="secondary" style={{ fontSize: 12 }}>适用契机 (When): </Text>
+                <Text style={{ fontSize: 12, color: textColor }}>{currentExperiment.conditionPattern || '当前情境'}</Text>
+              </Col>
+              {currentExperiment.decisionSignals && (
+                <Col xs={24} md={12}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>决策信号 (Trigger): </Text>
+                  <Text style={{ fontSize: 12, color: textColor }}>{currentExperiment.decisionSignals}</Text>
+                </Col>
+              )}
+              <Col xs={24}>
+                <Text type="secondary" style={{ fontSize: 12 }}>操作机制 (How): </Text>
+                <Text style={{ fontSize: 12, color: textColor }}>{currentExperiment.procedure || currentExperiment.ruleText}</Text>
+              </Col>
+              {currentExperiment.counterConditions && (
+                <Col xs={24} md={12}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>失效边界 (Boundary): </Text>
+                  <Text style={{ fontSize: 12, color: '#ef4444' }}>{currentExperiment.counterConditions}</Text>
+                </Col>
+              )}
+              {currentExperiment.sideEffects && (
+                <Col xs={24} md={12}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>副作用警示: </Text>
+                  <Text style={{ fontSize: 12, color: '#f59e0b' }}>{currentExperiment.sideEffects}</Text>
+                </Col>
+              )}
+            </Row>
+          </div>
+
           {/* 结论总览 Banner */}
           <Alert
             message={
@@ -1201,7 +1279,7 @@ export const AIDiagnosisLab: React.FC = () => {
               <Space wrap>
                 <Button
                   danger
-                  disabled={adoptLoading || isAdopted}
+                  disabled={adoptLoading || isAdopted || currentExperiment?.executionStatus === 'failed'}
                   onClick={() => handleAdoptRule('negative')}
                   icon={<CloseCircleOutlined />}
                 >
@@ -1209,21 +1287,21 @@ export const AIDiagnosisLab: React.FC = () => {
                 </Button>
                 <Button
                   style={{ borderColor: '#d97706', color: '#d97706' }}
-                  disabled={adoptLoading || isAdopted}
+                  disabled={adoptLoading || isAdopted || currentExperiment?.executionStatus === 'failed'}
                   onClick={() => handleAdoptRule('context_dependent')}
                   icon={<WarningOutlined />}
                 >
-                  采纳为场景依赖规约
+                  采纳为场景依赖机制
                 </Button>
                 <Button
                   type="primary"
                   loading={adoptLoading}
-                  disabled={isAdopted}
+                  disabled={isAdopted || currentExperiment?.executionStatus === 'failed'}
                   onClick={() => handleAdoptRule('positive')}
                   icon={<CheckOutlined />}
                   style={{ background: '#10b981', borderColor: '#10b981' }}
                 >
-                  ✅ 采纳为正式实证规约
+                  ✅ 采纳为正式实证机制
                 </Button>
               </Space>
             </Col>
