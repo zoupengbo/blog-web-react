@@ -319,6 +319,10 @@ export const deleteCorpusWork = async (id: number): Promise<{ code: number; mess
   return httpService.delete(`/ai-novel/lab/works/${id}`) as any;
 };
 
+export const getCorpusWorkDetail = async (id: number): Promise<{ code: number; data: CorpusWorkItem }> => {
+  return httpService.get(`/ai-novel/lab/works/${id}`) as any;
+};
+
 // 蒸馏任务
 export const getDistillTasks = async (params: any = {}): Promise<{ code: number; data: { total: number; items: DistillTaskItem[] } }> => {
   return httpService.get('/ai-novel/lab/tasks', { params }) as any;
@@ -633,6 +637,11 @@ export interface AIDiagnosisResult {
   problemCategory: string;
   problemName: string;
   customProblem?: string;
+  referenceText?: string;
+  corpusWorkId?: number;
+  referenceWorkTitle?: string;
+  positiveExemplar?: string;
+  negativeExemplar?: string;
   diagnosis: string;
   symptomSnippets: string[];
   singleVariableHypothesis: string;
@@ -652,6 +661,11 @@ export interface DiagnosisExperimentItem {
   problemCategory: string;
   problemName: string;
   customProblem?: string;
+  referenceText?: string;
+  corpusWorkId?: number;
+  referenceWorkTitle?: string;
+  positiveExemplar?: string;
+  negativeExemplar?: string;
   hypothesis: string;
   ruleText: string;
   ruleName: string;
@@ -702,15 +716,24 @@ export const getPresetAIProblems = async (): Promise<{ code: number; data: Prese
 
 export const diagnoseAIProblem = async (data: {
   text?: string;
+  referenceText?: string;
+  corpusWorkId?: number;
+  referenceWorkTitle?: string;
   problemCategory?: string;
   customProblem?: string;
   genre?: string;
+  mode?: 'live' | 'demo';
 }): Promise<{ code: number; data: AIDiagnosisResult; message: string }> => {
   return httpService.post('/ai-novel/lab/diagnosis/diagnose', data) as any;
 };
 
 export const runDiagnosisExperiment = async (data: {
   text?: string;
+  referenceText?: string;
+  corpusWorkId?: number;
+  referenceWorkTitle?: string;
+  positiveExemplar?: string;
+  negativeExemplar?: string;
   novelId?: number;
   chapterNumber?: number;
   problemCategory?: string;
@@ -732,6 +755,9 @@ export const adoptDiagnosisRule = async (data: {
   experimentId?: string;
   ruleName: string;
   ruleText: string;
+  positiveExemplar?: string;
+  negativeExemplar?: string;
+  referenceWorkTitle?: string;
   targetDimension?: string;
   conditionPattern?: string;
   counterConditions?: string;

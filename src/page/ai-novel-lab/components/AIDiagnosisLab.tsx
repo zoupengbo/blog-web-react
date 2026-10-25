@@ -44,6 +44,9 @@ import {
   getAiNovelsList,
   getAiNovelDetail,
   getAiNovelChapterContent,
+  getCorpusWorks,
+  getCorpusWorkDetail,
+  CorpusWorkItem,
   PresetAIProblem,
   AIDiagnosisResult,
   DiagnosisExperimentItem,
@@ -57,7 +60,15 @@ const { Panel } = Collapse;
 export const AIDiagnosisLab: React.FC = () => {
   const { isDark } = useTheme();
 
-  // 基础输入状态
+  // 范本观察与名家切片状态 (黄金教师)
+  const [referenceMode, setReferenceMode] = useState<'corpus' | 'custom'>('corpus');
+  const [referenceText, setReferenceText] = useState<string>('');
+  const [referenceCorpusId, setReferenceCorpusId] = useState<number | null>(null);
+  const [referenceCorpusTitle, setReferenceCorpusTitle] = useState<string>('');
+  const [corpusWorksList, setCorpusWorksList] = useState<CorpusWorkItem[]>([]);
+  const [loadingCorpusWorks, setLoadingCorpusWorks] = useState<boolean>(false);
+
+  // 基础输入状态 (学生样本)
   const [inputText, setInputText] = useState<string>('');
   const [selectedPresetKey, setSelectedPresetKey] = useState<string>('');
   const [customProblem, setCustomProblem] = useState<string>('');
@@ -107,9 +118,10 @@ export const AIDiagnosisLab: React.FC = () => {
   const redBg = isDark ? '#450a0a' : '#fef2f2';
   const redBorder = isDark ? '#dc2626' : '#fca5a5';
 
-  // 加载预设问题
+  // 加载预设问题与经典语料列表
   useEffect(() => {
     fetchPresets();
+    fetchCorpusWorks();
   }, []);
 
   const fetchPresets = async () => {
@@ -126,10 +138,52 @@ export const AIDiagnosisLab: React.FC = () => {
     }
   };
 
+  const fetchCorpusWorks = async () => {
+    setLoadingCorpusWorks(true);
+    try {
+      const res = await getCorpusWorks({ limit: 50 });
+      if (res && res.code === 200 && res.data?.items) {
+        setCorpusWorksList(res.data.items);
+        if (res.data.items.length > 0 && !referenceCorpusId) {
+          const first = res.data.items[0];
+          setReferenceCorpusId(first.id);
+          const title = `${first.title}${first.author ? ` (${first.author})` : ''} 第${first.chapterNumber}章 ${first.chapterTitle || ''}`.trim();
+          setReferenceCorpusTitle(title);
+          loadCorpusWorkContent(first.id, title);
+        }
+      }
+    } catch (err: any) {
+      console.warn('获取经典语料库失败:', err);
+    } finally {
+      setLoadingCorpusWorks(false);
+    }
+  };
+
+  const loadCorpusWorkContent = async (id: number, title?: string) => {
+    try {
+      const res = await getCorpusWorkDetail(id);
+      if (res && res.code === 200 && res.data) {
+        setReferenceText(res.data.content || '');
+        if (title) setReferenceCorpusTitle(title);
+      }
+    } catch (err: any) {
+      console.warn('获取作品切片失败:', err);
+    }
+  };
+
+  const handleSelectCorpusWork = (workId: number) => {
+    const work = corpusWorksList.find((w) => w.id === workId);
+    if (work) {
+      setReferenceCorpusId(work.id);
+      const title = `${work.title}${work.author ? ` (${work.author})` : ''} 第${work.chapterNumber}章 ${work.chapterTitle || ''}`.trim();
+      setReferenceCorpusTitle(title);
+      loadCorpusWorkContent(work.id, title);
+    }
+  };
+
   // 选择预设问题
   const handleSelectPreset = (preset: PresetAIProblem) => {
     if (selectedPresetKey === preset.key) {
-      // 取消选择
       setSelectedPresetKey('');
       setCustomProblem('');
     } else {
@@ -140,21 +194,25 @@ export const AIDiagnosisLab: React.FC = () => {
 
   // 仅执行智能诊断与假设提出
   const handleRunDiagnosisOnly = async () => {
-    if (!inputText.trim() && !customProblem.trim()) {
-      message.warning('请提供待诊断的文本或描述您观察到的具体 AI 感问题');
+    if (!inputText.trim() && !customProblem.trim() && !referenceText.trim()) {
+      message.warning('请提供待诊断的文本、问题描述或优秀范本切片');
       return;
     }
     setIsDiagnosing(true);
     try {
       const res = await diagnoseAIProblem({
         text: inputText,
+        referenceText: referenceText,
+        corpusWorkId: referenceCorpusId || undefined,
+        referenceWorkTitle: referenceCorpusTitle || undefined,
         problemCategory: selectedPresetKey,
         customProblem: customProblem,
         genre: selectedGenre,
+        mode: runMode,
       });
       if (res && res.code === 200 && res.data) {
         setDiagnosisResult(res.data);
-        message.success('AI 感诊断完成，已提出单变量假设与改进规约！');
+        message.success('研读范本与 AI 感诊断完成，已提炼名家笔法正例与单变量改进规约！');
       } else {
         message.error(res?.message || '诊断失败，请重试');
       }
@@ -167,8 +225,8 @@ export const AIDiagnosisLab: React.FC = () => {
 
   // 执行 A/B 单变量对照实验
   const handleRunExperiment = async () => {
-    if (!inputText.trim() && !customProblem.trim()) {
-      message.warning('请提供待测试正文或具体 AI 感问题');
+    if (!inputText.trim() && !customProblem.trim() && !referenceText.trim()) {
+      message.warning('请提供待测试正文、具体 AI 感问题或参考范本');
       return;
     }
     setIsExperimenting(true);
@@ -177,6 +235,11 @@ export const AIDiagnosisLab: React.FC = () => {
     try {
       const res = await runDiagnosisExperiment({
         text: inputText,
+        referenceText: referenceText,
+        corpusWorkId: referenceCorpusId || undefined,
+        referenceWorkTitle: referenceCorpusTitle || undefined,
+        positiveExemplar: diagnosisResult?.positiveExemplar,
+        negativeExemplar: diagnosisResult?.negativeExemplar,
         problemCategory: selectedPresetKey,
         customProblem: customProblem,
         hypothesis: diagnosisResult?.singleVariableHypothesis,
@@ -193,6 +256,11 @@ export const AIDiagnosisLab: React.FC = () => {
             problemCategory: res.data.problemCategory,
             problemName: res.data.problemName,
             customProblem: res.data.customProblem,
+            referenceText: res.data.referenceText,
+            corpusWorkId: res.data.corpusWorkId,
+            referenceWorkTitle: res.data.referenceWorkTitle,
+            positiveExemplar: res.data.positiveExemplar,
+            negativeExemplar: res.data.negativeExemplar,
             diagnosis: res.data.hypothesis,
             symptomSnippets: [],
             singleVariableHypothesis: res.data.hypothesis,
@@ -232,6 +300,9 @@ export const AIDiagnosisLab: React.FC = () => {
         experimentId: currentExperiment?.id,
         ruleName,
         ruleText,
+        positiveExemplar: currentExperiment?.positiveExemplar || diagnosisResult?.positiveExemplar,
+        negativeExemplar: currentExperiment?.negativeExemplar || diagnosisResult?.negativeExemplar,
+        referenceWorkTitle: currentExperiment?.referenceWorkTitle || diagnosisResult?.referenceWorkTitle,
         targetDimension: currentExperiment?.targetDimension || diagnosisResult?.targetDimension || 'dialogue',
         conditionPattern: currentExperiment?.conditionPattern || diagnosisResult?.conditionPattern || '',
         counterConditions: currentExperiment?.counterConditions || diagnosisResult?.counterConditions || '',
@@ -247,7 +318,7 @@ export const AIDiagnosisLab: React.FC = () => {
             ? '已将该规约标记为负向，系统将严格杜绝其进入正文写作！'
             : effectStatus === 'context_dependent'
             ? '已采纳为场景依赖规约，仅在匹配场景激活！'
-            : '已采纳为正式实证规约，已注入正文写作能力库！'
+            : '已采纳为正式实证规约，已注入正文写作与去AI化 Agent！'
         );
       } else {
         message.error(res?.message || '采纳规则失败');
@@ -283,6 +354,11 @@ export const AIDiagnosisLab: React.FC = () => {
       problemCategory: item.problemCategory,
       problemName: item.problemName,
       customProblem: item.customProblem,
+      referenceText: item.referenceText,
+      corpusWorkId: item.corpusWorkId,
+      referenceWorkTitle: item.referenceWorkTitle,
+      positiveExemplar: item.positiveExemplar,
+      negativeExemplar: item.negativeExemplar,
       diagnosis: item.hypothesis,
       symptomSnippets: [],
       singleVariableHypothesis: item.hypothesis,
@@ -294,6 +370,15 @@ export const AIDiagnosisLab: React.FC = () => {
       sideEffectsWarning: '',
       genre: item.genre,
     });
+    if (item.referenceText) {
+      setReferenceText(item.referenceText);
+    }
+    if (item.referenceWorkTitle) {
+      setReferenceCorpusTitle(item.referenceWorkTitle);
+    }
+    if (item.corpusWorkId) {
+      setReferenceCorpusId(item.corpusWorkId);
+    }
     if (item.pairedSamples && item.pairedSamples[0]) {
       setInputText(item.pairedSamples[0].textA || '');
     }
@@ -444,20 +529,87 @@ export const AIDiagnosisLab: React.FC = () => {
         </Row>
       </Card>
 
-      {/* 第一步：问题与正文输入区 */}
+      {/* 第一步：范本研读、痛点选择与正文输入区 */}
       <Card
         title={
           <Space>
-            <BulbOutlined style={{ color: '#eab308' }} />
-            <span style={{ fontWeight: 600 }}>第一步：选择或描述 AI 感痛点，提供待优化样本</span>
+            <BookOutlined style={{ color: '#0284c7' }} />
+            <span style={{ fontWeight: 600 }}>第一步：研读优秀小说切片 (黄金教师) ✕ 定位待攻克 AI 感病灶</span>
           </Space>
         }
         style={{ background: cardBg, borderColor: cardBorder, borderRadius: 10, marginBottom: 20 }}
       >
+        {/* 优秀小说示范范本选择与录入 */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <Space>
+              <Text strong style={{ color: '#0284c7', fontSize: 14 }}>
+                📖 优秀小说范本输入 (黄金教师 · 提炼名家笔法机理之源)：
+              </Text>
+              <Tag color={referenceText.length > 0 ? 'cyan' : 'default'}>{referenceText.length} 字</Tag>
+              {referenceCorpusTitle && <Tag color="blue">{referenceCorpusTitle}</Tag>}
+            </Space>
+            <Radio.Group
+              value={referenceMode}
+              onChange={(e) => setReferenceMode(e.target.value)}
+              size="small"
+            >
+              <Radio.Button value="corpus">从经典语料库选择</Radio.Button>
+              <Radio.Button value="custom">自定义粘贴名家范本</Radio.Button>
+            </Radio.Group>
+          </div>
+
+          {referenceMode === 'corpus' ? (
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8 }}>
+                <Text style={{ fontSize: 12, color: secondaryColor }}>挑选经典切片：</Text>
+                <Select
+                  value={referenceCorpusId || undefined}
+                  onChange={handleSelectCorpusWork}
+                  loading={loadingCorpusWorks}
+                  placeholder="请选择经典小说名家作品章节切片..."
+                  style={{ flex: 1 }}
+                  size="middle"
+                >
+                  {corpusWorksList.map((w) => (
+                    <Option key={w.id} value={w.id}>
+                      {w.title} {w.author ? `(${w.author})` : ''} - 第{w.chapterNumber}章 {w.chapterTitle || ''} ({w.wordCount}字)
+                    </Option>
+                  ))}
+                </Select>
+                {referenceText && (
+                  <Button size="small" type="link" onClick={() => { setReferenceText(''); setReferenceCorpusId(null); setReferenceCorpusTitle(''); }}>
+                    清空
+                  </Button>
+                )}
+              </div>
+              <TextArea
+                rows={5}
+                value={referenceText}
+                onChange={(e) => setReferenceText(e.target.value)}
+                placeholder="所选经典作品章节内容将自动显示于此，系统将以此为黄金教师，对比提炼名家笔法正例..."
+                style={{ borderRadius: 6, fontFamily: 'monospace', background: subBg }}
+              />
+            </div>
+          ) : (
+            <div>
+              <TextArea
+                rows={5}
+                value={referenceText}
+                onChange={(e) => setReferenceText(e.target.value)}
+                placeholder="请在此粘贴 300~2500 字的真人名家优秀小说正文切片（如体制内对话、生活留白、暗线交锋等）。系统将细读本切片并反向蒸馏出实战正例与军规..."
+                style={{ borderRadius: 6, fontFamily: 'monospace', background: subBg }}
+              />
+            </div>
+          )}
+        </div>
+
+        <Divider style={{ margin: '14px 0' }} />
+
         {/* 预设问题快捷选择 */}
         <div style={{ marginBottom: 16 }}>
           <Text strong style={{ display: 'block', marginBottom: 8, color: textColor }}>
-            常见 AI 感痛点快捷选择（点击自动填入）：
+            🎯 待攻克的 AI 感痛点快捷选择（点击自动填入）：
           </Text>
           {loadingPresets ? (
             <div style={{ padding: 20, textAlign: 'center' }}><Spin size="small" /></div>
@@ -513,7 +665,7 @@ export const AIDiagnosisLab: React.FC = () => {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <Space>
-              <Text strong style={{ color: textColor }}>待诊断正文内容（支持粘贴或从已有小说章节载入）：</Text>
+              <Text strong style={{ color: textColor }}>待优化的 AI 正文切片（学生样本 · 选填）：</Text>
               <Tag color={inputText.length > 0 ? 'blue' : 'default'}>{inputText.length} 字</Tag>
             </Space>
             <Space>
@@ -528,10 +680,10 @@ export const AIDiagnosisLab: React.FC = () => {
             </Space>
           </div>
           <TextArea
-            rows={6}
+            rows={5}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="请在此粘贴 300~2000 字的 AI 生成小说正文切片，或点击上方「从已有小说章节导入」。若留空，系统将使用典型千禧年初体制内样本进行评测。"
+            placeholder="请在此粘贴 300~2000 字的 AI 生成待优化小说正文切片，或点击上方「从已有小说章节导入」。若留空，系统将使用体制内典型 AI 样本进行评测。"
             style={{ borderRadius: 6, fontFamily: 'monospace' }}
           />
         </div>
@@ -572,10 +724,10 @@ export const AIDiagnosisLab: React.FC = () => {
               <Button
                 loading={isDiagnosing}
                 disabled={isExperimenting}
-                icon={<BulbOutlined />}
+                icon={<BookOutlined />}
                 onClick={handleRunDiagnosisOnly}
               >
-                仅诊断并提假设
+                研读范本提炼笔法
               </Button>
               <Button
                 type="primary"
@@ -585,25 +737,98 @@ export const AIDiagnosisLab: React.FC = () => {
                 onClick={handleRunExperiment}
                 style={{ background: '#0284c7', borderColor: '#0284c7' }}
               >
-                开始 A/B 单变量实测
+                开始 A/B 实测 (名家正例注入)
               </Button>
             </Space>
           </Col>
         </Row>
       </Card>
 
-      {/* 第二步：单变量假设与规约卡片 */}
+      {/* 第二步：名家实战笔法卡片与单变量假设 */}
       {diagnosisResult && (
         <Card
           title={
             <Space>
               <ExperimentOutlined style={{ color: '#0284c7' }} />
-              <span style={{ fontWeight: 600 }}>第二步：单变量假设与拟定写作规约</span>
+              <span style={{ fontWeight: 600 }}>第二步：名家实战笔法卡片 (Distilled Master Craft) 与单变量假设</span>
               <Tag color="geekblue">{diagnosisResult.ruleName}</Tag>
+              {diagnosisResult.referenceWorkTitle && (
+                <Tag color="cyan">研读来源：{diagnosisResult.referenceWorkTitle}</Tag>
+              )}
             </Space>
           }
           style={{ background: cardBg, borderColor: cardBorder, borderRadius: 10, marginBottom: 20 }}
         >
+          {/* 正例与负例核心对照展示 */}
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+            <Col xs={24} md={12}>
+              <div
+                style={{
+                  background: greenBg,
+                  padding: 16,
+                  borderRadius: 8,
+                  border: `1.5px solid ${greenBorder}`,
+                  height: '100%',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text strong style={{ color: '#047857', fontSize: 14 }}>
+                    🌟 真人名家经典正例 (Positive Exemplar):
+                  </Text>
+                  <Tag color="success">黄金教师原句示范</Tag>
+                </div>
+                <div
+                  style={{
+                    whiteSpace: 'pre-wrap',
+                    fontFamily: 'serif',
+                    fontSize: 13,
+                    lineHeight: 1.8,
+                    color: textColor,
+                    background: isDark ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.7)',
+                    padding: '10px 12px',
+                    borderRadius: 6,
+                    borderLeft: '4px solid #10b981',
+                  }}
+                >
+                  {diagnosisResult.positiveExemplar || '（暂无提取的正例摘录）'}
+                </div>
+              </div>
+            </Col>
+            <Col xs={24} md={12}>
+              <div
+                style={{
+                  background: redBg,
+                  padding: 16,
+                  borderRadius: 8,
+                  border: `1.5px solid ${redBorder}`,
+                  height: '100%',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text strong style={{ color: '#b91c1c', fontSize: 14 }}>
+                    ❌ 典型 AI 负例对照 (Negative Exemplar):
+                  </Text>
+                  <Tag color="error">呆板套路严禁出现</Tag>
+                </div>
+                <div
+                  style={{
+                    whiteSpace: 'pre-wrap',
+                    fontFamily: 'serif',
+                    fontSize: 13,
+                    lineHeight: 1.8,
+                    color: textColor,
+                    background: isDark ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.7)',
+                    padding: '10px 12px',
+                    borderRadius: 6,
+                    borderLeft: '4px solid #ef4444',
+                  }}
+                >
+                  {diagnosisResult.negativeExemplar || '（暂无提取的负例对照）'}
+                </div>
+              </div>
+            </Col>
+          </Row>
+
           <Row gutter={[16, 16]}>
             <Col xs={24} md={12}>
               <div style={{ background: subBg, padding: 14, borderRadius: 8, border: `1px solid ${cardBorder}` }}>
@@ -618,7 +843,7 @@ export const AIDiagnosisLab: React.FC = () => {
             <Col xs={24} md={12}>
               <div style={{ background: subBg, padding: 14, borderRadius: 8, border: `1px solid ${cardBorder}` }}>
                 <Text strong style={{ color: '#0284c7', display: 'block', marginBottom: 4 }}>
-                  🔬 单变量实验假设 (Single-Variable Hypothesis):
+                  🔬 提炼出的单变量实战假设 (Single-Variable Hypothesis):
                 </Text>
                 <Paragraph style={{ margin: 0, color: textColor, fontSize: 13 }}>
                   {diagnosisResult.singleVariableHypothesis}
@@ -629,7 +854,7 @@ export const AIDiagnosisLab: React.FC = () => {
 
           <div style={{ marginTop: 16 }}>
             <Text strong style={{ color: textColor, display: 'block', marginBottom: 6 }}>
-              📝 本次实验唯一注入的独立变量规约 (B 组规约):
+              📝 蒸馏出的核心写作军规 (B 组注入军规):
             </Text>
             <div
               style={{
@@ -902,16 +1127,39 @@ export const AIDiagnosisLab: React.FC = () => {
                   <Card
                     size="small"
                     title={
-                      <Space>
-                        <Tag color="processing">B 组 (实验组·单变量注入)</Tag>
-                        <Text style={{ fontSize: 12, color: '#0284c7' }}>仅注入本次假设规约</Text>
-                      </Space>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Space>
+                          <Tag color="processing">B 组 (实验组·注入名家正例与笔规)</Tag>
+                          <Text style={{ fontSize: 12, color: '#0284c7' }}>名家示范引导重写</Text>
+                        </Space>
+                        {currentExperiment.referenceWorkTitle && (
+                          <Tag color="cyan" style={{ fontSize: 11 }}>范本：{currentExperiment.referenceWorkTitle}</Tag>
+                        )}
+                      </div>
                     }
                     style={{
                       background: isDark ? '#0c2238' : '#f0f9ff',
                       borderColor: isDark ? '#0369a1' : '#bae6fd',
                     }}
                   >
+                    {currentExperiment.positiveExemplar && (
+                      <div
+                        style={{
+                          background: isDark ? 'rgba(6, 78, 59, 0.4)' : '#ecfdf5',
+                          border: '1px solid #10b981',
+                          borderRadius: 6,
+                          padding: '6px 10px',
+                          marginBottom: 8,
+                          fontSize: 12,
+                          color: isDark ? '#6ee7b7' : '#065f46',
+                        }}
+                      >
+                        <strong>🌟 参考的名家正例：</strong>
+                        {currentExperiment.positiveExemplar.length > 80
+                          ? currentExperiment.positiveExemplar.slice(0, 80) + '...'
+                          : currentExperiment.positiveExemplar}
+                      </div>
+                    )}
                     <div
                       style={{
                         whiteSpace: 'pre-wrap',
