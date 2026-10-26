@@ -71,6 +71,28 @@ const QUICK_PROBLEM_CHIPS = [
   { label: '去AI机械味', text: '过度使用抒情排比与作者上帝视角泄题，缺乏人类优秀作家冷峻克制的叙事留白' },
 ];
 
+export const sanitizeGenre = (genre?: string, title?: string): string => {
+  const g = (genre || '').trim();
+  const t = (title || '').trim();
+  if (/官场|体制|仕途|机关|政道|政界|选调|纪检|公务员|市委|省委/.test(g) ||
+      (t && /官|体制|仕途|机关|政道|政界|选调|纪检|公务员|市委|省委|官神|官路|县委|书记|局长|市长/.test(t))) {
+    return '体制官场';
+  }
+  if (/修真|修仙|仙侠|玄幻|洪荒|异界|奇幻/.test(g) || (t && /修真|修仙|仙侠|玄幻/.test(t))) {
+    return '玄幻修真';
+  }
+  if (/历史|架空|权谋|朝堂|三国/.test(g) || (t && /历史|架空|权谋|大唐|大明/.test(t))) {
+    return '历史架空';
+  }
+  if (/职场|都市|神医|日常|爽文|经商/.test(g) || (t && /职场|都市|商海|经商/.test(t))) {
+    return '都市职场';
+  }
+  if (/笔趣|biquge|69书|shuba|起点|纵横|晋江|番茄|飞卢|看书|顶点|小说网|无弹窗|全网|未分类|未设置|未知|在线/.test(g) || !g) {
+    return '体制官场';
+  }
+  return g;
+};
+
 export interface GroupedNovelItem {
   key: string;
   title: string;
@@ -330,7 +352,7 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
         return;
       }
       targetWorkTitle = selectedOnlineBook.title;
-      targetGenre = selectedOnlineBook.genre || '体制官场';
+      targetGenre = sanitizeGenre(selectedOnlineBook.genre, selectedOnlineBook.title);
       targetNovelUrl = selectedOnlineBook.url || selectedOnlineBook.sourceUrl;
     }
 
@@ -370,6 +392,7 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
     if (!diagnosisPlan) return;
     setDistillLoading(true);
     try {
+      const cleanPlanGenre = sanitizeGenre(diagnosisPlan.genre, diagnosisPlan.workTitle);
       let finalWorkIds = selectedNovel?.workIds;
       let onlineNovelInfo: any = undefined;
       let selectedChapterUrls: string[] | undefined = undefined;
@@ -379,7 +402,7 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
         const importRes = await importTxtCorpusWork({
           title: txtVals.title || diagnosisPlan.workTitle,
           author: txtVals.author,
-          genre: txtVals.genre || diagnosisPlan.genre,
+          genre: txtVals.genre || cleanPlanGenre,
           rawText: txtVals.rawText,
           sourceName: `${txtVals.title || diagnosisPlan.workTitle}·语料库`,
         });
@@ -391,14 +414,14 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
           novelUrl: selectedOnlineBook.url || selectedOnlineBook.sourceUrl,
           title: selectedOnlineBook.title,
           author: selectedOnlineBook.author || '佚名',
-          genre: diagnosisPlan.genre,
+          genre: cleanPlanGenre,
         };
         selectedChapterUrls = diagnosisPlan.selectedChapters.map(c => c.sourceUrl).filter(Boolean) as string[];
       }
 
       const res = await createDistillTask({
         taskName: `《${diagnosisPlan.workTitle}》[${diagnosisPlan.primaryCapabilities.join('+')}] 笔法提炼·定向攻坚`,
-        genre: diagnosisPlan.genre,
+        genre: cleanPlanGenre,
         targetDimension: diagnosisPlan.primaryCapabilities[0] || 'dialogue',
         capabilities: diagnosisPlan.primaryCapabilities,
         workIds: finalWorkIds,
@@ -418,7 +441,7 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
         setIsDistillModalOpen(false);
         fetchWorks();
         if (onGoToRules) {
-          onGoToRules(diagnosisPlan.genre);
+          onGoToRules(cleanPlanGenre);
         }
       }
     } catch (e: any) {
@@ -810,7 +833,7 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
                         <span style={{ fontWeight: 600, color: themeStyles.textPrimary }}>已选参考小说：</span>
                         <span style={{ fontWeight: 600, color: '#059669', fontSize: 15 }}>《{selectedOnlineBook.title}》</span>
                         <span style={{ color: themeStyles.textSecondary, fontSize: 12 }}>作者: {selectedOnlineBook.author || '佚名'}</span>
-                        <Tag color="cyan">{selectedOnlineBook.genre || '体制官场'}</Tag>
+                        <Tag color="cyan">{sanitizeGenre(selectedOnlineBook.genre, selectedOnlineBook.title)}</Tag>
                       </Space>
                     </div>
                   )}
@@ -828,7 +851,7 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
                             <Space style={{ flex: 1 }}>
                               <Text strong>《{item.title}》</Text>
                               <Text type="secondary">{item.author}</Text>
-                              <Tag color="purple">{item.genre || '网络小说'}</Tag>
+                              <Tag color="purple">{sanitizeGenre(item.genre, item.title)}</Tag>
                             </Space>
                             <Button size="small" type="primary" ghost>选择该书</Button>
                           </List.Item>
@@ -929,7 +952,7 @@ export const NovelCorpusStation: React.FC<NovelCorpusStationProps> = ({ onGoToRu
           diagnosisPlan && (
             <div>
               <Alert
-                message={`第二阶段：方案确认 · 参考范本《${diagnosisPlan.workTitle}》（${diagnosisPlan.genre}）`}
+                message={`第二阶段：方案确认 · 参考范本《${diagnosisPlan.workTitle}》（${sanitizeGenre(diagnosisPlan.genre, diagnosisPlan.workTitle)}）`}
                 description="AI 已完成病理诊断，并从目录中精准锁定教学戏眼章节与定制维度。请查阅下方方案，确认无误后点击下方按钮启动提炼。"
                 type="success"
                 showIcon
