@@ -7,11 +7,10 @@ import {
 } from '@ant-design/icons';
 import { NovelCorpusStation } from './components/NovelCorpusStation';
 import { WritingRulesStation } from './components/WritingRulesStation';
-import { AIDiagnosisLab } from './components/AIDiagnosisLab';
 import './styles.scss';
 
 const AiNovelLab: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>('diagnosis');
+  const [activeTab, setActiveTab] = useState<string>('rules_simple');
   const [selectedGenreForRules, setSelectedGenreForRules] = useState<string>('all');
 
   const handleGoToRules = (genre?: string) => {
@@ -20,16 +19,6 @@ const AiNovelLab: React.FC = () => {
   };
 
   const tabItems = [
-    {
-      key: 'diagnosis',
-      label: (
-        <span>
-          <ExperimentOutlined />
-          AI 感诊断与文风实验室
-        </span>
-      ),
-      children: <AIDiagnosisLab />,
-    },
     {
       key: 'rules_simple',
       label: (
