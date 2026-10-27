@@ -8,6 +8,7 @@ export interface CruiseStartParams {
   targetCount: number;
   wordCountLimit: number;
   useMultiAgent?: boolean;
+  authorGuidance?: string;
 }
 
 export interface CruiseMultiAgentStateHandlers {
@@ -59,6 +60,7 @@ export const useAutoWriterCruise = (
 
   // 巡航章节实时文本缓冲池（按章节号隔离存储），确保后台流式生成不丢失，且切回生成章时平滑恢复实况
   const cruisingBuffersRef = useRef<Record<number, string>>({});
+  const authorGuidanceRef = useRef<string>('');
 
   useEffect(() => {
     latestOutlineRef.current = selectedOutline;
@@ -151,7 +153,8 @@ export const useAutoWriterCruise = (
           wordCountLimit: limit,
           enableAuditor: true,
           isAutoCruise: true,
-          useMultiAgent: useMultiAgent
+          useMultiAgent: useMultiAgent,
+          userIntervention: authorGuidanceRef.current || undefined
         })
       });
 
@@ -395,7 +398,8 @@ export const useAutoWriterCruise = (
       return;
     }
 
-    const { startChapterNum, targetCount, wordCountLimit: limit, useMultiAgent: multiAgentParam } = params;
+    const { startChapterNum, targetCount, wordCountLimit: limit, useMultiAgent: multiAgentParam, authorGuidance } = params;
+    authorGuidanceRef.current = (authorGuidance || '').trim();
     if (multiAgentParam !== undefined) {
       setUseMultiAgent(multiAgentParam);
     }
@@ -483,6 +487,8 @@ export const useAutoWriterCruise = (
                 const batchRes: any = await httpService.post('/ai-novel/batch-generate-chapters', {
                   novelId: selectedNovel.id,
                   chapterCount: needCount,
+                  guidance: authorGuidanceRef.current || undefined,
+                  userIntervention: authorGuidanceRef.current || undefined,
                   mode: 'append'
                 });
 
@@ -528,7 +534,8 @@ export const useAutoWriterCruise = (
                       startChapterNum: currentCh,
                       targetCount: remaining,
                       wordCountLimit: limit,
-                      useMultiAgent: multiAgentParam !== undefined ? multiAgentParam : useMultiAgent
+                      useMultiAgent: multiAgentParam !== undefined ? multiAgentParam : useMultiAgent,
+                      authorGuidance: authorGuidanceRef.current || undefined
                     });
                   }, 300);
                 }
@@ -610,7 +617,8 @@ export const useAutoWriterCruise = (
                     startChapterNum: currentCh,
                     targetCount: remaining,
                     wordCountLimit: limit,
-                    useMultiAgent: multiAgentParam !== undefined ? multiAgentParam : useMultiAgent
+                    useMultiAgent: multiAgentParam !== undefined ? multiAgentParam : useMultiAgent,
+                    authorGuidance: authorGuidanceRef.current || undefined
                   });
                 }, 300);
               }

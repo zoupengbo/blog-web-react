@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, InputNumber, Space, Button, Select, Radio, Tag, Switch } from 'antd';
+import { Modal, Form, InputNumber, Space, Button, Select, Radio, Tag, Switch, Input } from 'antd';
 import { RocketOutlined, RobotOutlined } from '@ant-design/icons';
 import { PaperTheme, NovelOutline } from '../types';
 
@@ -9,7 +9,7 @@ interface AutoCruiseModalProps {
   defaultStartChapter: number;
   selectedOutline: NovelOutline;
   wordCountLimit: number;
-  onStartCruise: (params: { startChapterNum: number; targetCount: number; wordCountLimit: number; useMultiAgent?: boolean }) => void;
+  onStartCruise: (params: { startChapterNum: number; targetCount: number; wordCountLimit: number; useMultiAgent?: boolean; authorGuidance?: string }) => void;
   paperTheme?: PaperTheme;
   lastInterruptedSession?: {
     chapterNum: number;
@@ -36,6 +36,7 @@ export const AutoCruiseModal: React.FC<AutoCruiseModalProps> = ({
   const [targetCount, setTargetCount] = useState<number>(3);
   const [selectedWordLimit, setSelectedWordLimit] = useState<number>(initialWordCount);
   const [useMultiAgent, setUseMultiAgent] = useState<boolean>(true);
+  const [authorGuidance, setAuthorGuidance] = useState<string>('');
 
   // 当弹窗打开时，自动智能推导推荐起始章节
   useEffect(() => {
@@ -59,7 +60,8 @@ export const AutoCruiseModal: React.FC<AutoCruiseModalProps> = ({
       startChapterNum: startChapterNum || 1,
       targetCount: targetCount || 3,
       wordCountLimit: selectedWordLimit,
-      useMultiAgent
+      useMultiAgent,
+      authorGuidance: authorGuidance.trim() || undefined
     });
   };
 
@@ -191,7 +193,7 @@ export const AutoCruiseModal: React.FC<AutoCruiseModalProps> = ({
             </Space>
           </Form.Item>
 
-          <Form.Item label={<b>📏 单章目标字数</b>} style={{ marginBottom: 24 }}>
+          <Form.Item label={<b>📏 单章目标字数</b>} style={{ marginBottom: 16 }}>
             <Select
               value={selectedWordLimit}
               onChange={setSelectedWordLimit}
@@ -205,6 +207,32 @@ export const AutoCruiseModal: React.FC<AutoCruiseModalProps> = ({
               <Select.Option value={4000}>4000 字 (大长章推进)</Select.Option>
             </Select>
           </Form.Item>
+
+          <Form.Item label={<b>📝 本批次创作指导 / 阶段推进要求 (可选)</b>} style={{ marginBottom: 16 }}>
+            <Input.TextArea
+              rows={2}
+              value={authorGuidance}
+              onChange={e => setAuthorGuidance(e.target.value)}
+              placeholder="例如：本批次侧重排查账目疑点与各部门推诿，重点留存线索，不急于结案；依规推进，严禁越权。"
+              maxLength={200}
+              showCount
+            />
+          </Form.Item>
+
+          <div
+            style={{
+              padding: '10px 14px',
+              marginBottom: 20,
+              background: 'rgba(24, 144, 255, 0.08)',
+              borderLeft: '3px solid #1890ff',
+              borderRadius: '0 6px 6px 0',
+              fontSize: 12,
+              color: '#94a3b8',
+              lineHeight: 1.6
+            }}
+          >
+            💡 <b>因果规划铁律</b>：连写章数仅代表本次生成的章节范围，系统将根据因果律自然推进，绝不在最后一章强行制造机械反转或提前结案。
+          </div>
         </Form>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
