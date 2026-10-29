@@ -865,8 +865,6 @@ const AiNovelDashboard: React.FC = () => {
         setFanqieBookName={fanqieHook.setFanqieBookName}
         fanqieBookId={fanqieHook.fanqieBookId}
         setFanqieBookId={fanqieHook.setFanqieBookId}
-        intervalSeconds={fanqieHook.intervalSeconds}
-        setIntervalSeconds={fanqieHook.setIntervalSeconds}
         onSelectAllUnsynced={fanqieHook.handleSelectAllUnsynced}
         onPublishToFanqie={fanqieHook.handlePublishToFanqie}
         onBatchMarkSynced={fanqieHook.handleBatchMarkSynced}
