@@ -17,6 +17,7 @@ export const useFanqiePublisher = (
   const [syncSelectMode, setSyncSelectMode] = useState<'manual' | 'range'>('manual');
   const [syncRangeStart, setSyncRangeStart] = useState<number | null>(null);
   const [syncRangeEnd, setSyncRangeEnd] = useState<number | null>(null);
+  const [intervalSeconds, setIntervalSeconds] = useState<number>(10);
   const publishPollRef = useRef<any>(null);
 
   const handleOpenFanqieModal = () => {
@@ -134,7 +135,8 @@ export const useFanqiePublisher = (
         novelId: selectedNovel.id,
         chapterNumbers: chapterNumbersToSync,
         fanqieBookId,
-        fanqieBookName
+        fanqieBookName,
+        intervalSeconds
       });
 
       if (startRes.code !== 200) {
@@ -317,6 +319,8 @@ export const useFanqiePublisher = (
     handlePublishToFanqie,
     handleToggleSyncStatus,
     handleBatchMarkSynced,
-    handleExportChaptersTxt
+    handleExportChaptersTxt,
+    intervalSeconds,
+    setIntervalSeconds
   };
 };

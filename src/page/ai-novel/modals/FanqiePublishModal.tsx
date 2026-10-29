@@ -20,6 +20,8 @@ interface FanqiePublishModalProps {
   setFanqieBookName: (val: string) => void;
   fanqieBookId: string;
   setFanqieBookId: (val: string) => void;
+  intervalSeconds?: number;
+  setIntervalSeconds?: (val: number) => void;
   onSelectAllUnsynced: () => void;
   onPublishToFanqie: () => void;
   onBatchMarkSynced?: (targetStatus: 'published' | 'completed') => void;
@@ -45,6 +47,8 @@ export const FanqiePublishModal: React.FC<FanqiePublishModalProps> = ({
   setFanqieBookName,
   fanqieBookId,
   setFanqieBookId,
+  intervalSeconds = 10,
+  setIntervalSeconds,
   onSelectAllUnsynced,
   onPublishToFanqie,
   onBatchMarkSynced,
@@ -192,6 +196,25 @@ export const FanqiePublishModal: React.FC<FanqiePublishModalProps> = ({
                 onChange={e => setFanqieBookId(e.target.value)}
                 placeholder="例如：723482736182"
               />
+            </Form.Item>
+
+            <Form.Item
+              label="⏱️ 章节同步防风控间隔 (秒)"
+              tooltip="每存完一章后休眠等待的安全秒数，防止番茄作家后台接口触发高频限流或风控"
+            >
+              <Space>
+                <InputNumber
+                  min={0}
+                  max={60}
+                  value={intervalSeconds}
+                  onChange={val => setIntervalSeconds && setIntervalSeconds(val !== null ? val : 10)}
+                  style={{ width: 140 }}
+                  addonAfter="秒"
+                />
+                <span style={{ fontSize: 12, color: '#94a3b8' }}>
+                  （推荐 10 秒，降低接口封禁与风控风险）
+                </span>
+              </Space>
             </Form.Item>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 28, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 16 }}>
