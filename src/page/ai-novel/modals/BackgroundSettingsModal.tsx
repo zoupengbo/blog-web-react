@@ -1103,3 +1103,5 @@ export const BackgroundSettingsModal: React.FC<BackgroundSettingsModalProps> = (
 </Modal>
   );
 };
+
+export default BackgroundSettingsModal;
