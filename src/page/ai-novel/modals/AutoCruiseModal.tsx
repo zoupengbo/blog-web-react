@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, InputNumber, Space, Button, Select, Radio, Tag, Switch, Input } from 'antd';
-import { RocketOutlined, RobotOutlined } from '@ant-design/icons';
+import { RocketOutlined, RobotOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { PaperTheme, NovelOutline } from '../types';
 
 interface AutoCruiseModalProps {
@@ -9,7 +9,15 @@ interface AutoCruiseModalProps {
   defaultStartChapter: number;
   selectedOutline: NovelOutline;
   wordCountLimit: number;
-  onStartCruise: (params: { startChapterNum: number; targetCount: number; wordCountLimit: number; useMultiAgent?: boolean; authorGuidance?: string }) => void;
+  onStartCruise: (params: {
+    startChapterNum: number;
+    targetCount: number;
+    wordCountLimit: number;
+    useMultiAgent?: boolean;
+    authorGuidance?: string;
+    isRewriteMode?: boolean;
+    lockOutline?: boolean;
+  }) => void;
   paperTheme?: PaperTheme;
   lastInterruptedSession?: {
     chapterNum: number;
@@ -38,22 +46,27 @@ export const AutoCruiseModal: React.FC<AutoCruiseModalProps> = ({
   const [useMultiAgent, setUseMultiAgent] = useState<boolean>(true);
   const [authorGuidance, setAuthorGuidance] = useState<string>('');
 
-  // 当弹窗打开时，自动智能推导推荐起始章节
+  // 智能识别当前选中的起始章节是否属于历史已存在/已完成章节（重写场景）
+  const chList = (selectedOutline?.chaptersOutline || []) as any[];
+  const targetChapter = chList.find(c => parseInt(c.chapterNumber, 10) === startChapterNum);
+  const isRewrite = Boolean(targetChapter && (targetChapter.status === 'completed' || (targetChapter.wordCount && targetChapter.wordCount > 0)));
+
+  // 当弹窗打开时，优先采用当前正在查看的活动章节，方便直接针对当前章启动连写/重写
   useEffect(() => {
     if (open) {
-      const chList = (selectedOutline?.chaptersOutline || []) as any[];
-      // 找到第一个 status !== 'completed' 的章节
-      const firstPending = chList.find(c => c.status !== 'completed');
-      if (firstPending && firstPending.chapterNumber) {
-        setStartChapterNum(firstPending.chapterNumber);
-      } else if (defaultStartChapter) {
+      if (defaultStartChapter && defaultStartChapter > 0) {
         setStartChapterNum(defaultStartChapter);
       } else {
-        const maxCh = chList.reduce((max, c) => Math.max(max, parseInt(c.chapterNumber, 10) || 0), 0);
-        setStartChapterNum(maxCh > 0 ? maxCh + 1 : 1);
+        const firstPending = chList.find(c => c.status !== 'completed');
+        if (firstPending && firstPending.chapterNumber) {
+          setStartChapterNum(firstPending.chapterNumber);
+        } else {
+          const maxCh = chList.reduce((max, c) => Math.max(max, parseInt(c.chapterNumber, 10) || 0), 0);
+          setStartChapterNum(maxCh > 0 ? maxCh + 1 : 1);
+        }
       }
     }
-  }, [open, selectedOutline, defaultStartChapter]);
+  }, [open, defaultStartChapter]);
 
   const handleStart = () => {
     onStartCruise({
@@ -61,7 +74,9 @@ export const AutoCruiseModal: React.FC<AutoCruiseModalProps> = ({
       targetCount: targetCount || 3,
       wordCountLimit: selectedWordLimit,
       useMultiAgent,
-      authorGuidance: authorGuidance.trim() || undefined
+      authorGuidance: authorGuidance.trim() || undefined,
+      isRewriteMode: isRewrite,
+      lockOutline: true
     });
   };
 
@@ -82,6 +97,32 @@ export const AutoCruiseModal: React.FC<AutoCruiseModalProps> = ({
       centered
     >
       <div style={{ marginTop: 12 }}>
+        {isRewrite && (
+          <div
+            style={{
+              padding: '10px 14px',
+              marginBottom: 16,
+              background: 'rgba(82, 196, 26, 0.12)',
+              border: '1px solid rgba(82, 196, 26, 0.45)',
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              fontSize: 12
+            }}
+          >
+            <CheckCircleOutlined style={{ fontSize: 16, color: '#52c41a', flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 600, color: '#73d13d' }}>
+                🔁 历史章节重写模式已激活
+              </div>
+              <div style={{ color: '#d9d9d9', marginTop: 2, lineHeight: '18px' }}>
+                检测到第 {startChapterNum} 章已有大纲或正文。已强制启用【大纲只读锁定】（严禁私自篡改大纲），巡航将严格按现有细纲顺序重写正文。
+              </div>
+            </div>
+          </div>
+        )}
+
         {lastInterruptedSession && (
           <div
             style={{

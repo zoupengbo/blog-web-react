@@ -9,6 +9,8 @@ export interface CruiseStartParams {
   wordCountLimit: number;
   useMultiAgent?: boolean;
   authorGuidance?: string;
+  isRewriteMode?: boolean;
+  lockOutline?: boolean;
 }
 
 export interface CruiseMultiAgentStateHandlers {
@@ -102,9 +104,16 @@ export const useAutoWriterCruise = (
 
   const executeSingleChapter = async (
     chNum: number,
-    limit: number
+    limit: number,
+    isCurrentChRewrite: boolean = false
   ): Promise<{ success: boolean; error?: string }> => {
     if (!selectedNovel) return { success: false, error: '小说不存在' };
+
+    const preChList = (latestOutlineRef.current?.chaptersOutline || []) as ChapterOutline[];
+    const preChItem = findOutlineByNumber(preChList, chNum);
+    const wasAlreadyCompleted = Boolean(
+      isCurrentChRewrite || (preChItem && (preChItem.status === 'completed' || (preChItem.wordCount && preChItem.wordCount > 0)))
+    );
 
     cruisingBuffersRef.current[chNum] = '';
     // 跨章隔离守卫：仅当用户前台当前正在查看该巡航章节时，才清空编辑区
@@ -131,7 +140,7 @@ export const useAutoWriterCruise = (
     }
     if (multiAgentState?.setAgentThoughts) {
       multiAgentState.setAgentThoughts([
-        { agent: 'system', thought: `🚀 正在调起第 ${chNum} 章多 Agent 协同流水线，总策划 Agent 正在分析剧情弧光...`, timestamp: new Date().toLocaleTimeString() }
+        { agent: 'system', thought: `🚀 正在调起第 ${chNum} 章多 Agent 协同流水线${wasAlreadyCompleted ? '（重写保护·大纲锁定）' : ''}，总策划 Agent 正在分析剧情弧光...`, timestamp: new Date().toLocaleTimeString() }
       ]);
     }
 
@@ -153,6 +162,8 @@ export const useAutoWriterCruise = (
           wordCountLimit: limit,
           enableAuditor: true,
           isAutoCruise: true,
+          isRewriteMode: wasAlreadyCompleted,
+          lockOutline: true, // 全自动巡航严格锁定既有细纲为只读，绝不篡改大纲
           useMultiAgent: useMultiAgent,
           userIntervention: authorGuidanceRef.current || undefined
         })
@@ -335,19 +346,22 @@ export const useAutoWriterCruise = (
         return { success: true };
       }
 
-      // 终极兜底核验：直查数据库是否已完成落盘入库
-      try {
-        const resDetail: any = await httpService.get(`/ai-novel/detail/${selectedNovel.id}?_t=${Date.now()}`);
-        if (resDetail.code === 200 && resDetail.data) {
-          const chList = resDetail.data.outline?.chaptersOutline || [];
-          const ch = chList.find((c: any) => Number(c.chapterNumber) === Number(chNum));
-          if (ch && (ch.status === 'completed' || (ch.wordCount && ch.wordCount > 100))) {
-            return { success: true };
+      // 终极兜底核验：仅对“全新开荒章节”做网络假掉线兜底；
+      // 对于重写章节（wasAlreadyCompleted === true），历史旧稿字数不能算成功，坚决避免假完成跳章！
+      if (!wasAlreadyCompleted) {
+        try {
+          const resDetail: any = await httpService.get(`/ai-novel/detail/${selectedNovel.id}?_t=${Date.now()}`);
+          if (resDetail.code === 200 && resDetail.data) {
+            const chList = resDetail.data.outline?.chaptersOutline || [];
+            const ch = chList.find((c: any) => Number(c.chapterNumber) === Number(chNum));
+            if (ch && (ch.status === 'completed' || (ch.wordCount && ch.wordCount > 100))) {
+              return { success: true };
+            }
           }
-        }
-      } catch (e) {}
+        } catch (e) {}
+      }
 
-      // 如果未收到完成事件且数据库中未落盘，返回失败并附带具体错误，杜绝回退到假成功
+      // 如果未收到完成事件且非全新开荒有效落盘，返回失败并附带具体错误，杜绝回退到假成功
       return { success: false, error: failureReason || '章节未通过质量门禁或流式异常中断' };
     } catch (err: any) {
       if (isStoppingRef.current) {
@@ -359,8 +373,8 @@ export const useAutoWriterCruise = (
         return { success: true };
       }
 
-      // 异常时直查数据库，若数据库已成功落盘则判定成功（多Agent思考耗时可达60~90秒，轮询等待50次*2秒=100秒）
-      if (selectedNovel) {
+      // 异常时直查数据库：仅对全新开荒章节做轮询兜底，重写章节严禁凭借历史旧稿字数冒充成功
+      if (selectedNovel && !wasAlreadyCompleted) {
         for (let i = 0; i < 50; i++) {
           await new Promise(r => setTimeout(r, 2000));
           if (isStoppingRef.current) return { success: false, error: '用户手动急停' };
@@ -547,9 +561,14 @@ export const useAutoWriterCruise = (
 
         if (isStoppingRef.current) break;
 
+        const chItem = findOutlineByNumber(chList, currentCh);
+        const isCurrentChRewrite = Boolean(
+          params.isRewriteMode || (chItem && (chItem.status === 'completed' || (chItem.wordCount && chItem.wordCount > 0)))
+        );
+
         // 2. 执行单章正文流式生成与审核
-        setCruiseStatusText(`🚀 正在全自动撰写第 ${currentCh} 章正文 [${step + 1}/${targetCount}]...`);
-        const result = await executeSingleChapter(currentCh, limit);
+        setCruiseStatusText(`🚀 正在全自动${isCurrentChRewrite ? '重写' : '撰写'}第 ${currentCh} 章正文 [${step + 1}/${targetCount}]...`);
+        const result = await executeSingleChapter(currentCh, limit, isCurrentChRewrite);
 
         if (!result.success) {
           if (isStoppingRef.current) {
@@ -557,19 +576,22 @@ export const useAutoWriterCruise = (
           }
 
           // 终极复核：检查数据库中本章是否实际已经写入落盘，坚决杜绝“生成成功却显示失败”
+          // 但若为历史重写章节，必须依赖本次生成的真实结果，严禁凭借历史旧稿字数做假完成跳章！
           let actuallyCompleted = false;
-          try {
-            const checkRes: any = await httpService.get(`/ai-novel/detail/${selectedNovel.id}?_t=${Date.now()}`);
-            if (checkRes.code === 200 && checkRes.data) {
-              const chList = checkRes.data.outline?.chaptersOutline || [];
-              const ch = chList.find((c: any) => Number(c.chapterNumber) === Number(currentCh));
-              if (ch && (ch.status === 'completed' || (ch.wordCount && ch.wordCount > 100))) {
-                actuallyCompleted = true;
-                setSelectedOutline(checkRes.data.outline);
-                latestOutlineRef.current = checkRes.data.outline;
+          if (!isCurrentChRewrite) {
+            try {
+              const checkRes: any = await httpService.get(`/ai-novel/detail/${selectedNovel.id}?_t=${Date.now()}`);
+              if (checkRes.code === 200 && checkRes.data) {
+                const updatedChList = checkRes.data.outline?.chaptersOutline || [];
+                const ch = updatedChList.find((c: any) => Number(c.chapterNumber) === Number(currentCh));
+                if (ch && (ch.status === 'completed' || (ch.wordCount && ch.wordCount > 100))) {
+                  actuallyCompleted = true;
+                  setSelectedOutline(checkRes.data.outline);
+                  latestOutlineRef.current = checkRes.data.outline;
+                }
               }
-            }
-          } catch (e) {}
+            } catch (e) {}
+          }
 
           if (!actuallyCompleted) {
             const remaining = targetCount - step;
