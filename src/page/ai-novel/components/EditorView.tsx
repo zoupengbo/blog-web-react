@@ -250,7 +250,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
 }) => {
   const [activePromptLog, setActivePromptLog] = useState<PromptLogItem | null>(null);
   const [isPromptModalOpen, setIsPromptModalOpen] = useState<boolean>(false);
-  const [promptLogScope, setPromptLogScope] = useState<'current' | 'all'>('current');
+  const [promptLogScope, setPromptLogScope] = useState<'current' | 'outline'>('current');
   const [localMultiAgentModalOpen, setLocalMultiAgentModalOpen] = useState<boolean>(false);
   const [isDerivingOutline, setIsDerivingOutline] = useState<boolean>(false);
   const [isBranchModalOpen, setIsBranchModalOpen] = useState<boolean>(false);
@@ -341,14 +341,14 @@ export const EditorView: React.FC<EditorViewProps> = ({
   const fetchPromptLogs = (chapNum?: number) => {
     if (!selectedNovel?.id) return;
     const url = chapNum
-      ? `/ai-novel/prompt-logs?novelId=${selectedNovel.id}&chapterNumber=${chapNum}&limit=100`
-      : `/ai-novel/prompt-logs?novelId=${selectedNovel.id}&limit=200`;
+      ? `/ai-novel/prompt-logs?novelId=${selectedNovel.id}&chapterNumber=${chapNum}&limit=200`
+      : `/ai-novel/prompt-logs?novelId=${selectedNovel.id}&limit=500`;
     httpService.get(url)
       .then((res: any) => {
         if (res.code === 200 && Array.isArray(res.data)) {
           if (chapNum) {
             setPromptLogs(prev => {
-              // 替换当前章节的日志为最新从后端获取的列表，保留其他章节日志
+              // 替换当前章节的日志为最新从后端获取的列表，保留其他章节与大纲日志
               const otherLogs = (prev || []).filter(p => Number(p.chapterNumber) !== Number(chapNum));
               return [...res.data, ...otherLogs].sort((a, b) => (b.id || 0) - (a.id || 0));
             });
@@ -365,15 +365,35 @@ export const EditorView: React.FC<EditorViewProps> = ({
   const handleClearPromptLogs = async () => {
     if (!selectedNovel?.id) return;
     const isCurrent = promptLogScope === 'current' && activeChapterNum;
+    const isOutline = promptLogScope === 'outline';
     try {
       await httpService.post('/ai-novel/clear-prompt-logs', {
         novelId: selectedNovel.id,
         chapterNumber: isCurrent ? activeChapterNum : undefined,
+        scope: isOutline ? 'outline' : undefined,
       });
-      message.success(isCurrent ? `已清空第 ${activeChapterNum} 章的 Prompt 轨迹` : '已清空全书的 Prompt 轨迹');
       if (isCurrent) {
+        message.success(`已清空第 ${activeChapterNum} 章的 Prompt 轨迹`);
         setPromptLogs(prev => (prev || []).filter(p => Number(p.chapterNumber) !== Number(activeChapterNum)));
+      } else if (isOutline) {
+        message.success('已清空大纲相关的 Prompt 轨迹');
+        setPromptLogs(prev => (prev || []).filter(p => {
+          const isOutlineLog = (
+            p.chapterNumber === null ||
+            p.chapterNumber === undefined ||
+            p.stepName?.includes('大纲') ||
+            p.stepName?.includes('规划') ||
+            p.stepName?.includes('设定') ||
+            p.stepName?.includes('Story') ||
+            p.stepName?.includes('决策') ||
+            p.stepName?.includes('审计') ||
+            p.stepName?.includes('灵感') ||
+            p.stepName?.includes('基调')
+          );
+          return !isOutlineLog;
+        }));
       } else {
+        message.success('已清空 Prompt 轨迹');
         setPromptLogs([]);
       }
     } catch (e: any) {
@@ -387,16 +407,34 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
   const currentChapterPromptLogs = useMemo(() => {
     if (!promptLogs || !Array.isArray(promptLogs)) return [];
-    if (!activeChapterNum) return promptLogs;
+    if (!activeChapterNum) return [];
     return promptLogs.filter((log: PromptLogItem) => Number(log.chapterNumber) === Number(activeChapterNum));
   }, [promptLogs, activeChapterNum]);
 
+  const outlinePromptLogs = useMemo(() => {
+    if (!promptLogs || !Array.isArray(promptLogs)) return [];
+    return promptLogs.filter((log: PromptLogItem) => {
+      return (
+        log.chapterNumber === null ||
+        log.chapterNumber === undefined ||
+        log.stepName?.includes('大纲') ||
+        log.stepName?.includes('规划') ||
+        log.stepName?.includes('设定') ||
+        log.stepName?.includes('Story') ||
+        log.stepName?.includes('决策') ||
+        log.stepName?.includes('审计') ||
+        log.stepName?.includes('灵感') ||
+        log.stepName?.includes('基调')
+      );
+    });
+  }, [promptLogs]);
+
   const displayedPromptLogs = useMemo(() => {
-    if (promptLogScope === 'current' && activeChapterNum) {
-      return currentChapterPromptLogs;
+    if (promptLogScope === 'outline') {
+      return outlinePromptLogs;
     }
-    return promptLogs || [];
-  }, [promptLogs, currentChapterPromptLogs, promptLogScope, activeChapterNum]);
+    return currentChapterPromptLogs;
+  }, [promptLogScope, currentChapterPromptLogs, outlinePromptLogs]);
 
   // 🌲 卷结构与章节筛选记忆化，杜绝正文输入时重复正则解析与重排
   const volumeInfo = useMemo(() => {
@@ -1817,7 +1855,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                       <Badge
                         count={displayedPromptLogs.length}
                         overflowCount={999}
-                        style={{ backgroundColor: promptLogScope === 'current' ? '#1890ff' : '#52c41a' }}
+                        style={{ backgroundColor: promptLogScope === 'current' ? '#1890ff' : '#722ed1' }}
                       />
                     </Space>
                     <Space size={4}>
@@ -1827,10 +1865,14 @@ export const EditorView: React.FC<EditorViewProps> = ({
                         icon={<ReloadOutlined />}
                         style={{ color: '#d4b106', padding: 0 }}
                         title="刷新 Prompt 轨迹"
-                        onClick={() => fetchPromptLogs(promptLogScope === 'current' ? activeChapterNum : undefined)}
+                        onClick={() => fetchPromptLogs()}
                       />
                       <Popconfirm
-                        title={promptLogScope === 'current' && activeChapterNum ? `确定清空第 ${activeChapterNum} 章的所有 Prompt 轨迹吗？` : '确定清空全书的所有 Prompt 轨迹吗？'}
+                        title={
+                          promptLogScope === 'outline'
+                            ? '确定清空所有大纲相关的 Prompt 轨迹吗？'
+                            : (activeChapterNum ? `确定清空第 ${activeChapterNum} 章的所有 Prompt 轨迹吗？` : '确定清空当前章节的 Prompt 轨迹吗？')
+                        }
                         onConfirm={handleClearPromptLogs}
                         okText="确定"
                         cancelText="取消"
@@ -1840,7 +1882,11 @@ export const EditorView: React.FC<EditorViewProps> = ({
                           type="link"
                           icon={<DeleteOutlined />}
                           style={{ color: '#ff4d4f', padding: 0 }}
-                          title={promptLogScope === 'current' && activeChapterNum ? `清空第 ${activeChapterNum} 章 Prompt 轨迹` : '清空全书 Prompt 轨迹'}
+                          title={
+                            promptLogScope === 'outline'
+                              ? '清空大纲 Prompt 轨迹'
+                              : (activeChapterNum ? `清空第 ${activeChapterNum} 章 Prompt 轨迹` : '清空当前章节 Prompt 轨迹')
+                          }
                         />
                       </Popconfirm>
                     </Space>
@@ -1848,15 +1894,15 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   <Segmented
                     size="small"
                     value={promptLogScope}
-                    onChange={(val) => setPromptLogScope(val as 'current' | 'all')}
+                    onChange={(val) => setPromptLogScope(val as 'current' | 'outline')}
                     options={[
                       {
-                        label: activeChapterNum ? `第 ${activeChapterNum} 章 (${currentChapterPromptLogs.length})` : '当前章',
+                        label: activeChapterNum ? `第 ${activeChapterNum} 章 (${currentChapterPromptLogs.length})` : `正文 (${currentChapterPromptLogs.length})`,
                         value: 'current',
                       },
                       {
-                        label: `全部 (${promptLogs?.length || 0})`,
-                        value: 'all',
+                        label: `大纲 (${outlinePromptLogs.length})`,
+                        value: 'outline',
                       },
                     ]}
                     block
@@ -1869,31 +1915,40 @@ export const EditorView: React.FC<EditorViewProps> = ({
               {displayedPromptLogs.length === 0 ? (
                 <div className="prompt-trail-empty">
                   <div className="prompt-trail-empty-text">
-                    {promptLogScope === 'current' && activeChapterNum
-                      ? `第 ${activeChapterNum} 章暂无 AI 轨迹`
-                      : '暂无 Prompt 轨迹记录'}
+                    {promptLogScope === 'outline'
+                      ? '暂无大纲 AI 轨迹记录'
+                      : (activeChapterNum ? `第 ${activeChapterNum} 章暂无正文 AI 轨迹` : '暂无 AI 轨迹记录')}
                   </div>
-                  {promptLogScope === 'current' && activeChapterNum ? (
+                  {promptLogScope === 'current' ? (
                     <Space size="small">
                       <Button
                         size="small"
                         type="link"
                         style={{ fontSize: 11, padding: 0 }}
-                        onClick={() => setPromptLogScope('all')}
+                        onClick={() => setPromptLogScope('outline')}
                       >
-                        查看全书所有轨迹
+                        查看大纲 AI 轨迹 ({outlinePromptLogs.length})
                       </Button>
                       <span className="prompt-trail-divider">|</span>
                       <Button
                         size="small"
                         type="link"
                         style={{ fontSize: 11, padding: 0 }}
-                        onClick={() => fetchPromptLogs(activeChapterNum)}
+                        onClick={() => fetchPromptLogs()}
                       >
-                        检索本章
+                        刷新轨迹
                       </Button>
                     </Space>
-                  ) : null}
+                  ) : (
+                    <Button
+                      size="small"
+                      type="link"
+                      style={{ fontSize: 11, padding: 0 }}
+                      onClick={() => setPromptLogScope('current')}
+                    >
+                      查看第 {activeChapterNum || 1} 章正文轨迹
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="prompt-trail-list-wrapper">
@@ -1922,9 +1977,13 @@ export const EditorView: React.FC<EditorViewProps> = ({
                                 失败
                               </Tag>
                             )}
-                            {record.chapterNumber && (
+                            {record.chapterNumber ? (
                               <Tag color="cyan" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0, flexShrink: 0 }}>
                                 第 {record.chapterNumber} 章
+                              </Tag>
+                            ) : (
+                              <Tag color="purple" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0, flexShrink: 0 }}>
+                                大纲架构
                               </Tag>
                             )}
                           </div>
