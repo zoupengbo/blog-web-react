@@ -487,7 +487,7 @@ export const useAutoWriterCruise = (
           // 如果后端依然未规划该章细纲，自动触发批量细纲生成（带重试机制）
           if (!refreshed) {
             setCruiseStatusText(`第 ${currentCh} 章大纲未规划，正在全自动顺延生成后续章节细纲...`);
-            const needCount = Math.max(3, targetCount - step);
+            const needCount = Math.max(1, targetCount - step);
 
             let success = false;
             let lastErrMsg = '';
