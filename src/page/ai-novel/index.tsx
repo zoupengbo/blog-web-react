@@ -179,10 +179,11 @@ const AiNovelDashboard: React.FC = () => {
     modalsHook.fetchConfig();
 
     const lastNovelId = localStorage.getItem('last_selected_novel_id');
-    const lastChNum = localStorage.getItem('last_active_chapter_num');
     if (lastNovelId) {
       const nid = parseInt(lastNovelId, 10);
-      const ch = lastChNum ? parseInt(lastChNum, 10) : undefined;
+      const scopedCh = localStorage.getItem(`last_active_chapter_num_${nid}`);
+      const fallbackCh = localStorage.getItem('last_active_chapter_num');
+      const ch = scopedCh ? parseInt(scopedCh, 10) : (fallbackCh ? parseInt(fallbackCh, 10) : undefined);
       loadNovelToEditor(nid, ch);
     }
 
@@ -450,6 +451,9 @@ const AiNovelDashboard: React.FC = () => {
 
     streamHook.setActiveChapterNum(chNum);
     localStorage.setItem('last_active_chapter_num', String(chNum));
+    if (selectedNovel) {
+      localStorage.setItem(`last_active_chapter_num_${selectedNovel.id}`, String(chNum));
+    }
 
     if (selectedOutline) {
       const currentChapter = selectedOutline.chaptersOutline.find(c => c.chapterNumber === chNum);

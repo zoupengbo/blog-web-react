@@ -449,6 +449,9 @@ export const useAutoWriterCruise = (
       return;
     }
 
+    const cruiseNovelId = selectedNovel.id;
+    cruiseNovelIdRef.current = cruiseNovelId;
+
     setCruiseModalOpen(false);
     setIsCruising(true);
     isStoppingRef.current = false;
@@ -479,7 +482,7 @@ export const useAutoWriterCruise = (
 
     try {
       for (let step = 0; step < targetCount; step++) {
-        if (isStoppingRef.current) {
+        if (isStoppingRef.current || !selectedNovel || selectedNovel.id !== cruiseNovelId) {
           break;
         }
 
@@ -551,18 +554,16 @@ export const useAutoWriterCruise = (
               }
             }
 
-            if (!success && !isStoppingRef.current) {
+            if (!success && !isStoppingRef.current && selectedNovel && selectedNovel.id === cruiseNovelId) {
               const remaining = targetCount - step;
-              if (selectedNovel) {
-                setLastInterruptedSession({
-                  novelId: selectedNovel.id,
-                  chapterNum: currentCh,
-                  remainingCount: remaining,
-                  limit,
-                  useMultiAgent: multiAgentParam !== undefined ? multiAgentParam : useMultiAgent,
-                  reason: lastErrMsg || '自动补全章节细纲失败'
-                });
-              }
+              setLastInterruptedSession({
+                novelId: selectedNovel.id,
+                chapterNum: currentCh,
+                remainingCount: remaining,
+                limit,
+                useMultiAgent: multiAgentParam !== undefined ? multiAgentParam : useMultiAgent,
+                reason: lastErrMsg || '自动补全章节细纲失败'
+              });
 
               // 严格质检断流，提供重试选项
               Modal.confirm({
@@ -624,17 +625,18 @@ export const useAutoWriterCruise = (
           }
 
           if (!actuallyCompleted) {
-            const remaining = targetCount - step;
-            if (selectedNovel) {
-              setLastInterruptedSession({
-                novelId: selectedNovel.id,
-                chapterNum: currentCh,
-                remainingCount: remaining,
-                limit,
-                useMultiAgent: multiAgentParam !== undefined ? multiAgentParam : useMultiAgent,
-                reason: result.error || '正文生成或审核未通过'
-              });
+            if (isStoppingRef.current || !selectedNovel || selectedNovel.id !== cruiseNovelId) {
+              break;
             }
+            const remaining = targetCount - step;
+            setLastInterruptedSession({
+              novelId: selectedNovel.id,
+              chapterNum: currentCh,
+              remainingCount: remaining,
+              limit,
+              useMultiAgent: multiAgentParam !== undefined ? multiAgentParam : useMultiAgent,
+              reason: result.error || '正文生成或审核未通过'
+            });
 
             // 严格质检断流停机，并提供一键重试/继续后续巡航
             Modal.confirm({

@@ -113,10 +113,13 @@ export const useAiNovelData = (
 
         const chOutline = res.data.outline?.chaptersOutline || [];
         const firstPending = chOutline.find((c: any) => c.status === 'pending');
-        const activeNum = targetChapterNum || (firstPending ? firstPending.chapterNumber : 1);
+        const scopedChapterNum = localStorage.getItem(`last_active_chapter_num_${novelId}`);
+        const fallbackNum = scopedChapterNum ? parseInt(scopedChapterNum, 10) : (firstPending ? firstPending.chapterNumber : 1);
+        const activeNum = targetChapterNum || fallbackNum;
 
         setActiveChapterNum(activeNum);
         localStorage.setItem('last_active_chapter_num', String(activeNum));
+        localStorage.setItem(`last_active_chapter_num_${novelId}`, String(activeNum));
 
         const activeChapter = chOutline.find((c: any) => c.chapterNumber === activeNum);
         setIntervention(activeChapter?.interventionPrompt || '');
