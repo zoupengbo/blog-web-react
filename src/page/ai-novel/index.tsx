@@ -998,6 +998,7 @@ const AiNovelDashboard: React.FC = () => {
         open={cruiseHook.cruiseModalOpen}
         onCancel={cruiseHook.closeCruiseModal}
         defaultStartChapter={streamHook.activeChapterNum}
+        selectedNovel={selectedNovel}
         selectedOutline={selectedOutline}
         wordCountLimit={streamHook.wordCountLimit}
         lastInterruptedSession={cruiseHook.lastInterruptedSession}

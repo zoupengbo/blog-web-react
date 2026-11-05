@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, InputNumber, Space, Button, Select, Radio, Tag, Switch, Input } from 'antd';
 import { RocketOutlined, RobotOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { PaperTheme, NovelOutline } from '../types';
+import { PaperTheme, NovelOutline, Novel } from '../types';
 
 interface AutoCruiseModalProps {
   open: boolean;
   onCancel: () => void;
   defaultStartChapter: number;
+  selectedNovel?: Novel | null;
   selectedOutline: NovelOutline;
   wordCountLimit: number;
   onStartCruise: (params: {
@@ -20,6 +21,7 @@ interface AutoCruiseModalProps {
   }) => void;
   paperTheme?: PaperTheme;
   lastInterruptedSession?: {
+    novelId?: number;
     chapterNum: number;
     remainingCount: number;
     limit: number;
@@ -33,6 +35,7 @@ export const AutoCruiseModal: React.FC<AutoCruiseModalProps> = ({
   open,
   onCancel,
   defaultStartChapter = 1,
+  selectedNovel,
   selectedOutline,
   wordCountLimit: initialWordCount = 2500,
   onStartCruise,
@@ -45,6 +48,15 @@ export const AutoCruiseModal: React.FC<AutoCruiseModalProps> = ({
   const [selectedWordLimit, setSelectedWordLimit] = useState<number>(initialWordCount);
   const [useMultiAgent, setUseMultiAgent] = useState<boolean>(true);
   const [authorGuidance, setAuthorGuidance] = useState<string>('');
+
+  // 跨小说隔离校验：仅当中断记录确实属于当前所选小说时才允许展示与续接，严禁跨书污染
+  const currentNovelId = selectedNovel?.id || selectedOutline?.novelId || (selectedOutline as any)?.novel_id;
+  const isCurrentNovelSession = Boolean(
+    lastInterruptedSession &&
+    lastInterruptedSession.novelId &&
+    currentNovelId &&
+    Number(lastInterruptedSession.novelId) === Number(currentNovelId)
+  );
 
   // 智能识别当前选中的起始章节是否属于历史已存在/已完成章节（重写场景）
   const chList = (selectedOutline?.chaptersOutline || []) as any[];
@@ -123,7 +135,7 @@ export const AutoCruiseModal: React.FC<AutoCruiseModalProps> = ({
           </div>
         )}
 
-        {lastInterruptedSession && (
+        {lastInterruptedSession && isCurrentNovelSession && (
           <div
             style={{
               padding: '10px 14px',

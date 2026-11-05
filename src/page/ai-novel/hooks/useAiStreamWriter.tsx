@@ -133,6 +133,29 @@ export const useAiStreamWriter = (
 
   const streamReaderRef = useRef<ReadableStreamDefaultReader | null>(null);
 
+  // 跨小说彻底隔离防线：当切换小说 (selectedNovel.id 变化) 时，自动中止上本小说的正文生成流，清空正在生成的临时状态
+  const streamNovelIdRef = useRef<number | undefined>(selectedNovel?.id);
+  React.useEffect(() => {
+    if (selectedNovel?.id !== streamNovelIdRef.current) {
+      streamNovelIdRef.current = selectedNovel?.id;
+      if (streamReaderRef.current) {
+        try {
+          streamReaderRef.current.cancel();
+        } catch (e) {
+          console.warn('Cancel previous novel stream reader failed:', e);
+        }
+        streamReaderRef.current = null;
+      }
+      setIsGenerating(false);
+      setIsPaused(false);
+      setIsDeslopping(false);
+      setAgentNodes({});
+      setAgentThoughts([]);
+      setCriticReport(null);
+      setWildReaderFeedback(null);
+    }
+  }, [selectedNovel?.id]);
+
   const handleWriteChapterStream = async (isResume = false) => {
     if (!selectedNovel || isGenerating) return;
     const shouldResume = isResume === true;

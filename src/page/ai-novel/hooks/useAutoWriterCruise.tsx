@@ -43,6 +43,7 @@ export const useAutoWriterCruise = (
   const [writingSpeed, setWritingSpeed] = useState<number>(0);
   const [useMultiAgent, setUseMultiAgent] = useState<boolean>(true);
   const [lastInterruptedSession, setLastInterruptedSession] = useState<{
+    novelId: number;
     chapterNum: number;
     remainingCount: number;
     limit: number;
@@ -53,6 +54,32 @@ export const useAutoWriterCruise = (
   const isStoppingRef = useRef<boolean>(false);
   const activeReaderRef = useRef<ReadableStreamDefaultReader | null>(null);
   const latestOutlineRef = useRef<NovelOutline>(selectedOutline);
+  const cruiseNovelIdRef = useRef<number | null>(null);
+
+  // 跨小说彻底隔离防线：当切换小说 (selectedNovel.id 变化) 时，自动重置全部巡航运行态与中断缓存，严防跨书污染
+  const currentNovelIdRef = useRef<number | undefined>(selectedNovel?.id);
+  useEffect(() => {
+    if (selectedNovel?.id !== currentNovelIdRef.current) {
+      currentNovelIdRef.current = selectedNovel?.id;
+      // 若原小说后台巡航仍在读取流，强行安全中止，严防跨书写坏新小说
+      isStoppingRef.current = true;
+      if (activeReaderRef.current) {
+        try {
+          activeReaderRef.current.cancel();
+        } catch (e) {
+          console.warn('Cancel previous novel cruise reader failed:', e);
+        }
+        activeReaderRef.current = null;
+      }
+      setIsCruising(false);
+      setLastInterruptedSession(null);
+      cruisingBuffersRef.current = {};
+      authorGuidanceRef.current = '';
+      setCruiseStatusText('');
+      setCompletedCount(0);
+      setWritingSpeed(0);
+    }
+  }, [selectedNovel?.id]);
 
   // 实时追踪当前编辑区查看的章节，杜绝闭包失效导致的跨章串流污染
   const activeChapterNumRef = useRef<number>(activeChapterNum);
@@ -526,13 +553,16 @@ export const useAutoWriterCruise = (
 
             if (!success && !isStoppingRef.current) {
               const remaining = targetCount - step;
-              setLastInterruptedSession({
-                chapterNum: currentCh,
-                remainingCount: remaining,
-                limit,
-                useMultiAgent: multiAgentParam !== undefined ? multiAgentParam : useMultiAgent,
-                reason: lastErrMsg || '自动补全章节细纲失败'
-              });
+              if (selectedNovel) {
+                setLastInterruptedSession({
+                  novelId: selectedNovel.id,
+                  chapterNum: currentCh,
+                  remainingCount: remaining,
+                  limit,
+                  useMultiAgent: multiAgentParam !== undefined ? multiAgentParam : useMultiAgent,
+                  reason: lastErrMsg || '自动补全章节细纲失败'
+                });
+              }
 
               // 严格质检断流，提供重试选项
               Modal.confirm({
@@ -595,13 +625,16 @@ export const useAutoWriterCruise = (
 
           if (!actuallyCompleted) {
             const remaining = targetCount - step;
-            setLastInterruptedSession({
-              chapterNum: currentCh,
-              remainingCount: remaining,
-              limit,
-              useMultiAgent: multiAgentParam !== undefined ? multiAgentParam : useMultiAgent,
-              reason: result.error || '正文生成或审核未通过'
-            });
+            if (selectedNovel) {
+              setLastInterruptedSession({
+                novelId: selectedNovel.id,
+                chapterNum: currentCh,
+                remainingCount: remaining,
+                limit,
+                useMultiAgent: multiAgentParam !== undefined ? multiAgentParam : useMultiAgent,
+                reason: result.error || '正文生成或审核未通过'
+              });
+            }
 
             // 严格质检断流停机，并提供一键重试/继续后续巡航
             Modal.confirm({
