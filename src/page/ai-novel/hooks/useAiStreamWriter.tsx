@@ -433,7 +433,7 @@ export const useAiStreamWriter = (
                     key: 'auditor_round_progress',
                     message: '✅ 章节审核通过',
                     description: statusText,
-                    duration: 4,
+                    duration: 0,
                     placement: 'topRight'
                   });
                 } else if (isWarning) {
@@ -484,13 +484,15 @@ export const useAiStreamWriter = (
       }
 
       try {
-        (notification as any).destroy?.('auditor_round_progress');
+        // 🛡️ 保持审核通过通知显示，严禁代码自动销毁
         (notification as any).destroy?.('auditor_warning_report');
       } catch (e) {}
-      message.success({
-        content: '✅ 章节审核通过并已安全存入数据库！',
-        key: 'auditor_status',
-        duration: 4
+      notification.success({
+        key: 'chapter_writer_success',
+        message: '🎉 章节生成成功并已安全存入数据库！',
+        description: `第 ${activeChapterNum} 章正文已成功生成并通过审核安全存入数据库。`,
+        duration: 0,
+        placement: 'topRight'
       });
 
       const resDetail: any = await httpService.get(`/ai-novel/detail/${selectedNovel.id}?_t=${Date.now()}`);
@@ -523,10 +525,12 @@ export const useAiStreamWriter = (
             await loadChapterContent(selectedNovel.id, activeChapterNum);
           }
         } catch (e) {}
-        message.success({
-          content: '✅ 章节生成完成并已安全落盘！',
-          key: 'auditor_status',
-          duration: 4
+        notification.success({
+          key: 'chapter_writer_success',
+          message: '🎉 章节生成完成并已安全落盘！',
+          description: `第 ${activeChapterNum} 章正文已完成并通过校对落盘。`,
+          duration: 0,
+          placement: 'topRight'
         });
         setIsGenerating(false);
         streamReaderRef.current = null;
@@ -544,10 +548,12 @@ export const useAiStreamWriter = (
               setSelectedOutline(quickCheck.data.outline);
               setSelectedNovel(quickCheck.data.novel);
               await loadChapterContent(selectedNovel.id, activeChapterNum);
-              message.success({
-                content: `🎉 第 ${activeChapterNum} 章已在数据库安全落盘保存！`,
-                key: 'auditor_status',
-                duration: 4
+              notification.success({
+                key: 'chapter_writer_success',
+                message: '🎉 章节已在数据库安全落盘保存！',
+                description: `第 ${activeChapterNum} 章正文已在数据库安全落盘保存，您可以继续查看。`,
+                duration: 0,
+                placement: 'topRight'
               });
               setIsGenerating(false);
               streamReaderRef.current = null;

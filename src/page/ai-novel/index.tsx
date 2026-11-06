@@ -991,7 +991,7 @@ const AiNovelDashboard: React.FC = () => {
             : 0
         }
         onChaptersGenerated={() => {
-          setIsFreeWriteOpen(false);
+          // 仅在后台刷新章节数据，严禁自动关闭弹窗！待用户主动查阅结果后点击“完成/关闭”按钮再关闭弹窗
           if (selectedNovel) loadNovelToEditor(selectedNovel.id);
         }}
         paperTheme={paperTheme}

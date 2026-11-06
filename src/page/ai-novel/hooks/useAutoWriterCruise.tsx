@@ -710,7 +710,8 @@ export const useAutoWriterCruise = (
         notification.success({
           message: '🎉 全自动连写巡航顺利完成！',
           description: `已成功无人值守连写并过审入库，当前章节已定位至最新完成章节。`,
-          duration: 5
+          duration: 0,
+          placement: 'topRight'
         });
       }
     } catch (globalErr: any) {

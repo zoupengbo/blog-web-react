@@ -112,6 +112,9 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
   };
 
   const handleClose = () => {
+    if (generatingDone) {
+      onChaptersGenerated();
+    }
     handleReset();
     onCancel();
   };
