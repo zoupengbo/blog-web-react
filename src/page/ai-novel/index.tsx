@@ -143,8 +143,6 @@ const AiNovelDashboard: React.FC = () => {
     loadNovelToEditor
   );
 
-  const [isMultiAgentModalOpen, setIsMultiAgentModalOpen] = useState<boolean>(false);
-
   const cruiseHook = useAutoWriterCruise(
     selectedNovel,
     selectedOutline,
@@ -694,10 +692,9 @@ const AiNovelDashboard: React.FC = () => {
             cruiseStatusText={cruiseHook.cruiseStatusText}
             openCruiseModal={() => {
               if (cruiseHook.isCruising || streamHook.isGenerating) {
-                setIsMultiAgentModalOpen(true);
-              } else {
-                cruiseHook.openCruiseModal();
+                return;
               }
+              cruiseHook.openCruiseModal();
             }}
             emergencyStop={cruiseHook.emergencyStop}
             selectedNovel={selectedNovel}
@@ -812,8 +809,6 @@ const AiNovelDashboard: React.FC = () => {
             agentThoughts={streamHook.agentThoughts}
             useMultiAgent={streamHook.useMultiAgent}
             setUseMultiAgent={streamHook.setUseMultiAgent}
-            isMultiAgentModalOpen={isMultiAgentModalOpen}
-            setIsMultiAgentModalOpen={setIsMultiAgentModalOpen}
           />
         )}
       </Spin>
