@@ -375,7 +375,12 @@ export const ConfigDrawer: React.FC<ConfigDrawerProps> = ({
         >
           <InputNumber
             value={apiConfig.maxTokens}
-            onChange={val => setApiConfig({ ...apiConfig, maxTokens: val || 8192 })}
+            onChange={val => setApiConfig({ ...apiConfig, maxTokens: val as number })}
+            onBlur={() => {
+              if (!apiConfig.maxTokens || apiConfig.maxTokens < 500) {
+                setApiConfig({ ...apiConfig, maxTokens: 8192 });
+              }
+            }}
             min={500}
             max={16384}
             style={{ width: '100%' }}

@@ -2760,7 +2760,10 @@ const StockRadarDashboard: React.FC = () => {
                   min={100}
                   step={100}
                   value={buyShares}
-                  onChange={(val) => setBuyShares(val || 100)}
+                  onChange={(val) => setBuyShares(val as number)}
+                  onBlur={() => {
+                    if (!buyShares || buyShares < 100) setBuyShares(100);
+                  }}
                   addonAfter="股"
                 />
               </div>
@@ -2821,7 +2824,10 @@ const StockRadarDashboard: React.FC = () => {
               min={10000}
               step={100000}
               value={inputCapital}
-              onChange={(val) => setInputCapital(val || 1000000)}
+              onChange={(val) => setInputCapital(val as number)}
+              onBlur={() => {
+                if (!inputCapital || inputCapital < 10000) setInputCapital(1000000);
+              }}
               formatter={(val) => `¥ ${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
               parser={(val) => Number(val ? val.replace(/¥\s?|(,*)/g, '') : 1000000)}
             />

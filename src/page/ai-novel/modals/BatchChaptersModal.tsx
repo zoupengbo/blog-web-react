@@ -8,8 +8,8 @@ const { TextArea } = Input;
 interface BatchChaptersModalProps {
   open: boolean;
   onCancel: () => void;
-  batchChapterCount: number;
-  setBatchChapterCount: (val: number) => void;
+  batchChapterCount: number | null;
+  setBatchChapterCount: (val: number | null) => void;
   batchGenerateMode: 'append' | 'overwrite';
   setBatchGenerateMode: (mode: 'append' | 'overwrite') => void;
   plotDirection: string;
@@ -62,7 +62,12 @@ export const BatchChaptersModal: React.FC<BatchChaptersModalProps> = ({
               min={1}
               max={50}
               value={batchChapterCount}
-              onChange={(val) => setBatchChapterCount(val || 1)}
+              onChange={(val) => setBatchChapterCount(val)}
+              onBlur={() => {
+                if (!batchChapterCount || batchChapterCount < 1) {
+                  setBatchChapterCount(1);
+                }
+              }}
               size="middle"
               style={{ width: 100 }}
             />
