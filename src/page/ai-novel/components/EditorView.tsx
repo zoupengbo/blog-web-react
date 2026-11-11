@@ -17,6 +17,7 @@ import { parseVolumeStructure, getChapterVolume, isPastCharacter } from '../util
 import { PromptDetailModal } from '../modals/PromptDetailModal';
 import VirtualList from 'rc-virtual-list';
 import { getGrowthSystemConfig } from '../utils/genreHelper';
+import { LONG_AI_REQUEST_TIMEOUT_MS } from '../../../common/request';
 
 const { TextArea } = Input;
 
@@ -299,7 +300,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
         novelId: selectedNovel.id,
         targetChapterNumber: activeChapterNum,
         userIntervention: intervention || ''
-      });
+      }, { timeout: LONG_AI_REQUEST_TIMEOUT_MS });
       hideLoading();
       if (res && res.code === 200 && res.data) {
         const derived = res.data;
