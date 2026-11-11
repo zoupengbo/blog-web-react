@@ -23,7 +23,7 @@ export const useNovelModalsState = (
     baseUrl: '',
     modelName: '',
     temperature: 0.7,
-    maxTokens: 8192
+    maxTokens: 65536
   });
   const [testingConfig, setTestingConfig] = useState<boolean>(false);
 

@@ -37,7 +37,7 @@ const defaultApiConfig: ApiConfig = {
   apiKey: '',
   modelName: 'gpt-4o-mini',
   temperature: 0.7,
-  maxTokens: 4096,
+  maxTokens: 65536,
   name: '默认配置'
 };
 
