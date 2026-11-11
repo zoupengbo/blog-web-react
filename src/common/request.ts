@@ -2,6 +2,8 @@
 import axios, { AxiosResponse, AxiosRequestConfig, AxiosError } from "axios";
 import { message } from 'antd';
 
+export const LONG_AI_REQUEST_TIMEOUT_MS = 900000; // 15 分钟：支持深思模型批量生成与多轮逻辑审核
+
 // 统一错误处理函数
 const getErrorMessage = (error: any): string => {
   if (error.response) {
@@ -18,7 +20,9 @@ const getErrorMessage = (error: any): string => {
       case 404:
         return "请求的资源不存在";
       case 408:
-        return "请求超时，请重试";
+        return "请求超时，后台任务可能仍在运行，请刷新查看后再重试";
+      case 409:
+        return data?.msg || "当前已有大纲生成或审核任务正在进行中，请稍候";
       case 429:
         return "请求过于频繁，请稍后重试";
       case 500:
@@ -35,7 +39,7 @@ const getErrorMessage = (error: any): string => {
   } else if (error.request) {
     // 网络错误
     if (error.code === 'ECONNABORTED') {
-      return "请求超时，请检查网络连接";
+      return "请求超时（已超过 15 分钟），请刷新查看最新大纲状态后再重试";
     }
     return "网络连接失败，请检查网络设置";
   } else {
@@ -61,8 +65,8 @@ const httpService = axios.create({
   headers: {
     authorization: localStorage.getItem("token"),
   },
-  // 请求超时时间 (支持 AI 复杂逻辑审核与长文本生成，提升为 5 分钟)
-  timeout: 300000,
+  // 请求超时时间 (支持思考模型多轮大纲逻辑审核与长文本生成，提升为 15 分钟)
+  timeout: LONG_AI_REQUEST_TIMEOUT_MS,
 });
 
 /* 网络请求部分 */

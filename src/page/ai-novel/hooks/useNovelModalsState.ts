@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { message } from 'antd';
-import httpService from '../../../common/request';
+import httpService, { LONG_AI_REQUEST_TIMEOUT_MS } from '../../../common/request';
 import { Novel, NovelOutline, CharacterRelationship, ChapterOutline, PlotProposal, SuggestedPlotData } from '../types';
 import { isPastCharacter } from '../utils/volumeParser';
 
@@ -191,7 +191,7 @@ export const useNovelModalsState = (
         currentContent,
         requirements: modifyReqs,
         novelId: selectedNovel?.id
-      });
+      }, { timeout: LONG_AI_REQUEST_TIMEOUT_MS });
 
       const modifiedText = typeof res.data === 'string'
         ? res.data
@@ -494,7 +494,7 @@ export const useNovelModalsState = (
         userInstruction: effectiveInstruction,
         chapterCount: batchChapterCount,
         refineDirection: !!effectiveInstruction
-      }, { timeout: 300000 });
+      }, { timeout: LONG_AI_REQUEST_TIMEOUT_MS });
       const suggestionText = typeof res.data === 'string'
         ? res.data
         : (res.data?.suggestion || res.data?.plot || '');
@@ -534,6 +534,10 @@ export const useNovelModalsState = (
   };
 
   const handleBatchGenerateChapters = async (setSelectedNovel: any) => {
+    if (isBatchGenerating) {
+      message.info('当前批量细纲规划任务正在执行中，请勿重复提交');
+      return;
+    }
     if (!selectedNovel || !plotDirection.trim()) {
       message.warning('请输入接下来的剧情发展大方向！');
       return;
@@ -545,7 +549,7 @@ export const useNovelModalsState = (
         plotDirection: plotDirection,
         chapterCount: batchChapterCount,
         mode: batchGenerateMode
-      });
+      }, { timeout: LONG_AI_REQUEST_TIMEOUT_MS });
       if (res.code === 200) {
         message.success(res.msg || '智能批量章节规划成功！');
         setPlotDirection('');
@@ -560,7 +564,23 @@ export const useNovelModalsState = (
         message.error(res.msg || '批量生成章节失败');
       }
     } catch (e: any) {
-      message.error(e.message || '网络请求错误');
+      const status = e?.response?.status;
+      const isInProgress = status === 409 || e?.response?.data?.inProgress === true;
+      const isTimeout = e?.code === 'ECONNABORTED' || /timeout|超时/i.test(e?.message || '');
+      if (isInProgress || isTimeout) {
+        try {
+          const resDetail: any = await httpService.get(`/ai-novel/detail/${selectedNovel.id}?_t=${Date.now()}`);
+          if (resDetail.code === 200 && resDetail.data) {
+            setSelectedOutline(resDetail.data.outline);
+            setSelectedNovel(resDetail.data.novel);
+          }
+        } catch (_) {}
+      }
+      if (isInProgress) {
+        message.warning(e?.response?.data?.msg || e.message || '该小说已有批量细纲生成任务正在进行中，已拦截重复请求');
+      } else {
+        message.error(e.message || '网络请求错误');
+      }
     } finally {
       setIsBatchGenerating(false);
     }
@@ -602,7 +622,7 @@ export const useNovelModalsState = (
         novelId: selectedNovel.id,
         chapterNumbers: batchAnalyzeSelectedChapters,
         analysisTypes: batchAnalyzeTypes
-      });
+      }, { timeout: LONG_AI_REQUEST_TIMEOUT_MS });
 
       if (res.code === 200 && res.data) {
         if (selectedOutline) {
@@ -650,7 +670,7 @@ export const useNovelModalsState = (
         afterChapterNumber: insertAfterChapterNum,
         userInstruction: insertUserInstruction,
         generateWithAi: true
-      });
+      }, { timeout: LONG_AI_REQUEST_TIMEOUT_MS });
 
       if (res.code === 200 && res.data) {
         message.success({

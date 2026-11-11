@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { message, notification, Modal } from 'antd';
-import httpService from '../../../common/request';
+import httpService, { LONG_AI_REQUEST_TIMEOUT_MS } from '../../../common/request';
 import { Novel, NovelOutline, ChapterOutline, PromptLogItem, StoryArc, CriticReport, AgentNodeState } from '../types';
 
 export interface CruiseStartParams {
@@ -498,9 +498,7 @@ export const useAutoWriterCruise = (
         let chList: ChapterOutline[] = (currentOutline?.chaptersOutline || []) as ChapterOutline[];
         let existingOutline = findOutlineByNumber(chList, currentCh);
 
-        if (!existingOutline || !existingOutline.outline || existingOutline.outline === '暂无大纲') {
-          // 细纲不足，首先尝试从后端拉取最新大纲详情（防止前端引用未同步）
-          let refreshed = false;
+        const refreshOutlineFromDetail = async (): Promise<boolean> => {
           try {
             const detailRes: any = await httpService.get(`/ai-novel/detail/${selectedNovel.id}?_t=${Date.now()}`);
             if (detailRes.code === 200 && detailRes.data?.outline) {
@@ -509,12 +507,18 @@ export const useAutoWriterCruise = (
               chList = detailRes.data.outline.chaptersOutline || [];
               existingOutline = findOutlineByNumber(chList, currentCh);
               if (existingOutline && existingOutline.outline && existingOutline.outline !== '暂无大纲') {
-                refreshed = true;
+                return true;
               }
             }
           } catch (e) {}
+          return false;
+        };
 
-          // 如果后端依然未规划该章细纲，自动触发批量细纲生成（带重试机制）
+        if (!existingOutline || !existingOutline.outline || existingOutline.outline === '暂无大纲') {
+          // 细纲不足，首先尝试从后端拉取最新大纲详情（防止前端引用未同步）
+          const refreshed = await refreshOutlineFromDetail();
+
+          // 如果后端依然未规划该章细纲，自动触发批量细纲生成（15分钟超时 + 并发锁/超时防重防呆）
           if (!refreshed) {
             setCruiseStatusText(`第 ${currentCh} 章大纲未规划，正在全自动顺延生成后续章节细纲...`);
             const needCount = Math.max(1, targetCount - step);
@@ -525,7 +529,12 @@ export const useAutoWriterCruise = (
               if (isStoppingRef.current) break;
               try {
                 if (retry > 0) {
-                  setCruiseStatusText(`生成大纲遇到网络波动，正在进行第 ${retry + 1}/2 次自动重试...`);
+                  // 重试前先回查一次数据库，避免上一轮请求已落盘但响应抖动造成重复覆盖
+                  if (await refreshOutlineFromDetail()) {
+                    success = true;
+                    break;
+                  }
+                  setCruiseStatusText(`生成大纲遇到短暂网络波动，正在进行第 ${retry + 1}/2 次自动重试...`);
                   await new Promise(r => setTimeout(r, 2500));
                 }
                 const batchRes: any = await httpService.post('/ai-novel/batch-generate-chapters', {
@@ -534,22 +543,34 @@ export const useAutoWriterCruise = (
                   guidance: authorGuidanceRef.current || undefined,
                   userIntervention: authorGuidanceRef.current || undefined,
                   mode: 'append'
-                });
+                }, { timeout: LONG_AI_REQUEST_TIMEOUT_MS });
 
                 if (batchRes && batchRes.code === 200) {
-                  const detailRes: any = await httpService.get(`/ai-novel/detail/${selectedNovel.id}?_t=${Date.now()}`);
-                  if (detailRes.code === 200 && detailRes.data?.outline) {
-                    setSelectedOutline(detailRes.data.outline);
-                    latestOutlineRef.current = detailRes.data.outline;
-                    chList = detailRes.data.outline.chaptersOutline || [];
-                    existingOutline = findOutlineByNumber(chList, currentCh);
-                    success = true;
-                    break;
-                  }
+                  await refreshOutlineFromDetail();
+                  success = true;
+                  break;
                 } else {
                   lastErrMsg = batchRes?.msg || batchRes?.error || '自动补全章节细纲失败';
                 }
               } catch (batchErr: any) {
+                const errStatus = batchErr?.response?.status;
+                const isInProgress = errStatus === 409 || batchErr?.response?.data?.inProgress === true;
+                const isTimeout = batchErr?.code === 'ECONNABORTED' || /timeout|超时/i.test(batchErr?.message || '');
+
+                // 无论超时或 409 冲突，先同步最新详情看后端是否已落盘
+                if (await refreshOutlineFromDetail()) {
+                  success = true;
+                  break;
+                }
+
+                if (isInProgress) {
+                  lastErrMsg = batchErr?.response?.data?.msg || batchErr.message || '该小说已有批量细纲生成任务正在进行中，已停止重发以免覆盖';
+                  break;
+                }
+                if (isTimeout) {
+                  lastErrMsg = batchErr.message || '批量细纲生成及逻辑审核耗时超过15分钟，为防止重复生成覆盖已安全停止';
+                  break;
+                }
                 lastErrMsg = batchErr.message || '自动补全章节细纲失败';
               }
             }

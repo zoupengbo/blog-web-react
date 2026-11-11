@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Spin, message, Modal } from 'antd';
-import httpService from '../../common/request';
+import httpService, { LONG_AI_REQUEST_TIMEOUT_MS } from '../../common/request';
 import './styles.scss';
 
 import { useTheme } from '../../context/themeContext';
@@ -255,7 +255,7 @@ const AiNovelDashboard: React.FC = () => {
         logline: idea.concept,
         coreGoldenFinger: idea.goldLine,
         mainSellingPoints: idea.summary,
-      });
+      }, { timeout: LONG_AI_REQUEST_TIMEOUT_MS });
 
       if (resOutline.code !== 200) {
         message.error('生成大纲设定失败');
