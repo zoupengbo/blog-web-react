@@ -56,7 +56,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
   const [aiStoryInstruction, setAiStoryInstruction] = useState('');
   const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
   const [targetWords, setTargetWords] = useState<number>(2500);
-  const [startChapterNum, setStartChapterNum] = useState<number>(lastChapterNum + 1);
+  const [startChapterNum, setStartChapterNum] = useState<number | null>(lastChapterNum + 1);
   const [enableAuditor, setEnableAuditor] = useState<boolean>(false);
 
   // Preview step state
@@ -136,7 +136,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
       body: JSON.stringify({
         novelId,
         userPrompt: aiStoryInstruction.trim(),
-        startChapterNum: startChapterNum || 1
+        startChapterNum: (startChapterNum && startChapterNum > 0) ? startChapterNum : (lastChapterNum + 1)
       })
     }).then(response => {
       if (!response.body) throw new Error('服务器响应异常');
@@ -205,7 +205,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
         novelId,
         freeText: freeText.trim(),
         targetWords,
-        startChapterNum
+        startChapterNum: (startChapterNum && startChapterNum > 0) ? startChapterNum : (lastChapterNum + 1)
       });
 
       if (res && res.code === 200 && res.data) {
@@ -246,7 +246,7 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
         novelId,
         freeText: freeText.trim(),
         targetWords,
-        startChapterNum,
+        startChapterNum: (startChapterNum && startChapterNum > 0) ? startChapterNum : (lastChapterNum + 1),
         enableAuditor,
         autoExpandShortSegments: isAutoExpand
       })
@@ -416,7 +416,12 @@ export const FreeWriteModal: React.FC<FreeWriteModalProps> = ({
           <span style={{ fontSize: 13, color: '#666' }}>追加到第</span>
           <InputNumber
             value={startChapterNum}
-            onChange={val => setStartChapterNum(val || 1)}
+            onChange={val => setStartChapterNum(val)}
+            onBlur={() => {
+              if (!startChapterNum || startChapterNum < 1) {
+                setStartChapterNum(lastChapterNum + 1);
+              }
+            }}
             min={1}
             max={999}
             style={{ width: 70 }}

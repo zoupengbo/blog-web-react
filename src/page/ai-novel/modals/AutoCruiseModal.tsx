@@ -43,8 +43,8 @@ export const AutoCruiseModal: React.FC<AutoCruiseModalProps> = ({
   lastInterruptedSession,
   onClearInterruptedSession
 }) => {
-  const [startChapterNum, setStartChapterNum] = useState<number>(defaultStartChapter);
-  const [targetCount, setTargetCount] = useState<number>(3);
+  const [startChapterNum, setStartChapterNum] = useState<number | null>(defaultStartChapter);
+  const [targetCount, setTargetCount] = useState<number | null>(3);
   const [selectedWordLimit, setSelectedWordLimit] = useState<number>(initialWordCount);
   const [useMultiAgent, setUseMultiAgent] = useState<boolean>(true);
   const [authorGuidance, setAuthorGuidance] = useState<string>('');
@@ -60,7 +60,7 @@ export const AutoCruiseModal: React.FC<AutoCruiseModalProps> = ({
 
   // 智能识别当前选中的起始章节是否属于历史已存在/已完成章节（重写场景）
   const chList = (selectedOutline?.chaptersOutline || []) as any[];
-  const targetChapter = chList.find(c => parseInt(c.chapterNumber, 10) === startChapterNum);
+  const targetChapter = chList.find(c => parseInt(c.chapterNumber, 10) === Number(startChapterNum));
   const isRewrite = Boolean(targetChapter && (targetChapter.status === 'completed' || (targetChapter.wordCount && targetChapter.wordCount > 0)));
 
   // 当弹窗打开时，优先采用当前正在查看的活动章节，方便直接针对当前章启动连写/重写
@@ -82,8 +82,8 @@ export const AutoCruiseModal: React.FC<AutoCruiseModalProps> = ({
 
   const handleStart = () => {
     onStartCruise({
-      startChapterNum: startChapterNum || 1,
-      targetCount: targetCount || 3,
+      startChapterNum: (startChapterNum && startChapterNum > 0) ? startChapterNum : 1,
+      targetCount: (targetCount && targetCount > 0) ? targetCount : 3,
       wordCountLimit: selectedWordLimit,
       useMultiAgent,
       authorGuidance: authorGuidance.trim() || undefined,
@@ -211,7 +211,12 @@ export const AutoCruiseModal: React.FC<AutoCruiseModalProps> = ({
                 min={1}
                 max={9999}
                 value={startChapterNum}
-                onChange={val => setStartChapterNum(val || 1)}
+                onChange={val => setStartChapterNum(val)}
+                onBlur={() => {
+                  if (!startChapterNum || startChapterNum < 1) {
+                    setStartChapterNum(1);
+                  }
+                }}
                 style={{ width: 140 }}
                 addonBefore="第"
                 addonAfter="章"
@@ -223,7 +228,7 @@ export const AutoCruiseModal: React.FC<AutoCruiseModalProps> = ({
           <Form.Item label={<b>🎯 目标连写章节数</b>}>
             <Space size="middle" direction="vertical" style={{ width: '100%' }}>
               <Radio.Group
-                value={targetCount}
+                value={targetCount ?? undefined}
                 onChange={e => setTargetCount(e.target.value)}
                 buttonStyle="solid"
               >
@@ -238,7 +243,12 @@ export const AutoCruiseModal: React.FC<AutoCruiseModalProps> = ({
                   min={1}
                   max={50}
                   value={targetCount}
-                  onChange={val => setTargetCount(val || 1)}
+                  onChange={val => setTargetCount(val)}
+                  onBlur={() => {
+                    if (!targetCount || targetCount < 1) {
+                      setTargetCount(1);
+                    }
+                  }}
                   style={{ width: 110 }}
                   addonAfter="章"
                 />

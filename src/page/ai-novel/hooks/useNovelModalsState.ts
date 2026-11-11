@@ -58,7 +58,7 @@ export const useNovelModalsState = (
   // 拆章、建议与分析 Modal 状态
   const [batchModalOpen, setBatchModalOpen] = useState<boolean>(false);
   const [plotDirection, setPlotDirection] = useState<string>('');
-  const [batchChapterCount, setBatchChapterCount] = useState<number>(1);
+  const [batchChapterCount, setBatchChapterCount] = useState<number | null>(1);
   const [isBatchGenerating, setIsBatchGenerating] = useState<boolean>(false);
   const [batchGenerateMode, setBatchGenerateMode] = useState<'append' | 'overwrite'>('append');
 
@@ -492,7 +492,7 @@ export const useNovelModalsState = (
         novelId: selectedNovel.id,
         currentDirection: previousDirection,
         userInstruction: effectiveInstruction,
-        chapterCount: batchChapterCount,
+        chapterCount: (batchChapterCount && batchChapterCount > 0) ? batchChapterCount : 1,
         refineDirection: !!effectiveInstruction
       }, { timeout: LONG_AI_REQUEST_TIMEOUT_MS });
       const suggestionText = typeof res.data === 'string'
@@ -547,7 +547,7 @@ export const useNovelModalsState = (
       const res: any = await httpService.post('/ai-novel/batch-generate-chapters', {
         novelId: selectedNovel.id,
         plotDirection: plotDirection,
-        chapterCount: batchChapterCount,
+        chapterCount: (batchChapterCount && batchChapterCount > 0) ? batchChapterCount : 1,
         mode: batchGenerateMode
       }, { timeout: LONG_AI_REQUEST_TIMEOUT_MS });
       if (res.code === 200) {

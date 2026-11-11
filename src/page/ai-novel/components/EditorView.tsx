@@ -15,7 +15,6 @@ import {
 import { Novel, NovelOutline, CharacterRelationship, VectorMemoryItem, PaperTheme, PromptLogItem, StoryArc, CriticReport, AgentNodeState, WildReaderFeedback } from '../types';
 import { parseVolumeStructure, getChapterVolume, isPastCharacter } from '../utils/volumeParser';
 import { PromptDetailModal } from '../modals/PromptDetailModal';
-import { MultiAgentModal } from '../modals/MultiAgentModal';
 import VirtualList from 'rc-virtual-list';
 import { getGrowthSystemConfig } from '../utils/genreHelper';
 import { LONG_AI_REQUEST_TIMEOUT_MS } from '../../../common/request';
@@ -129,8 +128,6 @@ interface EditorViewProps {
   agentThoughts?: Array<{ agent: string; thought: string; timestamp?: string }>;
   useMultiAgent?: boolean;
   setUseMultiAgent?: (val: boolean) => void;
-  isMultiAgentModalOpen?: boolean;
-  setIsMultiAgentModalOpen?: (val: boolean) => void;
   novelList?: Novel[];
   loadNovelToEditor?: (novelId: number, chapterNum?: number) => Promise<void>;
   onRefreshNovels?: () => Promise<void>;
@@ -243,8 +240,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
   agentThoughts = [],
   useMultiAgent = true,
   setUseMultiAgent,
-  isMultiAgentModalOpen: externalIsMultiAgentModalOpen,
-  setIsMultiAgentModalOpen: externalSetIsMultiAgentModalOpen,
   novelList = [],
   loadNovelToEditor,
   onRefreshNovels,
@@ -252,7 +247,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
   const [activePromptLog, setActivePromptLog] = useState<PromptLogItem | null>(null);
   const [isPromptModalOpen, setIsPromptModalOpen] = useState<boolean>(false);
   const [promptLogScope, setPromptLogScope] = useState<'current' | 'outline'>('current');
-  const [localMultiAgentModalOpen, setLocalMultiAgentModalOpen] = useState<boolean>(false);
   const [isDerivingOutline, setIsDerivingOutline] = useState<boolean>(false);
   const [isBranchModalOpen, setIsBranchModalOpen] = useState<boolean>(false);
   const [branchNameInput, setBranchNameInput] = useState<string>('重构实验版');
@@ -333,11 +327,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
       setIsDerivingOutline(false);
     }
   };
-
-  const isMultiAgentModalOpen = externalIsMultiAgentModalOpen !== undefined ? externalIsMultiAgentModalOpen : localMultiAgentModalOpen;
-  const setIsMultiAgentModalOpen = externalSetIsMultiAgentModalOpen || setLocalMultiAgentModalOpen;
-
-  // 保持 MultiAgent 模态框默认关闭，仅由用户手动点击相关按钮触发打开
 
   const fetchPromptLogs = (chapNum?: number) => {
     if (!selectedNovel?.id) return;
@@ -804,22 +793,17 @@ export const EditorView: React.FC<EditorViewProps> = ({
               <Space size={4}>
                 {openCruiseModal && (
                   <Tooltip
-                    title={
-                      (isCruising || isGenerating)
-                        ? '🚀 正在连写创作中，点击查看像素小人协同界面'
-                        : '🚀 全自动连写巡航 (AI 无人值守连续撰写多章)'
-                    }
+                    title="🚀 全自动连写巡航 (AI 无人值守连续撰写多章)"
                   >
                     <Button
                       size="small"
                       icon={<RocketOutlined spin={isCruising || isGenerating} />}
                       onClick={() => {
-                        if (isCruising || isGenerating) {
-                          setIsMultiAgentModalOpen(true);
-                        } else {
+                        if (!isCruising && !isGenerating) {
                           openCruiseModal();
                         }
                       }}
+                      disabled={isCruising || isGenerating}
                       style={{
                         background: (isCruising || isGenerating) ? 'rgba(82, 196, 26, 0.15)' : 'transparent',
                         color: (isCruising || isGenerating) ? '#52c41a' : '#1890ff',
@@ -1241,11 +1225,9 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   {isGenerating && (
                     <span
                       className="speed-stats"
-                      style={{ marginLeft: 15, color: '#389e0d', cursor: 'pointer' }}
-                      onClick={() => setIsMultiAgentModalOpen(true)}
-                      title="点击查看像素小人协同界面"
+                      style={{ marginLeft: 15, color: '#389e0d' }}
                     >
-                      <LoadingOutlined /> 生成中: {writingSpeed}字/秒 (👾 点击查看小人)
+                      <LoadingOutlined /> 生成中: {writingSpeed}字/秒
                     </span>
                   )}
                 </div>
@@ -1327,8 +1309,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
                 }}>
                   <Tag
                     color="purple"
-                    onClick={() => setIsMultiAgentModalOpen(true)}
-                    title="点击查看像素小人协同界面"
                     style={{
                       margin: 0,
                       fontWeight: 700,
@@ -1340,12 +1320,11 @@ export const EditorView: React.FC<EditorViewProps> = ({
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 4,
-                      flexShrink: 0,
-                      cursor: 'pointer'
+                      flexShrink: 0
                     }}
                   >
                     <RocketOutlined spin />
-                    全自动连写 (点击查看)
+                    全自动连写
                   </Tag>
 
                   <Tag
@@ -1406,15 +1385,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   <span style={{ fontSize: 11, color: '#94a3b8', minWidth: 28, textAlign: 'right' }}>
                     {Math.round(((completedCount || 0) / Math.max(1, cruiseTargetCount || 1)) * 100)}%
                   </span>
-                  <Button
-                    size="small"
-                    type="link"
-                    icon={<RobotOutlined />}
-                    onClick={() => setIsMultiAgentModalOpen(true)}
-                    style={{ color: '#63b3ed', padding: '0 4px', fontSize: 11, fontWeight: 600 }}
-                  >
-                    Agent 面板
-                  </Button>
                   {emergencyStop && (
                     <Button
                       danger
@@ -1562,53 +1532,28 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   </Button>
                   <Button
                     icon={<PlusOutlined />}
-                    onClick={() => {
-                      if (isGenerating || isCruising) {
-                        setIsMultiAgentModalOpen(true);
-                      } else {
-                        onContinueWriting();
-                      }
-                    }}
+                    onClick={onContinueWriting}
                     loading={loading && !isGenerating}
+                    disabled={isGenerating || isCruising}
                   >
-                    {isGenerating || isCruising ? '👾 写作中 (点击查看小人)' : 'AI 一键续写'}
+                    AI 一键续写
                   </Button>
                   <Button
                     icon={<RedoOutlined />}
-                    danger={!isGenerating && !isCruising}
-                    onClick={() => {
-                      if (isGenerating || isCruising) {
-                        setIsMultiAgentModalOpen(true);
-                        return;
-                      }
-                      onWriteChapterStream(false);
-                    }}
+                    danger
+                    onClick={() => onWriteChapterStream(false)}
+                    disabled={isGenerating || isCruising}
                   >
-                    {isGenerating || isCruising ? '👾 写作中 (点击查看小人)' : '重写当前章'}
+                    重写当前章
                   </Button>
                 </Space>
               ) : (
                 <div style={{width: '100%'}}>
                   {isCruising ? (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '6px 0', gap: 12 }}>
-                      <Button
-                        type="primary"
-                        icon={<RobotOutlined />}
-                        onClick={() => setIsMultiAgentModalOpen(true)}
-                        style={{
-                          background: 'linear-gradient(135deg, #1890ff, #722ed1)',
-                          borderColor: '#722ed1',
-                          fontWeight: 600,
-                          borderRadius: 6
-                        }}
-                      >
-                        👾 像素小人协同监控
-                      </Button>
                       <Tag
                         color="purple"
-                        style={{ fontSize: 13, padding: '4px 12px', margin: 0, borderRadius: 4, cursor: 'pointer' }}
-                        onClick={() => setIsMultiAgentModalOpen(true)}
-                        title="点击查看像素小人协同界面"
+                        style={{ fontSize: 13, padding: '4px 12px', margin: 0, borderRadius: 4 }}
                       >
                         <RocketOutlined spin /> 全自动连写巡航中 (第 {currentCruisingChapter} 章)
                       </Tag>
@@ -1627,20 +1572,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
                     </div>
                   ) : isGenerating ? (
                     <div style={{ display: 'flex', gap: 12, width: '100%', flexWrap: 'wrap' }}>
-                      <Button
-                        type="primary"
-                        icon={<RobotOutlined />}
-                        style={{
-                          background: 'linear-gradient(135deg, #1890ff, #722ed1)',
-                          borderColor: '#722ed1',
-                          fontWeight: 600,
-                          flex: 1
-                        }}
-                        size="large"
-                        onClick={() => setIsMultiAgentModalOpen(true)}
-                      >
-                        👾 查看像素小人协同界面
-                      </Button>
                       <Button
                         type="primary"
                         style={{ backgroundColor: '#fa8c16', borderColor: '#fa8c16', flex: 1 }}
@@ -1690,10 +1621,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
                               fontWeight: 600
                             }}
                             onClick={() => {
-                              if (isGenerating || isCruising) {
-                                setIsMultiAgentModalOpen(true);
-                                return;
-                              }
                               onWriteChapterStream(true);
                             }}
                             className="btn-trigger-ai"
@@ -1718,15 +1645,11 @@ export const EditorView: React.FC<EditorViewProps> = ({
                           icon={<PlayCircleOutlined />}
                           style={{ height: 38, padding: '0 22px', borderRadius: 6 }}
                           onClick={() => {
-                            if (isGenerating || isCruising) {
-                              setIsMultiAgentModalOpen(true);
-                              return;
-                            }
                             onWriteChapterStream(false);
                           }}
                           className="btn-trigger-ai"
                         >
-                          {isGenerating || isCruising ? '👾 写作中，点击查看像素小人协同界面' : '🖋️ 召唤 AI 智能撰写章节正文'}
+                          🖋️ 召唤 AI 智能撰写章节正文
                         </Button>
                       )}
                     </div>
@@ -2490,18 +2413,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
         }}
         log={activePromptLog}
         paperTheme={paperTheme}
-      />
-      <MultiAgentModal
-        open={isMultiAgentModalOpen}
-        onCancel={() => setIsMultiAgentModalOpen(false)}
-        currentArc={currentArc}
-        currentChapterNum={activeChapterNum}
-        agentNodes={agentNodes}
-        criticReport={criticReport}
-        wildReaderFeedback={wildReaderFeedback}
-        agentThoughts={agentThoughts}
-        isGenerating={isGenerating || !!isCruising}
-        onStartWrite={() => onWriteChapterStream(false)}
       />
       <Modal
         title={<span>🌿 派生沙盒实验分支</span>}
