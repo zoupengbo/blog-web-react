@@ -86,7 +86,7 @@ export const ChannelConfigTab: React.FC = () => {
           modelName: aiRes.data.modelName,
           apiKey: aiRes.data.hasKey ? aiRes.data.apiKeyMasked : '',
           temperature: aiRes.data.temperature || 0.7,
-          maxTokens: aiRes.data.maxTokens || 8192
+          maxTokens: aiRes.data.maxTokens || 65536
         });
       }
     } catch (err: any) {

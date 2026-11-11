@@ -17,7 +17,7 @@ const PROVIDER_TEMPLATES = [
     modelName: 'deepseek-chat',
     temperature: 0.7,
     maxTokens: 8192,
-    tag: '极高性价比 / 叙事出色',
+    tag: '极高性价比 / 叙事出色 (官方上限 8192)',
     color: 'blue'
   },
   {
@@ -34,8 +34,8 @@ const PROVIDER_TEMPLATES = [
     baseUrl: 'https://api.openai.com/v1',
     modelName: 'gpt-4o-mini',
     temperature: 0.7,
-    maxTokens: 8192,
-    tag: '通用逻辑强',
+    maxTokens: 16384,
+    tag: '通用逻辑强 (上限 16384)',
     color: 'green'
   },
   {
@@ -61,17 +61,17 @@ const PROVIDER_TEMPLATES = [
     baseUrl: 'http://127.0.0.1:8045/v1',
     modelName: 'claude-sonnet-4-6',
     temperature: 0.75,
-    maxTokens: 8192,
-    tag: '网文正文 T0 / 极低AI味',
+    maxTokens: 64000,
+    tag: '网文正文 T0 / 极低AI味 (上限 64000)',
     color: 'gold'
   },
   {
     name: 'Gemini 3.8 Flash (本地 Antigravity)',
     baseUrl: 'http://127.0.0.1:8045/v1',
-    modelName: 'gemini-3.8-flash',
+    modelName: 'gemini-3.8-flash-high',
     temperature: 1.0,
-    maxTokens: 8192,
-    tag: '思考模型建议 temp=1.0 / 系统自动三档分工',
+    maxTokens: 65536,
+    tag: '思考模型建议 temp=1.0 / 思考+输出共享 65536 上限',
     color: 'volcano'
   },
   {
@@ -79,8 +79,8 @@ const PROVIDER_TEMPLATES = [
     baseUrl: 'http://127.0.0.1:8045/v1',
     modelName: 'gemini-3.1-pro-high',
     temperature: 1.0,
-    maxTokens: 8192,
-    tag: '长篇思考模型 / 大纲高推理 / 建议 temp=1.0',
+    maxTokens: 65535,
+    tag: '长篇思考模型 / 大纲高推理 / 上限 65535',
     color: 'geekblue'
   },
   {
@@ -88,7 +88,7 @@ const PROVIDER_TEMPLATES = [
     baseUrl: 'http://127.0.0.1:8045/v1',
     modelName: 'claude-sonnet-4-6',
     temperature: 0.75,
-    maxTokens: 8192,
+    maxTokens: 64000,
     tag: '本地私有化',
     color: 'default'
   }
@@ -371,16 +371,34 @@ export const ConfigDrawer: React.FC<ConfigDrawerProps> = ({
 
         <Form.Item
           label="Max Output Tokens (最大输出 Token 长度)"
-          extra="推荐设置为 4096 或 8192，防止长篇章节生成时尾部正文被截断。"
+          extra="思考模型（如 Gemini 3.8 Flash）内部思考与正文共享此预算，建议拉满至 65536（Claude 上限 64000 / Gemini 3.1 Pro 上限 65535 / DeepSeek-Chat 上限 8192），避免长考耗尽额度导致输出截断。"
         >
           <InputNumber
             value={apiConfig.maxTokens}
-            onChange={val => setApiConfig({ ...apiConfig, maxTokens: val || 8192 })}
+            onChange={val => setApiConfig({ ...apiConfig, maxTokens: val as number })}
+            onBlur={() => {
+              if (!apiConfig.maxTokens || apiConfig.maxTokens < 500) {
+                setApiConfig({ ...apiConfig, maxTokens: 65536 });
+              }
+            }}
             min={500}
-            max={16384}
+            max={65536}
             style={{ width: '100%' }}
-            placeholder="默认: 8192"
+            placeholder="默认: 65536"
           />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, flexWrap: 'wrap', gap: 4 }}>
+            <Radio.Group
+              size="small"
+              value={apiConfig.maxTokens}
+              onChange={e => setApiConfig({ ...apiConfig, maxTokens: e.target.value })}
+            >
+              <Radio.Button value={8192}>8192 (DeepSeek)</Radio.Button>
+              <Radio.Button value={16384}>16384</Radio.Button>
+              <Radio.Button value={32768}>32768</Radio.Button>
+              <Radio.Button value={64000}>64000 (Claude)</Radio.Button>
+              <Radio.Button value={65536}>65536 (拉满)</Radio.Button>
+            </Radio.Group>
+          </div>
         </Form.Item>
 
         <Space style={{ width: '100%', display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
