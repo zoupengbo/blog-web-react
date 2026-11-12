@@ -237,6 +237,9 @@ export interface ExecutionTraceStepMetrics {
   afterNonWhitespaceChars?: number | null;
   deltaNonWhitespaceChars?: number | null;
   modified?: boolean;
+  pendingContentHash?: string | null;
+  persistedContentHash?: string | null;
+  readbackVerified?: boolean;
   contentHash?: string | null;
   chapterTitle?: string | null;
   [key: string]: any;
@@ -308,11 +311,28 @@ export interface ExecutionTraceRun {
   failedCount: number;
   skippedCount: number;
   persistedWordCount?: number | null;
+  pendingContentHash?: string | null;
   persistedContentHash?: string | null;
+  readbackVerified?: boolean;
+  isTruncated?: boolean;
   persistedChapterTitle?: string | null;
   maxStepId?: number;
   summary: ExecutionTraceRunSummary;
   steps: ExecutionTraceStep[];
+}
+
+export interface ExecutionTraceTruncationInfo {
+  truncated: boolean;
+  runsTruncated: boolean;
+  stepsTruncated: boolean;
+  discoveryScanTruncated?: boolean;
+  truncatedTraceIds: string[];
+  limits?: {
+    maxRuns: number;
+    maxStepsPerTrace: number;
+    maxDiscoverySteps: number;
+    maxTotalSteps: number;
+  };
 }
 
 export interface LiveExecutionTraceEvent {

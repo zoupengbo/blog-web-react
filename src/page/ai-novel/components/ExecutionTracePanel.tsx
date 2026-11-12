@@ -5,11 +5,11 @@ import {
 import {
   ReloadOutlined, DeleteOutlined, CheckCircleFilled, CloseCircleFilled,
   LoadingOutlined, MinusCircleOutlined, CodeOutlined, FileTextOutlined,
-  BranchesOutlined, DownOutlined, RightOutlined
+  BranchesOutlined, DownOutlined, RightOutlined, WarningOutlined
 } from '@ant-design/icons';
 import VirtualList from 'rc-virtual-list';
 import {
-  PromptLogItem, PaperTheme, ExecutionTraceRun, ExecutionTraceStep, WordCountTimelineItem
+  PromptLogItem, PaperTheme, ExecutionTraceRun, ExecutionTraceStep, WordCountTimelineItem, ExecutionTraceTruncationInfo
 } from '../types';
 import { useTheme } from '../../../context/themeContext';
 
@@ -32,11 +32,13 @@ interface ExecutionTracePanelProps {
 const STEP_TYPE_LABELS: Record<string, { label: string; color: string }> = {
   lifecycle: { label: '流程', color: 'default' },
   preflight: { label: '预检', color: 'cyan' },
+  planning: { label: '规划', color: 'geekblue' },
   outline: { label: '大纲', color: 'purple' },
   cascade: { label: '级联', color: 'magenta' },
   context: { label: '上下文', color: 'geekblue' },
   prompt: { label: '提示词', color: 'blue' },
   agent: { label: 'Agent', color: 'gold' },
+  llm_call: { label: '模型调用', color: 'purple' },
   llm: { label: '模型调用', color: 'purple' },
   postprocess: { label: '后处理', color: 'orange' },
   review: { label: '审查', color: 'volcano' },
@@ -117,7 +119,16 @@ function buildRunFromLiveSteps(traceId: string, rawSteps: ExecutionTraceStep[]):
   const timeline = buildClientTimeline(steps);
   const persistStep = [...steps].reverse().find(s => s.stepKey === 'atomic_persist' && s.status === 'success');
   const persistedWordCount = persistStep?.metrics?.afterChars ?? null;
-  const persistedContentHash = persistStep?.metrics?.contentHash ?? null;
+  const pendingContentHash = persistStep?.metrics?.pendingContentHash ?? persistStep?.metrics?.contentHash ?? null;
+  const hasVerifiedReadback = Boolean(
+    persistStep?.metrics?.readbackVerified === true
+    && typeof persistStep?.metrics?.persistedContentHash === 'string'
+    && persistStep.metrics.persistedContentHash.length > 0
+  );
+  const persistedContentHash = typeof persistStep?.metrics?.persistedContentHash === 'string'
+    ? persistStep.metrics.persistedContentHash
+    : null;
+  const readbackVerified = hasVerifiedReadback && persistedContentHash === pendingContentHash;
   const persistedChapterTitle = persistStep?.metrics?.chapterTitle ?? null;
 
   const initialEntry = timeline.find(w => w.stepKey === 'prose_writer' || w.stepKey === 'single_agent_stream' || w.stepType === 'agent') || timeline[0] || null;
@@ -135,12 +146,14 @@ function buildRunFromLiveSteps(traceId: string, rawSteps: ExecutionTraceStep[]):
     finishedAt: firstStep.finishedAt || null,
     durationMs,
     stepCount: steps.length,
-    llmCallCount: steps.filter(s => Boolean(s.promptLogId)).length,
+    llmCallCount: steps.filter(s => s.stepType === 'llm_call').length,
     successCount: steps.filter(s => s.status === 'success').length,
     failedCount: steps.filter(s => s.status === 'failed').length,
     skippedCount: steps.filter(s => s.status === 'skipped').length,
     persistedWordCount,
+    pendingContentHash,
     persistedContentHash,
+    readbackVerified,
     persistedChapterTitle,
     summary: {
       initialDraftChars,
@@ -173,6 +186,7 @@ export const ExecutionTracePanel: React.FC<ExecutionTracePanelProps> = ({
   const [scope, setScope] = useState<'current' | 'outline'>('current');
   const [viewTab, setViewTab] = useState<'timeline' | 'wordcount'>('timeline');
   const [persistedRunsMap, setPersistedRunsMap] = useState<Record<string, ExecutionTraceRun>>({});
+  const [truncationByKey, setTruncationByKey] = useState<Record<string, ExecutionTraceTruncationInfo>>({});
   const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null);
   const [loadingTraces, setLoadingTraces] = useState<boolean>(false);
   const [loadingPromptId, setLoadingPromptId] = useState<number | null>(null);
@@ -198,7 +212,10 @@ export const ExecutionTracePanel: React.FC<ExecutionTracePanelProps> = ({
         errorText: '#ff7875',
         skippedBg: 'rgba(113, 113, 122, 0.12)',
         successBg: 'rgba(82, 196, 26, 0.12)',
-        successText: '#73d13d'
+        successText: '#73d13d',
+        warningBg: 'rgba(250, 173, 20, 0.14)',
+        warningBorder: 'rgba(250, 173, 20, 0.35)',
+        warningText: '#ffc53d'
       };
     }
     return {
@@ -218,7 +235,10 @@ export const ExecutionTracePanel: React.FC<ExecutionTracePanelProps> = ({
       errorText: '#cf1322',
       skippedBg: '#f8fafc',
       successBg: '#f6ffed',
-      successText: '#389e0d'
+      successText: '#389e0d',
+      warningBg: '#fffbe6',
+      warningBorder: '#ffe58f',
+      warningText: '#d48806'
     };
   }, [isDarkSurface]);
 
@@ -232,7 +252,13 @@ export const ExecutionTracePanel: React.FC<ExecutionTracePanelProps> = ({
       const res: any = await httpService.get(url);
       if (res?.code === 200 && Array.isArray(res?.data?.runs)) {
         setPersistedRunsMap(prev => {
-          const next = chapNum ? { ...prev } : {};
+          const next: Record<string, ExecutionTraceRun> = {};
+          if (chapNum) {
+            for (const [tid, run] of Object.entries(prev)) {
+              const sameChapter = run.scopeType !== 'outline' && Number(run.chapterNumber) === Number(chapNum);
+              if (!sameChapter) next[tid] = run;
+            }
+          }
           for (const r of res.data.runs as ExecutionTraceRun[]) {
             if (r?.traceId) {
               next[r.traceId] = r;
@@ -240,6 +266,18 @@ export const ExecutionTracePanel: React.FC<ExecutionTracePanelProps> = ({
           }
           return next;
         });
+        const truncKey = chapNum ? `ch_${chapNum}` : 'global';
+        setTruncationByKey(prev => ({
+          ...prev,
+          [truncKey]: {
+            truncated: Boolean(res.data.truncated),
+            runsTruncated: Boolean(res.data.runsTruncated),
+            stepsTruncated: Boolean(res.data.stepsTruncated),
+            discoveryScanTruncated: Boolean(res.data.discoveryScanTruncated),
+            truncatedTraceIds: Array.isArray(res.data.truncatedTraceIds) ? res.data.truncatedTraceIds : [],
+            limits: res.data.limits
+          }
+        }));
       }
     } catch (err) {
       console.error('获取生成过程追踪失败:', err);
@@ -273,6 +311,7 @@ export const ExecutionTracePanel: React.FC<ExecutionTracePanelProps> = ({
   // 切换小说时重置本地运行缓存并全量拉取最新 30 条轨迹
   useEffect(() => {
     setPersistedRunsMap({});
+    setTruncationByKey({});
     setSelectedTraceId(null);
     if (!novelId) return;
     fetchExecutionTraces();
@@ -322,11 +361,21 @@ export const ExecutionTracePanel: React.FC<ExecutionTracePanelProps> = ({
         const mergedSteps = Array.from(stepById.values());
         const rebuilt = buildRunFromLiveSteps(traceId, mergedSteps);
         if (rebuilt) {
+          const mergedPendingHash = rebuilt.pendingContentHash ?? existing.pendingContentHash ?? null;
+          const mergedPersistedHash = rebuilt.persistedContentHash ?? existing.persistedContentHash ?? null;
+          const mergedReadbackVerified = Boolean(
+            rebuilt.readbackVerified !== undefined
+              ? (rebuilt.readbackVerified || (existing.readbackVerified && mergedPersistedHash === mergedPendingHash))
+              : existing.readbackVerified
+          );
           mergedMap[traceId] = {
             ...existing,
             ...rebuilt,
             persistedWordCount: rebuilt.persistedWordCount ?? existing.persistedWordCount ?? null,
-            persistedContentHash: rebuilt.persistedContentHash ?? existing.persistedContentHash ?? null,
+            pendingContentHash: mergedPendingHash,
+            persistedContentHash: mergedPersistedHash,
+            readbackVerified: mergedReadbackVerified,
+            isTruncated: Boolean(existing.isTruncated),
             persistedChapterTitle: rebuilt.persistedChapterTitle ?? existing.persistedChapterTitle ?? null,
             maxStepId: existing.maxStepId
           };
@@ -359,20 +408,22 @@ export const ExecutionTracePanel: React.FC<ExecutionTracePanelProps> = ({
     return promptLogs.filter((log: PromptLogItem) => Number(log.chapterNumber) === Number(activeChapterNum));
   }, [promptLogs, activeChapterNum]);
 
+  const isOutlinePromptLog = (log: PromptLogItem) => Boolean(
+    log.chapterNumber === null ||
+    log.chapterNumber === undefined ||
+    log.stepName?.includes('大纲') ||
+    log.stepName?.includes('规划') ||
+    log.stepName?.includes('设定') ||
+    log.stepName?.includes('Story') ||
+    log.stepName?.includes('决策') ||
+    log.stepName?.includes('审计') ||
+    log.stepName?.includes('灵感') ||
+    log.stepName?.includes('基调')
+  );
+
   const outlineLegacyLogs = useMemo(() => {
     if (!promptLogs || !Array.isArray(promptLogs)) return [];
-    return promptLogs.filter((log: PromptLogItem) => (
-      log.chapterNumber === null ||
-      log.chapterNumber === undefined ||
-      log.stepName?.includes('大纲') ||
-      log.stepName?.includes('规划') ||
-      log.stepName?.includes('设定') ||
-      log.stepName?.includes('Story') ||
-      log.stepName?.includes('决策') ||
-      log.stepName?.includes('审计') ||
-      log.stepName?.includes('灵感') ||
-      log.stepName?.includes('基调')
-    ));
+    return promptLogs.filter(isOutlinePromptLog);
   }, [promptLogs]);
 
   const displayedLegacyLogs = scope === 'outline' ? outlineLegacyLogs : currentChapterLegacyLogs;
@@ -453,45 +504,70 @@ export const ExecutionTracePanel: React.FC<ExecutionTracePanelProps> = ({
 
   const handleClearTraces = async () => {
     if (!novelId) return;
+    if (scopeRuns.length === 0 && displayedLegacyLogs.length === 0) return;
+
     const isCurrent = scope === 'current' && activeChapterNum;
     const isOutline = scope === 'outline';
+    const clearedPromptIds = new Set<number>();
+    for (const run of scopeRuns) {
+      for (const s of run.steps || []) {
+        if (s.promptLogId) clearedPromptIds.add(Number(s.promptLogId));
+      }
+    }
+
     try {
-      if (scopeRuns.length > 0) {
-        await httpService.post('/ai-novel/clear-execution-traces', {
-          novelId,
-          chapterNumber: isCurrent ? activeChapterNum : undefined,
-          scope: isOutline ? 'outline' : undefined
-        });
-        setPersistedRunsMap(prev => {
-          const next: Record<string, ExecutionTraceRun> = {};
-          for (const [tid, run] of Object.entries(prev)) {
-            if (isOutline && (run.scopeType === 'outline' || run.chapterNumber === null)) continue;
-            if (isCurrent && run.scopeType !== 'outline' && Number(run.chapterNumber) === Number(activeChapterNum)) continue;
-            next[tid] = run;
-          }
+      await httpService.post('/ai-novel/clear-execution-traces', {
+        novelId,
+        chapterNumber: isCurrent ? activeChapterNum : undefined,
+        scope: isOutline ? 'outline' : undefined
+      });
+
+      setPersistedRunsMap(prev => {
+        const next: Record<string, ExecutionTraceRun> = {};
+        for (const [tid, run] of Object.entries(prev)) {
+          if (isOutline && (run.scopeType === 'outline' || run.chapterNumber === null || run.chapterNumber === undefined)) continue;
+          if (isCurrent && run.scopeType !== 'outline' && Number(run.chapterNumber) === Number(activeChapterNum)) continue;
+          if (!isCurrent && !isOutline) continue;
+          next[tid] = run;
+        }
+        return next;
+      });
+
+      setSelectedTraceId(null);
+
+      if (isCurrent && activeChapterNum) {
+        setTruncationByKey(prev => {
+          const next = { ...prev };
+          delete next[`ch_${activeChapterNum}`];
           return next;
         });
-        if (onClearLiveTrace) {
-          onClearLiveTrace({ scope, chapterNumber: activeChapterNum });
-        }
-        message.success(
-          isCurrent
-            ? `已清空第 ${activeChapterNum} 章生成过程追踪`
-            : '已清空大纲全局生成过程追踪'
-        );
-      } else if (displayedLegacyLogs.length > 0) {
-        await httpService.post('/ai-novel/clear-prompt-logs', {
-          novelId,
-          chapterNumber: isCurrent ? activeChapterNum : undefined,
-          scope: isOutline ? 'outline' : undefined
+      } else {
+        setTruncationByKey(prev => {
+          const next = { ...prev };
+          delete next.global;
+          return next;
         });
-        if (isCurrent) {
-          setPromptLogs(prev => (prev || []).filter(p => Number(p.chapterNumber) !== Number(activeChapterNum)));
-        } else if (isOutline) {
-          setPromptLogs(prev => (prev || []).filter(p => p.chapterNumber !== null && p.chapterNumber !== undefined));
-        }
-        message.success('已清空历史 Prompt 调用记录');
       }
+
+      setPromptLogs(prev => {
+        const list = prev || [];
+        return list.filter(p => {
+          if (p.id && clearedPromptIds.has(Number(p.id))) return false;
+          if (isCurrent) return Number(p.chapterNumber) !== Number(activeChapterNum);
+          if (isOutline) return !isOutlinePromptLog(p);
+          return false;
+        });
+      });
+
+      if (onClearLiveTrace) {
+        onClearLiveTrace({ scope, chapterNumber: activeChapterNum });
+      }
+
+      message.success(
+        isOutline
+          ? '已清空大纲全局生成过程追踪及关联 Prompt 记录'
+          : (isCurrent ? `已清空第 ${activeChapterNum} 章生成过程追踪及关联 Prompt 记录` : '已清空小说生成过程追踪及关联 Prompt 记录')
+      );
     } catch (e: any) {
       message.error('清空过程追踪失败: ' + (e?.message || e));
     }
@@ -515,6 +591,20 @@ export const ExecutionTracePanel: React.FC<ExecutionTracePanelProps> = ({
   };
 
   const timeline = selectedRun?.summary?.wordCountTimeline || [];
+  const activeTruncation = scope === 'current' && activeChapterNum
+    ? (truncationByKey[`ch_${activeChapterNum}`] || truncationByKey.global)
+    : truncationByKey.global;
+  const truncationReasons: string[] = [];
+  if (activeTruncation?.runsTruncated) {
+    truncationReasons.push(`批次仅展示最近 ${activeTruncation.limits?.maxRuns ?? 20} 条`);
+  }
+  if (activeTruncation?.stepsTruncated || selectedRun?.isTruncated) {
+    truncationReasons.push(`单批次步骤达上限（${activeTruncation?.limits?.maxStepsPerTrace ?? 500} 步）或总扫描步数达上限（${activeTruncation?.limits?.maxTotalSteps ?? 4000} 步）`);
+  }
+  if (activeTruncation?.discoveryScanTruncated) {
+    truncationReasons.push(`批次发现扫描达上限（${activeTruncation.limits?.maxDiscoverySteps ?? 2000} 条）`);
+  }
+  const hasTruncationNotice = Boolean(activeTruncation?.truncated || selectedRun?.isTruncated);
 
   return (
     <Card
@@ -627,6 +717,29 @@ export const ExecutionTracePanel: React.FC<ExecutionTracePanelProps> = ({
         </div>
       ) : scopeRuns.length > 0 && selectedRun ? (
         <div style={{ padding: 10, backgroundColor: palette.panelBg, color: palette.textPrimary }}>
+          {hasTruncationNotice && (
+            <div
+              style={{
+                marginBottom: 8,
+                padding: '6px 8px',
+                borderRadius: 6,
+                backgroundColor: palette.warningBg,
+                border: `1px solid ${palette.warningBorder}`,
+                color: palette.warningText,
+                fontSize: 11,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 6,
+                lineHeight: 1.45
+              }}
+            >
+              <WarningOutlined style={{ marginTop: 2, flexShrink: 0 }} />
+              <span>
+                追踪记录已触发安全上限截断（非全量记录）：{truncationReasons.length > 0 ? truncationReasons.join('；') : '当前展示已按服务端查询上限截断'}。
+              </span>
+            </div>
+          )}
+
           {/* 批次选择器 */}
           <div style={{ marginBottom: 8 }}>
             <Select
@@ -640,7 +753,7 @@ export const ExecutionTracePanel: React.FC<ExecutionTracePanelProps> = ({
                 const words = r.persistedWordCount ?? r.summary?.finalChars;
                 return {
                   value: r.traceId,
-                  label: `${idx === 0 ? '🆕 ' : ''}[${statusLabel}] ${r.stepCount}步/${r.llmCallCount}AI${words ? ` · ${words}字` : ''} · ${formatDuration(r.durationMs)} (${timeShort || r.traceId.slice(-6)})`
+                  label: `${idx === 0 ? '🆕 ' : ''}[${statusLabel}]${r.isTruncated ? '[截断]' : ''} ${r.stepCount}步/${r.llmCallCount}AI${words ? ` · ${words}字` : ''} · ${formatDuration(r.durationMs)} (${timeShort || r.traceId.slice(-6)})`
                 };
               })}
             />
@@ -662,6 +775,11 @@ export const ExecutionTracePanel: React.FC<ExecutionTracePanelProps> = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
               <Space size={6}>
                 {renderRunStatusTag(selectedRun.status)}
+                {selectedRun.isTruncated && (
+                  <Tag color="warning" style={{ margin: 0, fontSize: 10 }}>
+                    步骤已截断
+                  </Tag>
+                )}
                 <span style={{ fontSize: 11, color: palette.textSecondary, fontFamily: 'monospace' }}>
                   {selectedRun.traceId}
                 </span>
@@ -672,7 +790,7 @@ export const ExecutionTracePanel: React.FC<ExecutionTracePanelProps> = ({
             </div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: 11, color: palette.textSecondary }}>
-              <span>步骤 <b>{selectedRun.stepCount}</b></span>
+              <span>步骤 <b>{selectedRun.stepCount}{selectedRun.isTruncated ? '+' : ''}</b></span>
               <span>·</span>
               <span>AI调用 <b>{selectedRun.llmCallCount}</b></span>
               {selectedRun.skippedCount > 0 && (
@@ -689,7 +807,9 @@ export const ExecutionTracePanel: React.FC<ExecutionTracePanelProps> = ({
               )}
             </div>
 
-            {(selectedRun.persistedWordCount !== null && selectedRun.persistedWordCount !== undefined) || selectedRun.summary?.initialDraftChars !== null ? (
+            {(selectedRun.persistedWordCount !== null && selectedRun.persistedWordCount !== undefined) ||
+            selectedRun.summary?.initialDraftChars !== null ||
+            Boolean(selectedRun.persistedContentHash || selectedRun.pendingContentHash) ? (
               <div
                 style={{
                   paddingTop: 5,
@@ -703,7 +823,7 @@ export const ExecutionTracePanel: React.FC<ExecutionTracePanelProps> = ({
                 }}
               >
                 <span style={{ color: palette.textSecondary }}>
-                  {selectedRun.summary?.initialDraftChars !== null ? (
+                  {selectedRun.summary?.initialDraftChars !== null && selectedRun.summary?.initialDraftChars !== undefined ? (
                     <>
                       初稿 <b style={{ color: palette.textPrimary }}>{selectedRun.summary.initialDraftChars}</b> 字 →{' '}
                     </>
@@ -712,7 +832,7 @@ export const ExecutionTracePanel: React.FC<ExecutionTracePanelProps> = ({
                     <>
                       落盘 <b style={{ color: palette.successText }}>{selectedRun.persistedWordCount}</b> 字
                     </>
-                  ) : selectedRun.summary?.finalChars !== null ? (
+                  ) : selectedRun.summary?.finalChars !== null && selectedRun.summary?.finalChars !== undefined ? (
                     <>
                       当前 <b style={{ color: palette.textPrimary }}>{selectedRun.summary.finalChars}</b> 字
                     </>
@@ -731,13 +851,47 @@ export const ExecutionTracePanel: React.FC<ExecutionTracePanelProps> = ({
                     </span>
                   ) : null}
                 </span>
-                {selectedRun.persistedContentHash && (
-                  <Tooltip title={`最终落盘正文 SHA-256: ${selectedRun.persistedContentHash}`}>
-                    <Tag color="green" style={{ margin: 0, fontSize: 10, lineHeight: '16px', padding: '0 4px', fontFamily: 'monospace' }}>
-                      SHA:{selectedRun.persistedContentHash.slice(0, 8)}
-                    </Tag>
-                  </Tooltip>
-                )}
+                {(() => {
+                  const pendingSha = selectedRun.pendingContentHash || null;
+                  const persistedSha = selectedRun.persistedContentHash || null;
+                  const verified = Boolean(selectedRun.readbackVerified);
+
+                  if (pendingSha && persistedSha && pendingSha !== persistedSha) {
+                    return (
+                      <Tooltip
+                        title={`SHA 回读不一致！待写内容 SHA-256: ${pendingSha}；数据库实际回读 SHA-256: ${persistedSha}`}
+                      >
+                        <Tag color="error" style={{ margin: 0, fontSize: 10, lineHeight: '16px', padding: '0 4px', fontFamily: 'monospace' }}>
+                          SHA回读不一致
+                        </Tag>
+                      </Tooltip>
+                    );
+                  }
+                  if (verified && persistedSha) {
+                    return (
+                      <Tooltip
+                        title={`已完成数据库事务内回读校验（readbackVerified: true），回读正文 SHA-256: ${persistedSha}`}
+                      >
+                        <Tag color="green" style={{ margin: 0, fontSize: 10, lineHeight: '16px', padding: '0 4px', fontFamily: 'monospace' }}>
+                          已回读SHA:{persistedSha.slice(0, 8)}
+                        </Tag>
+                      </Tooltip>
+                    );
+                  }
+                  const displaySha = pendingSha || persistedSha;
+                  if (displaySha) {
+                    return (
+                      <Tooltip
+                        title={`仅记录落盘前待写正文摘要，尚未执行独立数据库回读校验（readbackVerified: false）。待写 SHA-256: ${displaySha}`}
+                      >
+                        <Tag color="blue" style={{ margin: 0, fontSize: 10, lineHeight: '16px', padding: '0 4px', fontFamily: 'monospace' }}>
+                          待写SHA(未回读):{displaySha.slice(0, 8)}
+                        </Tag>
+                      </Tooltip>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             ) : null}
           </div>
