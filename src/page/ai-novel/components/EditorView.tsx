@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Button, Space, Tooltip, Radio, Select, Card, Checkbox, Popconfirm, Badge,
-  Spin, Popover, Input, Tag, Tabs, Table, Segmented, Progress, Modal, message
+  Spin, Popover, Input, Tag, Tabs, Progress, Modal
 } from 'antd';
 import {
   ArrowLeftOutlined, BookOutlined, MenuUnfoldOutlined, MenuFoldOutlined,
@@ -9,13 +9,13 @@ import {
   RocketOutlined, CloudDownloadOutlined, DeleteOutlined, PlusOutlined, PlusCircleOutlined,
   SortAscendingOutlined, SortDescendingOutlined, InteractionOutlined, LoadingOutlined,
   HighlightOutlined, RedoOutlined, PlayCircleOutlined, CheckCircleFilled, UserAddOutlined,
-  UserDeleteOutlined, EditOutlined, EyeOutlined, SaveOutlined, ReloadOutlined, StopOutlined,
-  BranchesOutlined, RobotOutlined, BgColorsOutlined, ThunderboltOutlined
+  UserDeleteOutlined, EditOutlined, EyeOutlined, SaveOutlined, StopOutlined,
+  BranchesOutlined, BgColorsOutlined, ThunderboltOutlined
 } from '@ant-design/icons';
-import { Novel, NovelOutline, CharacterRelationship, VectorMemoryItem, PaperTheme, PromptLogItem, StoryArc, CriticReport, AgentNodeState, WildReaderFeedback } from '../types';
+import { Novel, NovelOutline, CharacterRelationship, VectorMemoryItem, PaperTheme, PromptLogItem, StoryArc, CriticReport, AgentNodeState, WildReaderFeedback, ExecutionTraceStep } from '../types';
 import { parseVolumeStructure, getChapterVolume, isPastCharacter } from '../utils/volumeParser';
 import { PromptDetailModal } from '../modals/PromptDetailModal';
-import VirtualList from 'rc-virtual-list';
+import { ExecutionTracePanel } from './ExecutionTracePanel';
 import { getGrowthSystemConfig } from '../utils/genreHelper';
 import { LONG_AI_REQUEST_TIMEOUT_MS } from '../../../common/request';
 
@@ -121,6 +121,10 @@ interface EditorViewProps {
   onDeleteRelationship: (name: string) => void;
   promptLogs: PromptLogItem[];
   setPromptLogs: React.Dispatch<React.SetStateAction<PromptLogItem[]>>;
+  liveTraceStepsById?: Record<string, ExecutionTraceStep[]>;
+  activeLiveTraceId?: string | null;
+  traceRefreshTick?: number;
+  onClearLiveTrace?: (opts: { scope: 'current' | 'outline'; chapterNumber?: number }) => void;
   currentArc?: StoryArc | null;
   agentNodes?: Record<string, AgentNodeState>;
   criticReport?: CriticReport | null;
@@ -233,6 +237,10 @@ export const EditorView: React.FC<EditorViewProps> = ({
   onOpenFreeWrite,
   promptLogs,
   setPromptLogs,
+  liveTraceStepsById = {},
+  activeLiveTraceId = null,
+  traceRefreshTick = 0,
+  onClearLiveTrace,
   currentArc = null,
   agentNodes = {},
   criticReport = null,
@@ -246,7 +254,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
 }) => {
   const [activePromptLog, setActivePromptLog] = useState<PromptLogItem | null>(null);
   const [isPromptModalOpen, setIsPromptModalOpen] = useState<boolean>(false);
-  const [promptLogScope, setPromptLogScope] = useState<'current' | 'outline'>('current');
   const [isDerivingOutline, setIsDerivingOutline] = useState<boolean>(false);
   const [isBranchModalOpen, setIsBranchModalOpen] = useState<boolean>(false);
   const [branchNameInput, setBranchNameInput] = useState<string>('重构实验版');
@@ -327,104 +334,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
       setIsDerivingOutline(false);
     }
   };
-
-  const fetchPromptLogs = (chapNum?: number) => {
-    if (!selectedNovel?.id) return;
-    const url = chapNum
-      ? `/ai-novel/prompt-logs?novelId=${selectedNovel.id}&chapterNumber=${chapNum}&limit=200`
-      : `/ai-novel/prompt-logs?novelId=${selectedNovel.id}&limit=500`;
-    httpService.get(url)
-      .then((res: any) => {
-        if (res.code === 200 && Array.isArray(res.data)) {
-          if (chapNum) {
-            setPromptLogs(prev => {
-              // 替换当前章节的日志为最新从后端获取的列表，保留其他章节与大纲日志
-              const otherLogs = (prev || []).filter(p => Number(p.chapterNumber) !== Number(chapNum));
-              return [...res.data, ...otherLogs].sort((a, b) => (b.id || 0) - (a.id || 0));
-            });
-          } else {
-            setPromptLogs(res.data);
-          }
-        }
-      })
-      .catch((err: any) => {
-        console.error('获取 Prompt 轨迹失败:', err);
-      });
-  };
-
-  const handleClearPromptLogs = async () => {
-    if (!selectedNovel?.id) return;
-    const isCurrent = promptLogScope === 'current' && activeChapterNum;
-    const isOutline = promptLogScope === 'outline';
-    try {
-      await httpService.post('/ai-novel/clear-prompt-logs', {
-        novelId: selectedNovel.id,
-        chapterNumber: isCurrent ? activeChapterNum : undefined,
-        scope: isOutline ? 'outline' : undefined,
-      });
-      if (isCurrent) {
-        message.success(`已清空第 ${activeChapterNum} 章的 Prompt 轨迹`);
-        setPromptLogs(prev => (prev || []).filter(p => Number(p.chapterNumber) !== Number(activeChapterNum)));
-      } else if (isOutline) {
-        message.success('已清空大纲相关的 Prompt 轨迹');
-        setPromptLogs(prev => (prev || []).filter(p => {
-          const isOutlineLog = (
-            p.chapterNumber === null ||
-            p.chapterNumber === undefined ||
-            p.stepName?.includes('大纲') ||
-            p.stepName?.includes('规划') ||
-            p.stepName?.includes('设定') ||
-            p.stepName?.includes('Story') ||
-            p.stepName?.includes('决策') ||
-            p.stepName?.includes('审计') ||
-            p.stepName?.includes('灵感') ||
-            p.stepName?.includes('基调')
-          );
-          return !isOutlineLog;
-        }));
-      } else {
-        message.success('已清空 Prompt 轨迹');
-        setPromptLogs([]);
-      }
-    } catch (e: any) {
-      message.error('清空 Prompt 轨迹失败: ' + (e.message || e));
-    }
-  };
-
-  useEffect(() => {
-    fetchPromptLogs();
-  }, [selectedNovel?.id]);
-
-  const currentChapterPromptLogs = useMemo(() => {
-    if (!promptLogs || !Array.isArray(promptLogs)) return [];
-    if (!activeChapterNum) return [];
-    return promptLogs.filter((log: PromptLogItem) => Number(log.chapterNumber) === Number(activeChapterNum));
-  }, [promptLogs, activeChapterNum]);
-
-  const outlinePromptLogs = useMemo(() => {
-    if (!promptLogs || !Array.isArray(promptLogs)) return [];
-    return promptLogs.filter((log: PromptLogItem) => {
-      return (
-        log.chapterNumber === null ||
-        log.chapterNumber === undefined ||
-        log.stepName?.includes('大纲') ||
-        log.stepName?.includes('规划') ||
-        log.stepName?.includes('设定') ||
-        log.stepName?.includes('Story') ||
-        log.stepName?.includes('决策') ||
-        log.stepName?.includes('审计') ||
-        log.stepName?.includes('灵感') ||
-        log.stepName?.includes('基调')
-      );
-    });
-  }, [promptLogs]);
-
-  const displayedPromptLogs = useMemo(() => {
-    if (promptLogScope === 'outline') {
-      return outlinePromptLogs;
-    }
-    return currentChapterPromptLogs;
-  }, [promptLogScope, currentChapterPromptLogs, outlinePromptLogs]);
 
   // 🌲 卷结构与章节筛选记忆化，杜绝正文输入时重复正则解析与重排
   const volumeInfo = useMemo(() => {
@@ -1769,171 +1678,24 @@ export const EditorView: React.FC<EditorViewProps> = ({
               />
             </Card>
 
-            <Card
-              className="prompt-trajectory-card"
-              title={
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                    <Space size="small">
-                      <span>🧭 AI 调用与 Prompt 轨迹</span>
-                      <Badge
-                        count={displayedPromptLogs.length}
-                        overflowCount={999}
-                        style={{ backgroundColor: promptLogScope === 'current' ? '#1890ff' : '#722ed1' }}
-                      />
-                    </Space>
-                    <Space size={4}>
-                      <Button
-                        size="small"
-                        type="link"
-                        icon={<ReloadOutlined />}
-                        style={{ color: '#d4b106', padding: 0 }}
-                        title="刷新 Prompt 轨迹"
-                        onClick={() => fetchPromptLogs()}
-                      />
-                      <Popconfirm
-                        title={
-                          promptLogScope === 'outline'
-                            ? '确定清空所有大纲相关的 Prompt 轨迹吗？'
-                            : (activeChapterNum ? `确定清空第 ${activeChapterNum} 章的所有 Prompt 轨迹吗？` : '确定清空当前章节的 Prompt 轨迹吗？')
-                        }
-                        onConfirm={handleClearPromptLogs}
-                        okText="确定"
-                        cancelText="取消"
-                      >
-                        <Button
-                          size="small"
-                          type="link"
-                          icon={<DeleteOutlined />}
-                          style={{ color: '#ff4d4f', padding: 0 }}
-                          title={
-                            promptLogScope === 'outline'
-                              ? '清空大纲 Prompt 轨迹'
-                              : (activeChapterNum ? `清空第 ${activeChapterNum} 章 Prompt 轨迹` : '清空当前章节 Prompt 轨迹')
-                          }
-                        />
-                      </Popconfirm>
-                    </Space>
-                  </div>
-                  <Segmented
-                    size="small"
-                    value={promptLogScope}
-                    onChange={(val) => setPromptLogScope(val as 'current' | 'outline')}
-                    options={[
-                      {
-                        label: activeChapterNum ? `第 ${activeChapterNum} 章 (${currentChapterPromptLogs.length})` : `正文 (${currentChapterPromptLogs.length})`,
-                        value: 'current',
-                      },
-                      {
-                        label: `大纲 (${outlinePromptLogs.length})`,
-                        value: 'outline',
-                      },
-                    ]}
-                    block
-                  />
-                </div>
-              }
-              size="small"
-              style={{ marginBottom: 16 }}
-            >
-              {displayedPromptLogs.length === 0 ? (
-                <div className="prompt-trail-empty">
-                  <div className="prompt-trail-empty-text">
-                    {promptLogScope === 'outline'
-                      ? '暂无大纲 AI 轨迹记录'
-                      : (activeChapterNum ? `第 ${activeChapterNum} 章暂无正文 AI 轨迹` : '暂无 AI 轨迹记录')}
-                  </div>
-                  {promptLogScope === 'current' ? (
-                    <Space size="small">
-                      <Button
-                        size="small"
-                        type="link"
-                        style={{ fontSize: 11, padding: 0 }}
-                        onClick={() => setPromptLogScope('outline')}
-                      >
-                        查看大纲 AI 轨迹 ({outlinePromptLogs.length})
-                      </Button>
-                      <span className="prompt-trail-divider">|</span>
-                      <Button
-                        size="small"
-                        type="link"
-                        style={{ fontSize: 11, padding: 0 }}
-                        onClick={() => fetchPromptLogs()}
-                      >
-                        刷新轨迹
-                      </Button>
-                    </Space>
-                  ) : (
-                    <Button
-                      size="small"
-                      type="link"
-                      style={{ fontSize: 11, padding: 0 }}
-                      onClick={() => setPromptLogScope('current')}
-                    >
-                      查看第 {activeChapterNum || 1} 章正文轨迹
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="prompt-trail-list-wrapper">
-                  <div className="prompt-trail-list-header">
-                    <span>步骤名称与时间</span>
-                    <span>详情</span>
-                  </div>
-                  <VirtualList
-                    data={displayedPromptLogs}
-                    height={320}
-                    itemHeight={52}
-                    itemKey={(item: PromptLogItem) => String(item.id || Math.random())}
-                  >
-                    {(record: PromptLogItem) => (
-                      <div
-                        key={record.id}
-                        className="prompt-trail-list-item"
-                      >
-                        <div className="prompt-trail-item-main">
-                          <div className="prompt-trail-item-title-row">
-                            <span className={`prompt-trail-item-title ${record.status === 'error' ? 'is-error' : ''}`}>
-                              {record.stepName || 'AI 调用'}
-                            </span>
-                            {record.status === 'error' && (
-                              <Tag color="error" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0, flexShrink: 0 }}>
-                                失败
-                              </Tag>
-                            )}
-                            {record.chapterNumber ? (
-                              <Tag color="cyan" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0, flexShrink: 0 }}>
-                                第 {record.chapterNumber} 章
-                              </Tag>
-                            ) : (
-                              <Tag color="purple" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0, flexShrink: 0 }}>
-                                大纲架构
-                              </Tag>
-                            )}
-                          </div>
-                          <div className="prompt-trail-item-meta">
-                            {record.createdAt || ''}
-                            {record.durationMs ? ` · ${(record.durationMs / 1000).toFixed(1)}s` : ''}
-                          </div>
-                        </div>
-                        <Button
-                          size="small"
-                          type="primary"
-                          ghost
-                          style={{ fontSize: 11, padding: '0 8px', height: 22, flexShrink: 0 }}
-                          onClick={() => {
-                            setActivePromptLog(record);
-                            setIsPromptModalOpen(true);
-                          }}
-                        >
-                          详情
-                        </Button>
-                      </div>
-                    )}
-                  </VirtualList>
-                </div>
-              )}
-            </Card>
+            <ExecutionTracePanel
+              novelId={selectedNovel?.id}
+              activeChapterNum={activeChapterNum}
+              isGenerating={isGenerating || isCruising}
+              paperTheme={paperTheme}
+              promptLogs={promptLogs}
+              setPromptLogs={setPromptLogs}
+              liveTraceStepsById={liveTraceStepsById}
+              activeLiveTraceId={activeLiveTraceId}
+              traceRefreshTick={traceRefreshTick}
+              onClearLiveTrace={onClearLiveTrace}
+              onOpenPromptDetail={(log) => {
+                setActivePromptLog(log);
+                setIsPromptModalOpen(true);
+              }}
+              httpService={httpService}
+              message={message}
+            />
 
             <Card
               className="outline-brief-card"

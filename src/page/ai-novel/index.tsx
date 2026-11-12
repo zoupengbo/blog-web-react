@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Spin, message, Modal } from 'antd';
 import httpService, { LONG_AI_REQUEST_TIMEOUT_MS } from '../../common/request';
 import './styles.scss';
@@ -7,7 +7,7 @@ import { useTheme } from '../../context/themeContext';
 import { useAiConfig } from '../../context/aiConfigContext';
 // 导入类型与工具
 import {
-  Novel, NovelOutline, Idea, PaperTheme, PromptLogItem
+  Novel, NovelOutline, Idea, PaperTheme, PromptLogItem, ExecutionTraceStep, LiveExecutionTraceEvent
 } from './types';
 
 // 导入 View 视图组件
@@ -83,6 +83,45 @@ const AiNovelDashboard: React.FC = () => {
   const [isResizingRight, setIsResizingRight] = useState<boolean>(false);
   const [isFreeWriteOpen, setIsFreeWriteOpen] = useState<boolean>(false);
   const [promptLogs, setPromptLogs] = useState<PromptLogItem[]>([]);
+  const [liveTraceStepsById, setLiveTraceStepsById] = useState<Record<string, ExecutionTraceStep[]>>({});
+  const [activeLiveTraceId, setActiveLiveTraceId] = useState<string | null>(null);
+  const [traceRefreshTick, setTraceRefreshTick] = useState<number>(0);
+
+  const handleExecutionTraceEvent = useCallback((evt: LiveExecutionTraceEvent) => {
+    const step = evt?.step;
+    const traceId = evt?.traceId || step?.traceId;
+    if (!traceId || !step?.stepId) return;
+    setActiveLiveTraceId(traceId);
+    setLiveTraceStepsById(prev => {
+      const currentList = prev[traceId] || [];
+      const existingIdx = currentList.findIndex(s => s.stepId === step.stepId);
+      const nextList = existingIdx >= 0
+        ? currentList.map((s, idx) => (idx === existingIdx ? { ...s, ...step } : s))
+        : [...currentList, step];
+      return {
+        ...prev,
+        [traceId]: nextList
+      };
+    });
+  }, []);
+
+  const handleTraceRunFinished = useCallback(() => {
+    setTraceRefreshTick(prev => prev + 1);
+  }, []);
+
+  const handleClearLiveTrace = useCallback(({ scope, chapterNumber }: { scope: 'current' | 'outline'; chapterNumber?: number }) => {
+    setLiveTraceStepsById(prev => {
+      const next: Record<string, ExecutionTraceStep[]> = {};
+      for (const [tid, list] of Object.entries(prev)) {
+        const first = list[0];
+        if (!first) continue;
+        if (scope === 'outline' && (first.scopeType === 'outline' || first.chapterNumber === null)) continue;
+        if (scope === 'current' && first.scopeType !== 'outline' && Number(first.chapterNumber) === Number(chapterNumber)) continue;
+        next[tid] = list;
+      }
+      return next;
+    });
+  }, []);
 
   // 2. 抽离的 Hooks
   const {
@@ -120,7 +159,9 @@ const AiNovelDashboard: React.FC = () => {
     setSelectedNovel,
     loadChapterContent,
     loadNovelToEditor,
-    setPromptLogs
+    setPromptLogs,
+    handleExecutionTraceEvent,
+    handleTraceRunFinished
   );
 
   const fanqieHook = useFanqiePublisher(
@@ -159,7 +200,9 @@ const AiNovelDashboard: React.FC = () => {
       setAgentNodes: streamHook.setAgentNodes,
       setAgentThoughts: streamHook.setAgentThoughts,
       setCurrentArc: streamHook.setCurrentArc,
-      setCriticReport: streamHook.setCriticReport
+      setCriticReport: streamHook.setCriticReport,
+      onExecutionTraceEvent: handleExecutionTraceEvent,
+      onTraceRunFinished: handleTraceRunFinished
     }
   );
 
@@ -802,6 +845,10 @@ const AiNovelDashboard: React.FC = () => {
             onDeleteRelationship={modalsHook.handleDeleteRelationship}
             promptLogs={promptLogs}
             setPromptLogs={setPromptLogs}
+            liveTraceStepsById={liveTraceStepsById}
+            activeLiveTraceId={activeLiveTraceId}
+            traceRefreshTick={traceRefreshTick}
+            onClearLiveTrace={handleClearLiveTrace}
             currentArc={streamHook.currentArc}
             agentNodes={streamHook.agentNodes}
             criticReport={streamHook.criticReport}

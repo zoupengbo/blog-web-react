@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { message, Modal, notification } from 'antd';
 import httpService from '../../../common/request';
-import { Novel, NovelOutline, PromptLogItem, StoryArc, CriticReport, AgentNodeState, WildReaderFeedback } from '../types';
+import { Novel, NovelOutline, PromptLogItem, StoryArc, CriticReport, AgentNodeState, WildReaderFeedback, LiveExecutionTraceEvent } from '../types';
 
 export const useAiStreamWriter = (
   selectedNovel: Novel | null,
@@ -10,7 +10,9 @@ export const useAiStreamWriter = (
   setSelectedNovel: React.Dispatch<React.SetStateAction<Novel | null>>,
   loadChapterContent: (novelId: number, chNum: number) => Promise<void>,
   loadNovelToEditor: (novelId: number, targetChapterNum?: number) => Promise<void>,
-  setPromptLogs?: React.Dispatch<React.SetStateAction<PromptLogItem[]>>
+  setPromptLogs?: React.Dispatch<React.SetStateAction<PromptLogItem[]>>,
+  onExecutionTraceEvent?: (evt: LiveExecutionTraceEvent) => void,
+  onTraceRunFinished?: (traceId?: string) => void
 ) => {
   const [activeChapterNum, setActiveChapterNum] = useState<number>(1);
   const [chapterContent, setChapterContent] = useState<string>('');
@@ -178,10 +180,6 @@ export const useAiStreamWriter = (
       setAgentThoughts(useMultiAgent ? [
         { agent: 'system', thought: `🚀 已启动第 ${activeChapterNum} 章多 Agent 协同流水线，正在唤醒总策划 Agent 锁定剧情弧光...`, timestamp: new Date().toLocaleTimeString() }
       ] : []);
-      // 🌟 重新生成该章时，立即在前端清空当前章节的历史 Prompt 轨迹，避免旧记录堆积
-      if (setPromptLogs && activeChapterNum) {
-        setPromptLogs(prev => (prev || []).filter(item => Number(item.chapterNumber) !== Number(activeChapterNum)));
-      }
     }
     setWritingSpeed(0);
     const startTime = Date.now();
@@ -251,6 +249,13 @@ export const useAiStreamWriter = (
           if (trimmed.startsWith('data: ')) {
             try {
               const data = JSON.parse(trimmed.substring(6));
+              if (currentEvent === 'execution_trace' || (data.statusType === 'execution_trace' && data.step)) {
+                if (onExecutionTraceEvent && data.step) {
+                  onExecutionTraceEvent(data);
+                }
+                continue;
+              }
+
               if (data.error) {
                 message.error({
                   content: data.error,
@@ -259,6 +264,7 @@ export const useAiStreamWriter = (
                 });
                 hasStreamError = true;
                 setIsGenerating(false);
+                onTraceRunFinished?.(data.traceId);
                 return;
               }
 
@@ -378,6 +384,7 @@ export const useAiStreamWriter = (
                 if (data.readerFeedback) {
                   setWildReaderFeedback(data.readerFeedback);
                 }
+                onTraceRunFinished?.(data.traceId);
               }
 
               if ((currentEvent === 'chunk' || (!currentEvent && data.text)) && (data.text || data.content)) {
@@ -514,6 +521,7 @@ export const useAiStreamWriter = (
 
       setIsGenerating(false);
       streamReaderRef.current = null;
+      onTraceRunFinished?.();
     } catch (err: any) {
       // 🛡️ 防误报闭环 1：若流在接收到 complete 事件或正文后正常关闭触发了读取器关闭异常，视为成功，绝不报错
       if (isStreamCompletedSuccessfully) {
@@ -534,6 +542,7 @@ export const useAiStreamWriter = (
         });
         setIsGenerating(false);
         streamReaderRef.current = null;
+        onTraceRunFinished?.();
         return;
       }
 
