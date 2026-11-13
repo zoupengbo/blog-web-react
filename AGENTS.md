@@ -55,6 +55,14 @@
   2. **严禁废弃组件与样式滞留**：被新组件或新样式取代的旧代码必须彻底清退，严禁堆积无用代码垃圾；
   3. **自检自测保证清爽**：清理完成后必须运行 `npx tsc --noEmit` 与 `npm run build` 确保代码精炼且 Exit Code 0，方可提交推送。
 
+## 严禁私自调用真实大模型与账号安全防封铁律 (Zero Unauthorized LLM Calls Rule)
+- 任何时候进行功能开发、Bug修复、流程验证、自测巡检或前端调试：
+  1. **必须自动加载并遵循 [zero-unauthorized-llm-calls](file:///Users/zpb/person/blog/new-blog/blog-server/.agents/skills/zero-unauthorized-llm-calls/SKILL.md) 技能**；
+  2. **绝对严禁私自调用大模型**：严禁私自编写或执行任何调用外部大模型 API（包括本地代理 `127.0.0.1:8045`、Google Gemini、OpenAI 或第三方网关）的测试脚本或请求；
+  3. **100% 离线与 Mock 自测**：前端自测必须使用 Mock 数据或离线断言，严格杜绝消耗 Token 与向网关发送并发请求；
+  4. **唯一例外**：只有在用户当前轮次显式明确授权调用时方可执行，默认状态一律保持零外部网络请求与零 Token 消耗；
+  5. **严禁自动重试风暴**：严禁编写无上限静默重试逻辑，遇网络或网关异常立即阻断报错，坚决杜绝打爆网关导致用户账户被风控封号。
+
 
 
 
