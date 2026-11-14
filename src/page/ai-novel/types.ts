@@ -213,3 +213,132 @@ export interface PromptLogItem {
   durationMs?: number;
   createdAt?: string;
 }
+
+export interface ExecutionTracePromptMeta {
+  id: number;
+  stepName?: string;
+  model?: string;
+  temperature?: number;
+  status?: string;
+  durationMs?: number;
+  createdAt?: string;
+}
+
+export interface ExecutionTraceStepMetrics {
+  isProseStep?: boolean;
+  stageLabel?: string;
+  beforeChars?: number | null;
+  afterChars?: number;
+  deltaChars?: number;
+  beforeParagraphs?: number | null;
+  afterParagraphs?: number | null;
+  deltaParagraphs?: number | null;
+  beforeNonWhitespaceChars?: number | null;
+  afterNonWhitespaceChars?: number | null;
+  deltaNonWhitespaceChars?: number | null;
+  modified?: boolean;
+  pendingContentHash?: string | null;
+  persistedContentHash?: string | null;
+  readbackVerified?: boolean;
+  contentHash?: string | null;
+  chapterTitle?: string | null;
+  [key: string]: any;
+}
+
+export interface ExecutionTraceStep {
+  id?: number;
+  traceId: string;
+  stepId: string;
+  parentStepId?: string | null;
+  sequence: number;
+  novelId?: number | null;
+  chapterNumber?: number | null;
+  scopeType?: 'chapter' | 'outline' | 'global' | string;
+  stepKey: string;
+  stepName: string;
+  stepType?: string;
+  status: 'running' | 'success' | 'failed' | 'skipped' | string;
+  promptLogId?: number | null;
+  promptMeta?: ExecutionTracePromptMeta | null;
+  inputSummary?: string | null;
+  outputSummary?: string | null;
+  metrics?: ExecutionTraceStepMetrics | null;
+  errorMessage?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  durationMs?: number;
+}
+
+export interface WordCountTimelineItem {
+  sequence: number;
+  stepId: string;
+  stepKey: string;
+  stepName: string;
+  stepType?: string;
+  stageLabel: string;
+  status: string;
+  beforeChars: number | null;
+  afterChars: number;
+  deltaChars: number;
+  deltaFromPrevStage: number;
+  beforeParagraphs?: number | null;
+  afterParagraphs?: number | null;
+  deltaParagraphs?: number | null;
+  modified: boolean;
+  contentHash?: string | null;
+  durationMs?: number;
+}
+
+export interface ExecutionTraceRunSummary {
+  initialDraftChars: number | null;
+  finalChars: number | null;
+  totalNetDeltaChars: number | null;
+  wordCountTimeline: WordCountTimelineItem[];
+}
+
+export interface ExecutionTraceRun {
+  traceId: string;
+  novelId?: number | null;
+  chapterNumber?: number | null;
+  scopeType?: string;
+  status: 'running' | 'success' | 'failed' | string;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  durationMs: number;
+  stepCount: number;
+  llmCallCount: number;
+  successCount: number;
+  failedCount: number;
+  skippedCount: number;
+  persistedWordCount?: number | null;
+  pendingContentHash?: string | null;
+  persistedContentHash?: string | null;
+  readbackVerified?: boolean;
+  isTruncated?: boolean;
+  persistedChapterTitle?: string | null;
+  maxStepId?: number;
+  summary: ExecutionTraceRunSummary;
+  steps: ExecutionTraceStep[];
+}
+
+export interface ExecutionTraceTruncationInfo {
+  truncated: boolean;
+  runsTruncated: boolean;
+  stepsTruncated: boolean;
+  discoveryScanTruncated?: boolean;
+  truncatedTraceIds: string[];
+  limits?: {
+    maxRuns: number;
+    maxStepsPerTrace: number;
+    maxDiscoverySteps: number;
+    maxTotalSteps: number;
+  };
+}
+
+export interface LiveExecutionTraceEvent {
+  statusType?: string;
+  action?: string;
+  traceId: string;
+  step: ExecutionTraceStep;
+}
+

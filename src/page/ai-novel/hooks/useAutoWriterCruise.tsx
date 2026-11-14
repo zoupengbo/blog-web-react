@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { message, notification, Modal } from 'antd';
 import httpService, { LONG_AI_REQUEST_TIMEOUT_MS } from '../../../common/request';
-import { Novel, NovelOutline, ChapterOutline, PromptLogItem, StoryArc, CriticReport, AgentNodeState } from '../types';
+import { Novel, NovelOutline, ChapterOutline, PromptLogItem, StoryArc, CriticReport, AgentNodeState, LiveExecutionTraceEvent } from '../types';
 
 export interface CruiseStartParams {
   startChapterNum: number;
@@ -18,6 +18,8 @@ export interface CruiseMultiAgentStateHandlers {
   setAgentThoughts?: React.Dispatch<React.SetStateAction<Array<{ agent: string; thought: string; timestamp?: string }>>>;
   setCurrentArc?: React.Dispatch<React.SetStateAction<StoryArc | null>>;
   setCriticReport?: React.Dispatch<React.SetStateAction<CriticReport | null>>;
+  onExecutionTraceEvent?: (evt: LiveExecutionTraceEvent) => void;
+  onTraceRunFinished?: (traceId?: string) => void;
 }
 
 export const useAutoWriterCruise = (
@@ -171,11 +173,6 @@ export const useAutoWriterCruise = (
       ]);
     }
 
-    // 🌟 巡航生成该章节时，先清空前端该章节的历史 Prompt 轨迹
-    if (setPromptLogs && chNum) {
-      setPromptLogs(prev => (prev || []).filter(item => Number(item.chapterNumber) !== Number(chNum)));
-    }
-
     try {
       const response = await fetch('/api/ai-novel/generate-chapter', {
         method: 'POST',
@@ -243,10 +240,18 @@ export const useAutoWriterCruise = (
           try {
             const data = JSON.parse(trimmed.substring(6));
 
+            if (currentEvent === 'execution_trace' || (data.statusType === 'execution_trace' && data.step)) {
+              if (multiAgentState?.onExecutionTraceEvent && data.step) {
+                multiAgentState.onExecutionTraceEvent(data);
+              }
+              return;
+            }
+
             if (currentEvent === 'veto_blocked' || currentEvent === 'error' || data.error || (data.blocked && data.vetoReason)) {
               streamFailed = true;
               failureReason = data.vetoReason || data.error || data.message || '正文生成或审核未通过';
               setCruiseStatusText(`❌ 第 ${chNum} 章: ${failureReason}`);
+              multiAgentState?.onTraceRunFinished?.(data.traceId);
               return;
             }
 
@@ -299,6 +304,7 @@ export const useAutoWriterCruise = (
                 multiAgentState.setCurrentArc(data.arcInfo);
               }
               setCruiseStatusText(`🎉 第 ${chNum} 章撰写与审核已通过，正安全同步数据库...`);
+              multiAgentState?.onTraceRunFinished?.(data.traceId);
               return;
             }
 
